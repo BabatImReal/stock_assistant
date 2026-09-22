@@ -38,7 +38,8 @@ REPORTS = REPO / "data" / "reports"
 # 1.1s ~ 55 requests/minute, just inside the 60/min the registered community
 # tier allows. Unregistered is 20/min and aborts rather than backing off.
 DELAY = 1.1
-MIN_ROWS = 250  # ignore symbols with too little history to be worth repairing
+MIN_ROWS = 500  # ignore symbols with too little history to be worth repairing
+ACTIVE_ONLY = True  # a delisted symbol's missing pre-transfer span cannot be traded
 FIRST_YEAR = 2009  # before this, "started late" is not informative
 
 
@@ -127,11 +128,22 @@ def main() -> None:
 
     # Candidates for class B: a late start, and enough history to be worth it.
     spans["first_dt"] = pd.to_datetime(spans["first"], format="%Y%m%d")
+    # Narrowed deliberately. A first pass over every late-starting symbol spent
+    # 5.5s each on vnstock's internal retries for obscure names it does not
+    # cover, and would have taken hours to answer a question about symbols that
+    # can never be recommended anyway. What matters is the research universe:
+    # still trading, with enough history to be worth repairing.
+    last_overall = spans["last"].max()
+    active = spans.groupby("ticker")["last"].max()
+    active = set(active[active >= last_overall[:6]].index) if ACTIVE_ONLY else None
+
     cand = spans[
         (spans["first_dt"].dt.year >= FIRST_YEAR)
         & (spans["n"] >= MIN_ROWS)
         & (~spans["ticker"].isin(class_a))
     ].copy()
+    if active is not None:
+        cand = cand[cand["ticker"].isin(active)]
     # A symbol's earliest CafeF appearance is what we test against.
     cand = cand.sort_values("first_dt").drop_duplicates("ticker", keep="first")
     print(f"Class B candidates to check against vnstock: {len(cand):,}")

@@ -1,94 +1,69 @@
-# Current state — 2026-09-22 (end of session 02, run 2)
+# Current state — 2026-09-22 (end of session 02, run 4)
 
 ## Phase
-**Phase 3 — free-source probe. COMPLETE, RUN, and committed (`12fa239`).**
-G12 tested and CLOSED. Ben's decisions recorded.
-**Next is the schema and full download plan, to be designed WITH Ben.** Still do
-not bulk-download or design the schema unprompted.
+**Phase 4 — data foundation. Steps 1–3 DONE and committed.**
+Step 4, the **nightly update, is NOT built** — Ben asked to stop and report the
+checks and reconciliation first.
 
 ## What exists
-- `docs/knowledge/pattern-research-knowledge.md` — source of truth. Ben replaced
-  it this session; the new part is §7.5 "Data source decision (2026-09-22)".
-- `CLAUDE.md` — now carries the reconciliation principle and Phase 3 = free
-  sources.
-- `agent-memory/` — 13 knowledge files, 24 decisions, 15 blockers (G1–G15).
-- Code: `src/vnstock_research/data/reconcile.py` (real), the five pipeline
-  modules (still docstrings only), `scripts/probe_free_sources.py`,
-  `tests/test_skeleton.py` + `tests/test_reconcile.py` = **13 tests passing**.
-- Data on disk (git-ignored): `data/raw/cafef/2026-09-21/` ~176 MB,
-  `data/reports/` probe + reconciliation reports.
-- Git: Phase 1 `86bd75d`, Phase 2 `87cac76`. **Session 02 is uncommitted.**
+- `docs/knowledge/pattern-research-knowledge.md` — source of truth.
+- `CLAUDE.md` — carries the reconciliation principle; Phase 3 = free sources.
+- `agent-memory/` — 14 knowledge files including **`data-model.md` (APPROVED)**,
+  34 decisions, blockers G1–G15 (G12, G13, G15 closed or decided).
+- Code: `data/{db,cafef,checks,reconcile}.py`, three migrations,
+  `scripts/{load_history,run_checks,count_exchange_transfers,
+  probe_free_sources,probe_matched_vs_deal}.py`, **18 tests passing**.
+- Database: running, **build 2 promoted to 'good'**.
+- Git: `86bd75d` P1, `87cac76` P2, `12fa239` P3, `29af8dc` G12,
+  `5e7198d` P4 step 1, `d3d722f` P4 steps 2–3. Only run-4 memory is uncommitted.
 
-## What the probe confirmed
-- **CafeF** is a real primary source: HSX back to 2000-07-28, HNX 2001, UPCOM
-  2002 — far past the 2012 window. 474 real HOSE tickers (the other ~2,000 are
-  covered warrants and must be filtered).
-- **Adjusted ÷ unadjusted = the corporate-action factor**, exactly as hoped.
-- **Delisted stocks: partially present** — real history for many, stubs for some.
-- **CafeF vs vnstock: close 87.8%, volume 99.8%** over 16,098 symbol-days,
-  2012→now. FPT/SSI/HPG/ACB are 98.9–100%. VNM's 47.7% is ONE adjustment-policy
-  difference, not corruption.
+## What is in the database (build 2)
+- `bar_raw` **2,839,388 rows**, 1,709 symbols, **2000-07-28 → 2026-09-21**.
+- Research window (2012+): **2,470,680** adjusted bars.
+- `negotiated_volume` 4,228,174 rows (absence = unknown, never zero).
+- `index_bar` 11,456 rows; `trading_day` 18,505 exchange-days; 116 symbols with
+  more than one exchange span.
 
-## What the probe found wrong (all now blockers)
-- **G12 CLOSED** — measured, not assumed: CafeF bulk volume is **matched-only**
-  (20/20 on the largest-deal days, 0/20 for matched+deal). No scraper, no SSI
-  purchase. And the `NN_` files carry the split after all: `<High>` = matched,
-  `<Low>` = negotiated. **This corrects a wrong claim in my Phase 3 report.**
-- **G13 DECIDED** — foreign flow excluded from all signals until a live source
-  exists; recorded as a later layer.
-- **G14 the index file has phantom weekend sessions** — the trading calendar
-  cannot come from it as-is.
-- **G15 DECIDED** — CafeF is canonical for adjustment; the VNM 1.65% gap is a
-  policy difference, not an error.
-- **G1 confirmed unsolved: CafeF does not adjust volume** (adjusted volume ==
-  unadjusted volume on 100% of days).
-- **G4 confirmed real: ACB's pre-2020 HNX history is in no CafeF bulk file.**
+## Checks: all blocking checks PASS. Warnings that are real and known:
+- 120 factors > 1 on **one** symbol (GGG), all pre-2012 — outside the window.
+- 68 symbols whose latest factor ≠ 1.
+- 4,028 exchange-days with < 20 symbols traded.
+- 8,213 symbol-days since 2012 move beyond the price limit with no factor
+  change — candidates for unadjusted corporate actions.
+- 1,136 symbols missing > 20 sessions inside their listed range.
+- 11,973 bars rejected at load with a close outside their own high-low range
+  (6,160 of them since 2012) — a CafeF defect present in every year.
 
-## Traps to remember about the sources
-- vnstock's 8-year cap is **stateful**: one long request silently truncates every
-  later call in the process. Fetch in 4-year chunks; never make a long request
-  first. The wrong answer looks entirely plausible.
-- Unregistered vnstock is **20 req/min**, not 60. It aborts rather than backs off.
-- CafeF CSVs have a UTF-8 BOM and AmiBroker `<Header>` names that mean nothing in
-  the CC_/NN_ files.
+## Reconciliation (build 2, 10 symbols, 2012 → now, 34,314 days)
+- **close 86.67%**, **volume 98.74%**.
+- 2020 onwards is 99.7–100% every year. 2012–2014 is 65–69%.
+- The gap is **three symbols with a constant-ratio adjustment-policy
+  difference** — VNM ~0.9835, MBB ~1.08, PNJ ~1.031 — all ending January 2022.
+  The other seven symbols are 98.9–100%.
 
-## Decisions Ben has made (session 02, run 2)
-- Store **everything from 2000**; the research window stays **2012 → now**.
-- **CafeF canonical** for adjustment; the VNM divergence is a policy difference.
-- **Foreign flow excluded** from all signals until a live source is confirmed.
-- Download-plan recommendations **1–6 accepted**.
-- **Register the free vnstock key** before the G4 backfill; Ben adds
-  `VNSTOCK_API_KEY` to `.env`.
-- **G12 tested before choosing** — and it closed.
+## In progress
+- `scripts/count_exchange_transfers.py` running in the background: the exact
+  class-B count (symbols whose pre-transfer history CafeF dropped). Class A
+  (CafeF kept both spans, needs stitching only) is already known: **116**.
 
 ## Next steps
-1. Ben reviews the G12 result.
-2. **Schema and full download plan, designed together.** Nothing on the data
-   side blocks it now: G1 (we compute the volume factor ourselves), G4 (vnstock
-   backfill for exchange transfers) and G14 (calendar from stock rows) all have
-   agreed approaches.
-3. Then the download itself, then features.
+1. Ben reviews the checks and reconciliation.
+2. **Phase 4 step 4: the nightly update** (daily files are ~55 KB, not 176 MB).
+3. Then the G4 backfill, then features.
 
-## Parked, not forgotten
-- **TypeSafe / Jev** for the later news-veto worker — see "Tools to evaluate
-  later" in `knowledge/open-questions.md`.
-- **SSI FastConnect** — paused, notes kept in `knowledge/data-sources.md`. Its
-  main advantage (the matched/negotiated split) is no longer a reason to buy it:
-  CafeF has that. Foreign flow is now the only thing it clearly offers that the
-  free sources do not.
+## Open problems
+- Blockers G1, G4, G14 have agreed approaches and are partly implemented; G11
+  (survivorship) stands as partial; G5, G9, G10 remain untouched and are about
+  research method, not data.
+- 8,213 price-limit violations without a factor change have not been explained.
 
 ## Blockers
-- Nothing on the data side. What remains is Ben's input on the schema.
-- **Broker-friend elicitation session** (doc §11.2) still has not happened. It
-  is the real source of edge.
-- Ben's four original questions (holding period, minimum liquidity, risk
-  tolerance, whether a daily pick is expected) — parameters cannot be fixed
-  before they are answered (blocker G10).
+- Nothing on the data side.
+- **Broker-friend elicitation** (doc §11.2) still has not happened.
+- Ben's four questions (holding period, minimum liquidity, risk tolerance,
+  daily-pick expectation) — G10, still blocking parameter fixing.
 
 ## Reading order for the next session
-1. This file.
-2. `knowledge/00-index.md`.
-3. Only the knowledge files the task needs — for data work that is
-   `data-sources.md` and the G-blockers in `open-questions.md`.
-4. Only the code files the task touches, found via `knowledge/code-map.md`.
-   Never scan the repo.
+1. This file. 2. `knowledge/00-index.md`. 3. Only the knowledge files needed —
+for data work that is `data-model.md`, `data-sources.md` and the G-blockers in
+`open-questions.md`. 4. Only the code files the task touches, via `code-map.md`.
