@@ -62,26 +62,49 @@ def limit_sql() -> str:
 
 
 def tick_sql(price_col: str) -> str:
-    """SQL for the tick size at a given price, in thousands of VND.
+    """SQL for the tick size at a given price AND date, in thousands of VND.
 
-    A percentage limit is the wrong test on a cheap stock: at a 10 VND tick a
-    share trading at 600 VND moves 1.7% per tick, and at a 100 VND tick on HNX
-    it moves 16.7%. Every limit comparison therefore allows the limit PLUS one
-    tick, which removes the whole artefact instead of excusing it with a fudge
-    factor.
+    Date matters as much as price. HOSE cut its steps on 2016-09-12: before
+    that a share under 50,000 VND moved in 100 VND jumps, so at 600 VND one
+    tick was 16.7 percent of the price. A percentage limit check that ignores
+    this reports thousands of phantom violations on cheap stocks in the early
+    years -- which is exactly what the first version of this check did.
     """
-    rules = yaml.safe_load(MARKET_RULES.read_text())["tick_size"]
+    regimes = yaml.safe_load(MARKET_RULES.read_text())["tick_size"]
     cases = []
-    for exchange, bands in rules.items():
-        for band in bands:
-            if band["under"] is None:
-                cases.append(f"WHEN exchange = '{exchange}' THEN {band['tick']}")
-            else:
-                cases.append(
-                    f"WHEN exchange = '{exchange}' AND {price_col} < "
-                    f"{band['under']} THEN {band['tick']}"
+    for exchange, periods in regimes.items():
+        # Latest regime first so the first matching WHEN wins.
+        for regime in sorted(periods, key=lambda r: r["from"], reverse=True):
+            for band in regime["bands"]:
+                cond = (
+                    f"exchange = '{exchange}' AND trade_date >= "
+                    f"DATE '{regime['from']}'"
                 )
+                if band["under"] is not None:
+                    cond += f" AND {price_col} < {band['under']}"
+                cases.append(f"WHEN {cond} THEN {band['tick']}")
     return "CASE " + " ".join(cases) + " ELSE 0.1 END"
+
+
+def first_day_limit_sql() -> str:
+    """The wider band that applies on a first trading day or a resumption.
+
+    Not a violation, a different rule: a newly listed share may move 20 percent
+    on HOSE, 30 on HNX and 40 on UPCoM, and a security resuming after a long
+    suspension comes back under the same band.
+    """
+    rules = yaml.safe_load(MARKET_RULES.read_text())["first_day_limits"]
+    cases = [
+        f"WHEN exchange = '{ex}' THEN {value}"
+        for ex, value in rules.items()
+        if ex != "resumption_after_sessions"
+    ]
+    return "CASE " + " ".join(cases) + " ELSE 0.20 END"
+
+
+def resumption_sessions() -> int:
+    rules = yaml.safe_load(MARKET_RULES.read_text())["first_day_limits"]
+    return int(rules["resumption_after_sessions"])
 
 
 def _one(cur, sql: str, params: tuple = ()) -> tuple:
@@ -273,7 +296,9 @@ def run_all(conn, build_id: int) -> list[Check]:
                        lag(r.close) OVER w AS prev_close,
                        r.close / lag(r.close) OVER w - 1 AS move,
                        f.factor,
-                       lag(f.factor) OVER w AS prev_factor
+                       lag(f.factor) OVER w AS prev_factor,
+                       row_number() OVER w AS n,
+                       lag(r.trade_date) OVER w AS prev_date
                 FROM bar_raw r
                 JOIN adjustment_factor f
                   ON f.symbol = r.symbol AND f.trade_date = r.trade_date
@@ -294,7 +319,19 @@ def run_all(conn, build_id: int) -> list[Check]:
             )
             SELECT count(*) FROM moves
             WHERE move IS NOT NULL AND prev_close > 0
-              AND abs(move) > ({limit_sql()}) + ({tick_sql("prev_close")}) / prev_close
+              -- A first trading day and a resumption after a long suspension
+              -- come under a WIDER band (20/30/40 percent), so they are not
+              -- violations at all -- they are a different rule. 35 calendar
+              -- days stands in for the 25-session threshold; the calendar
+              -- table could give the exact count, but the classes either side
+              -- of this boundary are already separated in the investigation.
+              AND abs(move) > CASE
+                    WHEN n <= 2
+                      OR prev_date < trade_date - INTERVAL '35 days'
+                    THEN ({first_day_limit_sql()})
+                    ELSE ({limit_sql()})
+                  END
+                  + ({tick_sql("prev_close")}) / prev_close
               AND abs(factor - prev_factor) < 0.000001
             """,
             (build_id,),

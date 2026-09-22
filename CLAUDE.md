@@ -68,6 +68,9 @@ End of every run, before replying to Ben:
   - Update code-map.md if any file was added, repurposed or removed.
   - Update decisions.md / open-questions.md if relevant.
   - Update the matching knowledge file if you learned something new.
+  - CURRENT_STATE.md is rewritten from scratch every run, never appended or
+    patched. Before finishing a run, re-read it and check every number against
+    the database or git.
 
 Honesty rule: if a note disagrees with the actual code or data, the code or
 data is correct. Fix the note immediately and log the correction in the run.

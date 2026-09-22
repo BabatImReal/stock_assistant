@@ -1,4 +1,4 @@
-# Data model (Phase 4) — **APPROVED by Ben 2026-09-22**
+# Data model (Phase 4) — **APPROVED and BUILT** (updated 2026-09-22 run 8)
 
 Two ideas everything rests on:
 
@@ -15,8 +15,8 @@ Two ideas everything rests on:
 | --- | --- | --- |
 | `symbol` | `symbol` | 3-letter tickers only. CafeF's HOSE file has 2,535 symbols but only 474 are stocks; the rest are covered warrants. Without this filter every base rate is 4× too big. Listing/delisting dates come from observed data. |
 | `symbol_exchange` | `symbol, valid_from` | Exchange is a *period*, not a field (blocker G4). Also identifies which symbols need the backfill. |
-| `bar_raw` | `symbol, trade_date` | **The permanent record.** Unadjusted OHLC + matched volume, append-only, with `source`/`source_file` provenance. Rebuilds everything else. |
-| `adjustment_factor` | `symbol, trade_date, build_id` | adjusted close ÷ unadjusted close — CafeF publishes both files, and their ratio *is* the corporate-action factor. |
+| `bar_raw` | `symbol, trade_date` | **The permanent record.** Unadjusted OHLC + matched volume, append-only, with `source`/`source_file` provenance. **`is_adjusted_source`** marks a vnstock backfill (already adjusted → no factor derivable → volume not adjustable). **`date_shifted`** marks a bar the source dated on a non-trading day that we moved back one business day; each is verified against vnstock and research excludes them by default. |
+| `adjustment_factor` | `symbol, trade_date, build_id` | adjusted close ÷ unadjusted close — CafeF publishes both files, and their ratio *is* the corporate-action factor. **`source`** is `cafef`, `inferred` (we derived it for an action CafeF missed) or `vnstock` (a backfilled span, factor = 1 because the price is already adjusted). |
 | `bar_adjusted` | `symbol, trade_date, build_id` | Rebuildable. Price × factor, **volume ÷ factor** (blocker G1 — CafeF adjusts price but not volume, verified identical on 100% of days). |
 | `negotiated_volume` | `symbol, trade_date` | From `NN_<Low>`. A row with 0 = CafeF said no block trade; **no row = unknown**. Coverage 97–100% (2012–2020) but 46% (2024). |
 | `trading_day` | `trade_date, exchange` | Built from stock rows, never the index (blocker G14 — the index file has rows on Saturday 2026-02-07 and Sunday 2026-03-08). `symbols_traded` makes a half-dead session visible. |
@@ -24,6 +24,8 @@ Two ideas everything rests on:
 | `reconciliation_run` | `run_id` | when, sources, range, tolerances, match rate, pass/fail. |
 | `reconciliation_mismatch` | `run_id, symbol, trade_date, column` | both values, relative difference, **and the ratio** — a constant ratio is a policy difference, scattered is corruption. |
 | `research_result` | `result_id` | **Every research result records the `build_id` it was measured on** (Ben, 2026-09-22), so any number can be reproduced later. |
+| `excluded_window` | `symbol, valid_from, reason` | Spans research must skip. Data is never deleted — the raw bars remain — but no feature, pattern or forward return may be computed on a day inside one. Written where a missed corporate action could not be repaired. The span is **longest feature lookback after the event, longest forward window before it** (currently 60 and 6 sessions), because a lookback contaminates days *after* an event and a forward return contaminates days *before* it. |
+| `quality_check` | `check_id` | One row per check per run, with severity and the observed value. |
 
 Built-in correctness check: **traded value is invariant under adjustment** —
 `adj_close × adj_volume` must equal `raw_close × raw_volume`, because the factor
@@ -95,6 +97,25 @@ exists (100% expected — a drop means the format changed).
 Cross-source: reconciliation passes its thresholds **sampled across every year**;
 a constant-ratio divergence is recorded as policy, scattered divergence fails.
 Universe: 3-letter tickers only.
+
+## Corporate actions CafeF missed
+A price gapping beyond the daily limit with no factor change is either a real
+move or an unadjusted corporate action. The second source settles it. Where the
+implied factor `(1 + our move) / (1 + reference move)` lands within 1% of a round
+stock-dividend ratio **and** traded volume moved to match, the factor is
+**inferred** and written to every earlier day for that symbol under a new build;
+`bar_raw` is untouched. Where it cannot be inferred, an `excluded_window` is
+written instead. The volume half of the test only discriminates for large
+ratios, so the repair rate is low by construction, not by accident.
+
+## The price-limit check
+Compares against **the limit in force on that date plus one tick**, both from
+`config/rules/market_rules.yaml`, and applies the **wider first-day/resumption
+band** where it applies. Today's limits and today's tick sizes would both be
+wrong for the early window: HOSE widened its limit on 2013-01-15 and cut its
+tick sizes on 2016-09-12. Already-adjusted (backfilled) rows are skipped
+entirely — the test's premise cannot hold for a series with the gaps removed by
+construction.
 
 Related: [[data-sources]] [[money-flow]] [[validation]] [[decisions]]
 [[open-questions]]

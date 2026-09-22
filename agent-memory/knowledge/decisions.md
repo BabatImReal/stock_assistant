@@ -9,14 +9,14 @@ Format: Date | Decision | Reason | Rejected alternatives
 | 2026-09-22 (from doc) | History window **2012 → now**, daily/weekly/monthly | Broker friend studied from ~2010; 2012 skips the most distorted post-crisis years | 2010 start; shorter 5-year window |
 | 2026-09-22 (from doc) | **EOD daily data first**; real-time streaming layer deferred | A 3–5 day horizon does not need intraday; minute data is ~200× larger | building the streaming pipeline first |
 | 2026-09-22 (from doc §11.5) | **No message broker**; go direct, Redis pub/sub as a seam later | Avoids infrastructure the current scope does not need | Kafka/RabbitMQ from the v0.1 brief |
-| 2026-09-22 (from doc) | Stack: SSI FastConnect → PostgreSQL + TimescaleDB, ~$6/month hosting, Telegram + web report | Carried over from the v0.1 platform brief as the data foundation | other data vendors (kept as backup if SSI history is short) |
+| ~~2026-09-22 (from doc)~~ **SUPERSEDED** → see "SSI paused; CafeF primary" below | Stack: SSI FastConnect → PostgreSQL + TimescaleDB, ~$6/month hosting, Telegram + web report | Carried over from the v0.1 platform brief as the data foundation | other data vendors (kept as backup if SSI history is short) |
 | 2026-09-22 (from doc §4.3) | Money flow uses **matched volume only** | Negotiated block deals are not market demand and would fake accumulation | using total reported volume |
 | 2026-09-22 (from doc §7.1) | Per-stock statistics with **stock → group → market** fallback | Most patterns fire only a few dozen times per stock in 15 years | global statistics only |
 | 2026-09-22 (from doc §8.2) | Discover / validate / untouched-holdout split + walk-forward + paper trading before any real money | Tens of thousands of combinations guarantee lucky-looking results | single backtest over all history |
 | 2026-09-22 (from doc §3.5) | Pattern thresholds fixed at textbook values first, stored as **config not code** | Choosing thresholds that look best on history is the classic self-deception | tuning parameters during discovery |
 | 2026-09-22 (from doc §7.3) | "No recommendation today" is a valid output | A tool forced to pick daily will invent bad picks | always produce a top-ranked stock |
 | 2026-09-22 (from doc §9.2) | Build the **deterministic pipeline first**, add agents only where judgement is needed | Most of the pipeline is a fixed sequence; agents earn their place at news, conflict and Q&A | multi-agent framework from day one |
-| 2026-09-22 (session 01) | Phase 3 probes SSI **before** any schema design | Docs and real payloads often differ; a schema built on assumed field names would have to be rebuilt | designing the schema from the doc's §7.5 field list |
+| ~~2026-09-22 (session 01)~~ **SUPERSEDED** → Phase 3 became the free-source probe; see "SSI paused; CafeF primary" below | Phase 3 probes SSI **before** any schema design | Docs and real payloads often differ; a schema built on assumed field names would have to be rebuilt | designing the schema from the doc's §7.5 field list |
 
 Related: [[architecture]] [[validation]] [[open-questions]]
 
@@ -107,3 +107,12 @@ Related: [[architecture]] [[validation]] [[open-questions]]
 | 2026-09-22 | Inferred factors are stored in `adjustment_factor` with `source='inferred'`; **`bar_raw` is never touched** | Raw stays the permanent record. An inferred factor is a derivation, and derivations are rebuildable and labelled | writing corrected prices into bar_raw |
 | 2026-09-22 | The exclusion window is **longest feature lookback + longest forward window**, and the lookback floor is **60 sessions** | `config/rules/patterns.yaml` currently tops out at 20, but the doc's context measures (50-day average §5.1, 60-day support/resistance §5.2) are not in config yet. 60 is the honest floor until they are | ±6 days, which covers only the pattern itself |
 | 2026-09-22 | **Backfill the 47 liquid Class B symbols only**; skip the 204 illiquid ones | The illiquid ones cannot be recommended, so their missing pre-transfer years cost nothing and would cost ~3 hours of a free service's rate limit | backfilling all 251 |
+
+## Session 02 run 8
+
+| Date | Decision | Reason | Rejected |
+| --- | --- | --- | --- |
+| 2026-09-22 | Tick sizes carry **effective dates**; HOSE cut 100/500/1,000 VND to 10/50/100 on **2016-09-12** (verified) | Before that a share under 50,000 VND moved in 100 VND steps, so at 600 VND one tick was 16.7 percent. A percentage limit check that ignores the regime in force reports phantom violations across the early years | one tick table for all history |
+| 2026-09-22 | **First-day and resumption bands** (HOSE 20 / HNX 30 / UPCoM 40 percent, resumption after 25 sessions) are applied inside the price-limit check | A newly listed or resuming security is not violating a limit, it is under a different one. This removed 1,188 of the remaining violations | classifying them after the fact only |
+| 2026-09-22 | Settlement history recorded as T+3 → T+2 from 2016-01-01 but **marked unverified** | Ben's belief matches the common account and Circular 203/2015/TT-BTC, but I could not confirm the effective date from a primary source this session. It must be checked before any backtest depends on it | writing the date as fact |
+| 2026-09-22 | `CURRENT_STATE.md` is **rewritten from scratch every run**, with every number re-checked against the database or git | It had been patched incrementally and had begun to drift from the data | appending and patching |

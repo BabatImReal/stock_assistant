@@ -7,8 +7,8 @@
 - [ ] Risk tolerance — what losing streak / drawdown is acceptable in paper
       trading?
 - [ ] Is "no pick today" acceptable on most days, or is a daily pick expected?
-- [ ] SSI FastConnect credentials — registration must be done in person
-      (doc §11.4 step 2). Blocks Phase 3.
+- [x] ~~SSI FastConnect credentials~~ — **SUPERSEDED 2026-09-22.** SSI is
+      paused (cost); the project runs on CafeF + vnstock. See [[data-sources]].
 - [ ] One pick per day: does it interact with what Ben already holds, or is
       each day independent? The doc never mentions portfolio state.
 
@@ -35,7 +35,14 @@ Every item below was found by reading the source document in session 01. Each
 one changes what a number *means*, so measuring before they are settled would
 produce statistics that look fine and are wrong. Confirmed by Ben 2026-09-22.
 
-### G1 — Volume is never adjusted alongside price
+### G1 — IMPLEMENTED 2026-09-22: volume is adjusted by the inverse factor
+`bar_adjusted.matched_volume = raw_volume / factor`, and the
+**traded-value invariant** check proves it on every row: adjusted close ×
+adjusted volume must equal raw close × raw volume. It currently passes on all
+2.88M rows. Backfilled spans cannot be adjusted (no factor derivable) and carry
+`volume_is_adjustable = false`.
+
+Original finding, kept for context:
 Doc §7.5 adjusts OHLC by the ratio *adjusted close ÷ close* for stock dividends
 and rights, but says nothing about volume. Volume must be adjusted by the
 inverse ratio or RVOL, sustained volume and every other measure in
@@ -43,23 +50,59 @@ inverse ratio or RVOL, sustained volume and every other measure in
 dividends constantly. **Resolve:** decide and document the volume adjustment
 rule; verify against a known 2:1 stock-dividend case in the probe data.
 
-### G2 — Adjusted close probably drifts on every update
-If SSI re-states its adjusted close after each new corporate action, then stored
-history silently shifts on every nightly update, and yesterday's fingerprints no
-longer match today's. **Resolve:** the Phase 3 probe must fetch the same old
-date twice, before and after a known recent event, and compare. Then choose:
-store raw + our own adjustment factors and recompute, or re-download and
-recompute history on each event.
+### G2 — Restatement detection (rewritten for CafeF, 2026-09-22)
+The original worry was SSI re-stating its adjusted close. It now applies to
+CafeF, and the answer is partly built: the factor is derived from CafeF's
+adjusted/unadjusted pair, so when CafeF applies a new corporate action every
+past factor for that symbol changes, and `bar_adjusted` must be rebuilt under a
+new `build_id`.
 
-### G3 — Forward returns as defined are not tradeable
-Doc §2 measures 3 and 5 days forward **from the signal day *t***. But entry is
-day *t+1* at the earliest (no look-ahead, doc §8.1) and T+2 settlement means the
-earliest realistic sell is ~*t+3* ([[context-vietnam]] §5.6). These are two
-different numbers and only one is achievable. **Resolve:** fix a single
-definition — proposed: signal at *t* close → entry at *t+1* open → measure
-returns at *t+1+k* for k = 3, 5 — before any statistic is computed.
+**Still open, and it is the nightly job's core loop:** compare the newly
+computed factor series against the stored one, treat any change on a past day as
+a restatement, and rebuild rather than patch. The machinery exists
+(`adjustment_build`, versioned `adjustment_factor`, `research_result.build_id`);
+the detection does not. **Resolve when step 4 is built.** Note the
+suspension-resumption trap below — a resuming symbol's whole series can shift at
+once and look like a mass restatement.
 
-### G4 — Corporate identity changes break history
+### G3 — Forward returns: DEFINITION PROPOSED 2026-09-22, awaiting Ben
+The document measures 3 and 5 days forward **from the signal day t**. That is
+not a number anyone can trade: entry cannot happen before t+1, and settlement
+means the shares are not sellable immediately.
+
+**Proposed definition (awaiting approval):**
+
+    signal      at the close of day t
+    entry       at the OPEN of day t+1        (first price available after the
+                                               signal; no look-ahead)
+    earliest    t+1 plus the settlement cycle in force on t+1
+    exit        (T+3 before 2016-01-01, T+2 after -- see market_rules.yaml,
+                 currently marked UNVERIFIED)
+    return_k    close(t+1+k) / open(t+1) - 1, for k >= settlement_days
+
+    All days counted as TRADING sessions from the calendar, never calendar days.
+
+Consequences worth stating before approval:
+- The doc's 3-day and 5-day horizons both survive: with T+2, k=3 and k=5 are
+  both sellable. With T+3 (before 2016) k=3 is the earliest possible exit, so
+  pre-2016 results at k=3 sit exactly on the boundary and should be reported
+  separately.
+- Entry at the open, not the close, means the signal day's close is never used
+  as an entry price — the look-ahead trap in doc §8.1.
+- A window may not span a gap in trading (CLAUDE.md) or an `excluded_window`.
+- Price limits still bite: if t+1 opens at the ceiling, the fill is not
+  realistic. **Open question for Ben:** reject such entries, or record them
+  with a flag and report both? I lean towards rejecting, since the funnel can
+  simply pick another day.
+
+### G4 — DONE 2026-09-22: counted, stitched and backfilled
+116 Class A symbols (CafeF kept both spans) — transfer gaps now excused from the
+missing-session count, derived from `symbol_exchange`. 251 Class B symbols
+(pre-transfer history dropped), of which **46 of the 47 liquid ones were
+backfilled** from vnstock: 47,334 bars, ACB recovered 14.1 years. The 204
+illiquid ones are deliberately skipped (see [[decisions]]).
+
+Original finding, kept for context:
 Ticker changes, mergers and HNX↔HOSE transfers are not mentioned anywhere in the
 document, yet each one splits or merges a stock's history. A pattern measured
 across such a break is measuring two different companies. **Resolve:** get a
@@ -75,11 +118,10 @@ unguarded surface in the project. **Resolve:** write the analog search's
 parameters and their defences into [[validation]] before the first analog is
 computed.
 
-### G6 — Whole-market paging cap shapes the download
-DailyStockPrice pages at most 10 × 1,000 rows, so one whole-market range request
-returns ~6 trading days at ~1,600 codes. **Resolve:** confirm in the probe, then
-choose the download loop (per-day whole-market vs per-symbol full-range) from
-the measured limit, not from the doc.
+### G6 — CLOSED 2026-09-22: no longer applies
+The paging cap was an SSI API constraint. CafeF publishes the whole market as
+bulk files — one 176 MB download for all history, ~55 KB nightly — so there is
+no paging at all. Re-opens only if the project ever returns to an API.
 
 ### G7 — Market regime: filter or reported dimension?
 Stated both ways: a funnel filter in doc §7.2 step 3 ("if the whole market is
@@ -89,7 +131,11 @@ different designs and the second is strictly more informative. **Resolve:** pick
 one with Ben; recommend measuring as a dimension and only then deciding whether
 it should also filter.
 
-### G8 — 2010 vs 2012 start
+### G8 — SETTLED 2026-09-22: store from 2000, measure from 2012
+Ben's decision. CafeF gives HSX from 2000-07-28 at no extra cost, so the raw
+years are kept and the research window can widen later without a re-download.
+
+Original finding, kept for context:
 Doc §7.5 says "full history is a must — the friend studied every stock from
 2010" and then sets the window at 2012. **Resolve:** confirm 2012 is final
 (it is currently recorded as a decision in [[decisions]]), or extend and treat
@@ -155,7 +201,14 @@ populated on ~95% of days through 2024 and have been **all-zero since January
 on a series that stops dead mid-history — a backtest would look fine and the live
 scan would silently see zeros.
 
-### G14 — The index file contains phantom weekend sessions
+### G14 — IMPLEMENTED 2026-09-22: calendar comes from stock rows
+`trading_day` is built from `bar_raw`, never the index, and weekend index rows
+are rejected at parse time. A related defect turned up while implementing it:
+CafeF also dates whole STOCK sessions late (214 HNX bars on Saturday
+2023-08-26 are Friday's session). Those are moved back when the target date is
+free, verified against vnstock, and flagged `date_shifted`.
+
+Original finding, kept for context:
 **Found by the probe.** VNINDEX has rows dated Saturday 2026-02-07 and Sunday
 2026-03-08, with plausible values, on which no stock traded; 7 stock rows fall on
 weekends too (2016–2017). Using the index as the trading calendar therefore
@@ -177,11 +230,22 @@ adjusted ÷ unadjusted pair also yields the volume factor G1 needs), and treat a
 constant-ratio divergence as an adjustment-policy difference rather than an
 error — reconcile.py already surfaces it as a median ratio.
 
-### G11 — Survivorship bias may be unmeetable
-[[validation]] requires delisted stocks in history; [[data-sources]] records
-their coverage as unconfirmed. If SSI does not have them, the defence cannot be
-met. **Resolve:** probe first; if absent, either find a second source or state
-the bias explicitly in every reported statistic rather than ignoring it.
+### G11 — Survivorship bias: PARTLY MET, rewritten for CafeF (2026-09-22)
+Not unmeetable, but not fully met either. Measured, not assumed:
+
+- Delisted symbols **are** present: 82 HSX, 71 HNX, 309 UPCOM 3-letter symbols
+  stopped trading before 2026, many with real history (RDP 3,554 rows to
+  2024-11, GMC 4,321 rows to 2025-01).
+- Coverage is uneven: 37 of the 82 HSX ones have under 50 rows, and 11 have a
+  **single stub row** dated 2015-09-01.
+- The exchange-transfer backfill improved matters for 46 liquid symbols, but it
+  was deliberately limited to liquid names, so 204 illiquid Class B symbols
+  still start late.
+
+**Resolve:** state the residual bias in every reported statistic rather than
+claiming it is handled, and re-check whether a delisted stock's final months are
+present (a collapse that stops being recorded is the exact case this defends
+against).
 
 ## Technical / factual, to resolve with data (not opinion)
 These are not blockers; the blockers are in the section above.
