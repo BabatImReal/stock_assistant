@@ -50,7 +50,26 @@ inverse ratio or RVOL, sustained volume and every other measure in
 dividends constantly. **Resolve:** decide and document the volume adjustment
 rule; verify against a known 2:1 stock-dividend case in the probe data.
 
-### G2 — Restatement detection (rewritten for CafeF, 2026-09-22)
+### G2 — Restatement detection: NOT IMPLEMENTED (verified in code 2026-09-22)
+**Status checked against the source, not assumed.**
+`scripts/nightly_update.py:248` contains `restated = False` with the comment
+"today's own rows are new, so nothing to compare yet", and line 250 logs
+`restatement detected: {restated}`. The job therefore **reports a check it does
+not perform**. It computes factors for the new session's rows only; it never
+re-derives past factors from the fresh CafeF files, and never diffs them
+against the stored series.
+
+Consequence: when CafeF applies a new corporate action, every past factor for
+that symbol changes in the source and **nothing notices**. The adjusted series
+goes stale and research keeps reading it. The misleading log line should go at
+the same time as the fix — a log that claims a check ran is worse than no log.
+
+The surrounding machinery already exists (versioned `adjustment_factor`,
+`adjustment_build`, `research_result.build_id`, and a rebuild path proven by
+`repair_missed_actions.py`). What is missing is the comparison and the trigger.
+
+Original framing, kept for context:
+
 The original worry was SSI re-stating its adjusted close. It now applies to
 CafeF, and the answer is partly built: the factor is derived from CafeF's
 adjusted/unadjusted pair, so when CafeF applies a new corporate action every
@@ -311,6 +330,44 @@ Phase 2 environment is fully verified. Nothing outstanding here.
 - [ ] Price limits and tick sizes in `config/rules/market_rules.yaml` are
       **unconfirmed** — the doc says to re-confirm against the exchanges
       (doc §5.6). They currently affect data-quality counts only, not backtests.
+
+## For the backtest step — recorded 2026-09-22, DO NOT act on these yet
+
+These are review findings about work already done. They belong to the backtest
+step, not to features, and are written down so they are not rediscovered late or
+assumed handled.
+
+### B1 — Two different price-limit definitions exist in the codebase
+`data/checks.py` computes the limit properly: the **limit in force on that date
+plus one tick**, with the wider **first-day / resumption bands** applied. But
+`scripts/measure_fillability.py` and
+`backtest/forward_returns.is_at_ceiling` / `is_at_floor` use a plain
+`prev_close × (1 ± limit)` with a flat 1.5 VND tolerance — **no tick rounding
+and no first-day band**.
+
+The exchange rounds the ceiling *down* to the tick, and 1.5 VND is smaller than
+one tick on every exchange, so genuine ceiling and floor bars on higher-priced
+stocks are **under-detected**. The measured fillability rates (0.133% of liquid
+bars rejected at entry, 0.342% deferred at exit) are therefore **approximate
+and slight undercounts** — the direction of the error is known, which is why
+they are still usable as an order-of-magnitude answer.
+
+**When the backtest applies fillability per trade it must reuse `checks.py`'s
+tick- and first-day-aware logic, not the simplified helper.** Consider
+consolidating both onto one shared limit function so the two cannot drift again.
+
+### B2 — The return generator is not written
+`backtest/forward_returns.py` is **primitives only**: `earliest_sell_offset`,
+`valid_horizons`, `net_return`, `is_at_ceiling`, `is_at_floor`, `load_costs`.
+
+Not yet written, and not to be assumed done:
+- computing `return_k` over the adjusted series for real bars,
+- deferring an exit onto the next session that does not close at the floor,
+  with the 5-session cap and the flag,
+- enforcing the CLAUDE.md rule that **no pattern window or forward-return
+  window may span a gap in trading**, including the `excluded_window` spans.
+
+All three belong to the backtest step.
 
 ## Tools to evaluate later
 
