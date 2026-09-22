@@ -152,3 +152,15 @@ Related: [[architecture]] [[validation]] [[open-questions]]
 | 2026-09-22 | **A pivot within `pivot_k` rows of today is not counted** | Confirming a pivot needs rows on both sides; one whose confirmation window is still open would be look-ahead. Proven by removal — the test fails without the filter | using every pivot in the window |
 | 2026-09-22 | Trend measures declare `needs=("close",)` and so remain available on **backfilled spans** | This is the price-yes / volume-no decision working in both directions, driven by the declared `needs` rather than by anyone remembering it. Tested explicitly | applying the volume guard to everything |
 | 2026-09-22 | `tests/` is now a package with a shared `_helpers.frame` | Both feature suites must test against the SAME synthetic frame; if they drifted, a guard could pass in one suite and be silently untested in the other | duplicating the helper |
+
+## Session 03 — features slice 3 (doc §5.3 market regime)
+
+| Date | Decision | Reason | Rejected |
+| --- | --- | --- | --- |
+| 2026-09-22 | **`near_support`/`near_resistance` lookback is `lookback_days - 1 + pivot_k`** | The pivot at the window's left edge is itself confirmed by reading `pivot_k` rows further back, which sat OUTSIDE the guarded window. A gap in that margin escaped `_window_ok`, so shipped code could fire on a level confirmed across a suspension — a no-gap-rule violation. Found by Ben; proven by a test that fails with the old declaration | the under-declared `lookback_days - 1` |
+| 2026-09-22 | **Separate `MARKET_REGISTRY` and `@market_measure`** | Market measures read one calendar-aligned frame, not one symbol's bars, and are computed once per run rather than per symbol. One registry would need a discriminated union at every call site | a `scope` field on a single registry |
+| 2026-09-22 | **A gap in `index_bar` is a DATA DEFECT**: fatal to the window AND reported by the data-quality gate | The index trades every session the market is open, so a missing row means our data is wrong, not that the market paused. Routing around a defect without reporting it is how it becomes permanent. Currently 5 such sessions since 2012 | treating it like a symbol suspension |
+| 2026-09-22 | **Market measures are NaN on a symbol date the index lacks — never forward-filled** | Carrying yesterday's regime forward asserts a market state we have no index for | forward-fill |
+| 2026-09-22 | **Enabling a market measure with no market frame raises** | Silently dropping it would leave a hole exactly where the regime context should be, and nothing downstream could tell | quietly skipping |
+| 2026-09-22 | The FeatureSet fingerprint covers **both registries** | Otherwise two feature sets differing only in a regime parameter would be indistinguishable in any stored output | per-symbol measures only |
+| 2026-09-22 | **Breadth deferred to its own slice** | It needs the point-in-time universe, which also discharges part of G11 and implements the PIT liquid-universe decision — too foundational to ride along | building breadth here |

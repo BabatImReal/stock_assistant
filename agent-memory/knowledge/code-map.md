@@ -64,6 +64,7 @@ All files are `__init__.py` with a docstring only. No functions yet.
 | `features/__init__.py` | Package docstring plus the registry exports; importing it registers the §4.1 measures | `data` |
 | `features/base.py` | **The measure contract.** `Measure`, `REGISTRY`, the `@measure` decorator, `compute()`, `FeatureSet`. Enforces the three guarantees centrally: no look-ahead, no window spans a gap or an excluded row, volume measures NaN on non-adjustable spans. NaN / 0 / no-column are three distinct states | pandas, pyyaml |
 | `features/bars.py` | Loads one symbol's bars from the **current promoted build only**, with `gap_before` in SESSIONS (from `trading_day`) and an `excluded` flag from `excluded_window`. Reads ADJUSTED matched volume so a window spanning a split has a consistent share basis | pandas, `data.db` |
+| `features/market.py` | Market regime from `index_bar` (doc §5.3): loader aligned to the trading calendar, `missing_sessions`, and four measures — index_above_ma_50, index_ma_50_slope, index_change_20d, index_drawdown_from_high. Computed once per run and joined by trade_date | pandas, `features.base` |
 | `features/trend.py` | The ten doc §5.1-5.2 per-symbol measures: ma_20/50, their slopes, price_vs_ma_20/50, price_change_10d/20d, near_support, near_resistance. PRICE only, so they remain available on backfilled spans | pandas, `features.base` |
 | `features/volume.py` | The seven doc §4.1 measures: rvol, sustained_volume, up_down_volume_ratio, price_volume_agreement, price_volume_divergence, traded_value, volume_dry_up. Matched volume only | pandas, `features.base` |
 | `patterns/__init__.py` | Pattern rules as arithmetic on OHLCV (§3). Thresholds from `config/rules/` | `features` |
@@ -94,6 +95,7 @@ All files are `__init__.py` with a docstring only. No functions yet.
 | `config/rules/features.yaml` | Which measures are on and with what parameters — switching one off is a config change, never a code change | — |
 | `scripts/report_features.py` | Occurrence rates and distributions per measure, plus the NaN share and why | pandas, `features` |
 | `tests/_helpers.py` | The shared synthetic-symbol frame, so both feature suites test against the same fixture | — |
+| `tests/test_features_market.py` | 8 tests for §5.3: the join, NaN on a symbol date the index lacks (never forward-filled), an index gap fatal to the window, a loud failure when a market measure is enabled with no market frame, and the fingerprint covering both registries | — |
 | `tests/test_features_trend.py` | 11 tests for §5.1-5.2, including that trend measures STILL compute on a non-adjustable-volume span (the complement of the volume guard) and that support does not count an unconfirmed pivot | — |
 | `tests/test_features_volume.py` | 16 tests: the arithmetic, and failing-without-the-guard tests for both contracts (gap→NaN, non-adjustable volume→NaN), NaN vs 0 vs disabled, and a truncation-based look-ahead test | — |
 | `config/rules/costs.yaml` | Broker fee (provisional) and the 0.1% sale tax | — |

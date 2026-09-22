@@ -331,6 +331,22 @@ Phase 2 environment is fully verified. Nothing outstanding here.
       **unconfirmed** — the doc says to re-confirm against the exchanges
       (doc §5.6). They currently affect data-quality counts only, not backtests.
 
+## Next feature slice — breadth and the point-in-time universe
+
+Deferred from §5.3 deliberately (Ben, 2026-09-22): it is foundational enough to
+deserve its own slice rather than riding in with index regime, because it
+discharges part of **G11** (survivorship) and implements the **point-in-time
+liquid universe** decision at the same time.
+
+- Advancers vs decliners must count only the symbols **actually trading on that
+  date**, not today's listed set. Counting over today's universe is
+  survivorship bias applied backwards.
+- **Direction must be computed on the ADJUSTED close.** On an ex-dividend day
+  the raw price drops by the dividend, and a raw comparison would record a
+  market-wide fake decline on exactly the days most companies pay.
+- The same point-in-time machinery is what the liquid-universe decision needs,
+  so building it once, properly, serves both.
+
 ## For the backtest step — recorded 2026-09-22, DO NOT act on these yet
 
 These are review findings about work already done. They belong to the backtest

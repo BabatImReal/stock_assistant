@@ -147,3 +147,24 @@ def test_support_cannot_see_the_future():
         full["near_support"].iloc[:71], truncated["near_support"],
         check_names=False,
     )
+
+
+def test_a_gap_in_the_pivot_confirmation_margin_returns_nan():
+    """The gap leak Ben found in shipped code.
+
+    `near_support` looks back `lookback_days` rows for levels, but the pivot at
+    that window's LEFT EDGE is itself confirmed by reading `pivot_k` rows
+    further back still. Those rows sit outside the window the guard checks, so a
+    suspension landing in that margin used to pass unnoticed and the measure
+    could fire on a level confirmed across it.
+
+    Row 80 scores a window starting at row 21; the pivot at row 21 reads rows 19
+    and 20. The gap goes at row 20 -- inside the margin, outside the old
+    declaration.
+    """
+    close = [50.0] * 90
+    df = frame(n=90, close=close, gaps=[20])
+    out, _ = compute(df, SUPPORT)
+    assert np.isnan(out["near_support"].iloc[80])
+    # Far enough past the margin, it scores again.
+    assert not np.isnan(out["near_support"].iloc[89])

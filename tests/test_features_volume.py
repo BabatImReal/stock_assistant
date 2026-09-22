@@ -197,6 +197,11 @@ def test_enabling_an_unregistered_measure_fails_loudly():
 
 
 def test_every_configured_measure_is_registered():
-    # The shipped config and the code must not drift apart.
+    # The shipped config and the code must not drift apart -- in EITHER
+    # registry. A measure present in features.yaml and in neither would be
+    # enabled and never computed.
+    from vnstock_research.features import MARKET_REGISTRY
+
+    known = set(REGISTRY) | set(MARKET_REGISTRY)
     for name in base.load_config():
-        assert name in REGISTRY, f"{name} is in features.yaml but not registered"
+        assert name in known, f"{name} is in features.yaml but not registered"

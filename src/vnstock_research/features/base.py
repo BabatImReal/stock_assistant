@@ -57,6 +57,13 @@ class Measure:
 
 REGISTRY: dict[str, Measure] = {}
 
+# Market-level measures live in their own registry because they are a different
+# shape of function: they read ONE market frame aligned to the trading calendar,
+# not one symbol's bars, and they are computed once per run rather than once per
+# symbol. A single registry would need a discriminated union at every call site
+# to say which kind it was holding.
+MARKET_REGISTRY: dict[str, Measure] = {}
+
 
 def measure(
     *,
@@ -84,7 +91,35 @@ def measure(
     return wrap
 
 
+def market_measure(
+    *,
+    name: str,
+    doc_ref: str,
+    kind: str,
+    needs: tuple[str, ...],
+    lookback: Callable[[dict], int],
+) -> Callable:
+    """Register a market-level measure (doc §5.3).
+
+    Same contract as `measure`, different input: the function receives the
+    market frame rather than a symbol's bars. Everything else -- declared
+    lookback, the trailing-window rule, NaN meaning "no signal" -- is shared,
+    and so is `boolean_from` and the FeatureSet fingerprint.
+    """
+
+    def wrap(fn: Callable[[pd.DataFrame, dict], pd.Series]) -> Callable:
+        MARKET_REGISTRY[name] = Measure(
+            name=name, doc_ref=doc_ref, kind=kind, needs=needs,
+            lookback=lookback, fn=fn,
+        )
+        return fn
+
+    return wrap
+
+
 def load_config(path: Path | None = None) -> dict[str, dict]:
+    """The measure block only. Other top-level keys (e.g. which index the
+    regime measures read) are configuration for the loaders, not measures."""
     return yaml.safe_load((path or CONFIG).read_text())["measures"]
 
 
@@ -181,9 +216,55 @@ def _window_ok(bars: pd.DataFrame, lookback: int, needs_volume: bool) -> pd.Seri
     return ok.fillna(False)
 
 
+def _market_window_ok(market: pd.DataFrame, lookback: int) -> pd.Series:
+    """True where a market window of `lookback` prior sessions plus today is usable.
+
+    Simpler than the per-symbol version and stricter about one thing: the index
+    trades every session by definition, so a missing session in `index_bar` is
+    a DATA DEFECT, not a suspension. It is fatal to any window containing it,
+    and `data/checks.py` reports it separately so the defect is visible rather
+    than merely routed around.
+    """
+    n = len(market)
+    if n == 0:
+        return pd.Series(dtype=bool)
+    span = lookback + 1
+    gap = market["gap_before"].fillna(0).to_numpy() > 0
+    if span > 1:
+        inside = (
+            pd.Series(gap, index=market.index)
+            .rolling(span - 1, min_periods=span - 1)
+            .max()
+        )
+        inside = inside.fillna(1.0).astype(bool)
+    else:
+        inside = pd.Series(False, index=market.index)
+    enough = pd.Series(np.arange(n) >= lookback, index=market.index)
+    return (enough & ~inside).fillna(False)
+
+
+def compute_market(
+    market: pd.DataFrame, config: dict[str, dict]
+) -> tuple[pd.DataFrame, dict[str, dict]]:
+    """Run the enabled market measures once, indexed by trade_date."""
+    out = pd.DataFrame(index=market.index)
+    params: dict[str, dict] = {}
+    for name, settings in config.items():
+        if not settings.get("enabled", False):
+            continue
+        m = MARKET_REGISTRY[name]
+        p = {k: v for k, v in settings.items() if k != "enabled"}
+        values = pd.Series(m.fn(market, p), index=market.index).astype("float64")
+        out[name] = values.where(_market_window_ok(market, m.lookback(p)))
+        params[name] = p
+    out["trade_date"] = market["trade_date"].to_numpy()
+    return out, params
+
+
 def compute(
     bars: pd.DataFrame,
     config: dict[str, dict] | None = None,
+    market: pd.DataFrame | None = None,
 ) -> tuple[pd.DataFrame, FeatureSet]:
     """Run every ENABLED measure over one symbol's bars.
 
@@ -197,7 +278,18 @@ def compute(
     ran: list[str] = []
     params: dict[str, dict] = {}
 
+    market_cfg = {k: v for k, v in cfg.items() if k in MARKET_REGISTRY}
+    enabled_market = [k for k, v in market_cfg.items() if v.get("enabled", False)]
+    if enabled_market and market is None:
+        raise ValueError(
+            f"market measures are enabled ({', '.join(sorted(enabled_market))}) "
+            "but no market frame was supplied. Silently dropping them would "
+            "leave a hole where the regime context should be."
+        )
+
     for name, settings in cfg.items():
+        if name in MARKET_REGISTRY:
+            continue
         if not settings.get("enabled", False):
             continue
         m = REGISTRY.get(name)
@@ -216,5 +308,19 @@ def compute(
         out[name] = values
         ran.append(name)
         params[name] = p
+
+    if enabled_market:
+        market_values, market_params = compute_market(market, market_cfg)
+        # Joined on trade_date, and NEVER forward-filled. A symbol day the
+        # market frame does not cover comes back NaN: carrying yesterday's
+        # regime forward would silently assert a market state we have no index
+        # for, which is the quiet kind of wrong the other guards exist to stop.
+        joined = bars[["trade_date"]].merge(
+            market_values, on="trade_date", how="left"
+        )
+        for name in market_params:
+            out[name] = joined[name].to_numpy()
+        ran.extend(market_params)
+        params.update(market_params)
 
     return out, FeatureSet(measures=tuple(ran), params=params)

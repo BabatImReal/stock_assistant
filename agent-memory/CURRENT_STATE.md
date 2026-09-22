@@ -1,14 +1,13 @@
-# Current state — 2026-09-22 (end of session 03, run 3)
+# Current state — 2026-09-22 (end of session 03, run 4)
 
 Rewritten from scratch. Every number below was read from the database, from
 `git log`, or from a test run in this run.
 
 ## Phase
-**Phase 5 — features. Slice 1 (§4.1 volume) and slice 2 (§5.1–5.2 per-symbol
-trend and levels) BUILT — 17 measures.**
-Market-level context (§5.3–5.4 regime, breadth, sector) NOT built: the design
-is proposed and waiting on Ben, because an index series is not a single-symbol
-series and the existing frame and guards do not cover it.
+**Phase 5 — features. Slices 1–3 BUILT: §4.1 volume (7), §5.1–5.2 per-symbol
+trend and levels (10), §5.3 index regime (4) — 21 measures.**
+Next slice: **breadth + the point-in-time universe** (§5.3 remainder), which
+also discharges part of G11. Sector (§5.4) after that.
 
 ## The database — build 5, promoted 'good'
 | | |
@@ -21,24 +20,32 @@ series and the existing frame and guards do not cover it.
 | builds | 1 failed, 2 good, 3 good, 5 good (4 discarded before promotion) |
 
 ## Verified by running it this run
-- `uv run pytest` → **64 passed** (27 of them feature tests).
+- `uv run pytest` → **73 passed** (36 of them feature tests).
 - `uv run ruff check .` → clean.
-- Guards **proven by removal** this run: deleting the `_window_ok` guard fails
+- Guards **proven by removal** this run: restoring the old `near_support`
+  lookback fails the new pivot-margin test; deleting the `_window_ok` guard fails
   exactly the four contract tests; neutering `boolean_from` fails the
   NaN-preservation test; removing the pivot confirmation filter fails the
   look-ahead test. One of my own tests was found passing for the wrong reason
   and was rewritten until it failed without the guard.
 - `scripts/report_features.py 40` → 118,743 stock-days scored across 40
-  liquid symbols, 17 measures, feature set `f4b43e9a3cdca1e3`.
+  liquid symbols, 21 measures including index regime.
+- New data-quality check `index_covers_every_trading_session` → **5 sessions
+  since 2012 have no VNINDEX row** (warn).
 - Git head `0dfe90c`; working tree clean apart from this file.
 
-## Features built — 17 measures
+## Features built — 21 measures
 **§4.1 volume (7), matched volume only:** rvol, sustained_volume,
 up_down_volume_ratio, price_volume_agreement, price_volume_divergence,
 traded_value, volume_dry_up.
 **§5.1–5.2 per-symbol price (10):** ma_20, ma_50, ma_20_slope, ma_50_slope,
 price_vs_ma_20, price_vs_ma_50, price_change_10d, price_change_20d,
 near_support, near_resistance.
+**§5.3 market regime (4), computed once and joined by trade_date:**
+index_above_ma_50 (fires 62.4%), index_ma_50_slope (median 0.004),
+index_change_20d (median 0.012), index_drawdown_from_high (median −0.031).
+A symbol date the index does not cover is NaN, never forward-filled; an index
+gap is treated as a data defect and reported.
 
 Price-only measures remain available on backfilled spans; volume measures do
 not. That split is driven by each measure's declared `needs`, and both
@@ -59,8 +66,8 @@ Observed on 40 liquid symbols since 2012 (118,743 stock-days):
 | ma_20_slope / ma_50_slope | 109,357 / 100,214 | 7.9% / 15.6% | — | 0.002 / 0.003 | 0.045 / 0.061 |
 | price_vs_ma_20 / _50 | 110,806 / 102,728 | 6.7% / 13.5% | — | 0.003 / 0.007 | 0.102 / 0.177 |
 | price_change_10d / 20d | 113,561 / 110,513 | 4.4% / 6.9% | — | 0.003 / 0.006 | 0.133 / 0.202 |
-| **near_support** | 100,214 | 15.6% | **40.25%** | — | — |
-| **near_resistance** | 100,214 | 15.6% | **40.87%** | — | — |
+| **near_support** | 99,718 | 16.0% | **40.29%** | — | — |
+| **near_resistance** | 99,718 | 16.0% | **40.90%** | — | — |
 
 **Flagged, not fixed:** the two level measures fire on ~40% of scored days,
 which is not selective enough to be useful as written. The parameters are the
@@ -109,8 +116,11 @@ Recorded for the **backtest** step, not to be acted on during features:
 
 ## Next steps
 1. Ben confirms his broker fee (affects net returns only).
-2. **Ben approves the market-level design**, then §5.3–5.4: regime from the
-   VN-Index, breadth, sector.
+2. **Breadth + point-in-time universe slice** — counts only symbols trading on
+   each date, direction on ADJUSTED close so ex-dividend days are not fake
+   declines. Discharges part of G11 and implements the PIT liquid-universe
+   decision.
+3. Then sector (§5.4), then patterns (doc §3), then the backtest (B1, B2).
 3. Then patterns (doc §3), then the backtest (which starts by clearing B1
    and B2).
 

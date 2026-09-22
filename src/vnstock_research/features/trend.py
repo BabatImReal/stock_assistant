@@ -176,7 +176,14 @@ def _near_level(
 
 @measure(
     name="near_support", doc_ref="doc §5.2", kind="boolean", needs=("low",),
-    lookback=lambda p: int(p["lookback_days"]) - 1,
+    # lookback_days - 1 + pivot_k, not lookback_days - 1. The pivot at the
+    # window's left edge (j = i - lookback_days + 1) is itself confirmed by
+    # _pivots reading j-pivot_k .. j+pivot_k, so the measure genuinely touches
+    # pivot_k rows BEYOND the level window. Under-declaring it let a trading gap
+    # sitting in that margin escape _window_ok entirely, and the measure could
+    # fire on a level "confirmed" across a suspension -- a straight violation of
+    # the no-gap rule, in shipped code.
+    lookback=lambda p: int(p["lookback_days"]) - 1 + int(p["pivot_k"]),
 )
 def near_support(bars: pd.DataFrame, p: dict) -> pd.Series:
     """Today's low sits on a level that has stopped falls at least twice."""
@@ -186,7 +193,7 @@ def near_support(bars: pd.DataFrame, p: dict) -> pd.Series:
 
 @measure(
     name="near_resistance", doc_ref="doc §5.2", kind="boolean", needs=("high",),
-    lookback=lambda p: int(p["lookback_days"]) - 1,
+    lookback=lambda p: int(p["lookback_days"]) - 1 + int(p["pivot_k"]),
 )
 def near_resistance(bars: pd.DataFrame, p: dict) -> pd.Series:
     """Today's high sits on a level that has capped rises at least twice."""

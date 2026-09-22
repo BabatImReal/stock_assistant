@@ -413,6 +413,32 @@ def run_all(conn, build_id: int) -> list[Check]:
             )
         )
 
+        # The index trades every session the market is open, so a session in
+        # trading_day with no index row is a defect in OUR data, not a market
+        # event. The regime measures already refuse to compute across one; this
+        # makes the defect visible instead of merely routed around.
+        cur.execute(
+            """
+            SELECT count(*) FROM (
+                SELECT DISTINCT trade_date FROM trading_day
+                WHERE trade_date >= DATE '2012-01-01'
+            ) c
+            LEFT JOIN index_bar b
+                   ON b.trade_date = c.trade_date AND b.symbol = 'VNINDEX'
+            WHERE b.trade_date IS NULL
+            """
+        )
+        (n_missing_index,) = cur.fetchone()
+        checks.append(
+            Check(
+                "index_covers_every_trading_session",
+                n_missing_index == 0,
+                "warn",
+                f"{n_missing_index:,} sessions since 2012 have no VNINDEX row",
+                {"rows": n_missing_index},
+            )
+        )
+
         # --- research window --------------------------------------------------
         (n_window, lo, hi) = _one(
             cur,

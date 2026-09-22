@@ -23,7 +23,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from vnstock_research.data import db  # noqa: E402
-from vnstock_research.features import bars, compute, load_config  # noqa: E402
+from vnstock_research.features import bars, compute, load_config, market  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 REPORTS = REPO / "data" / "reports"
@@ -48,11 +48,16 @@ def main() -> None:
         symbols = bars.liquid_symbols(conn, limit=n)
         say(f"build {build}; {len(symbols)} liquid symbols, 2012-01-01 onward")
 
+        index = market.load_default(conn)
+        missing = market.missing_sessions(conn)
+        say(f"index frame: {len(index):,} sessions; "
+            f"sessions the market traded and the index lacks: {missing}")
+
         frames, fs = [], None
         for symbol, frame in bars.load_many(conn, symbols):
             if frame.empty:
                 continue
-            values, fs = compute(frame)
+            values, fs = compute(frame, market=index)
             values["symbol"] = symbol
             frames.append(values)
 

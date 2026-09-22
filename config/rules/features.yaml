@@ -68,3 +68,17 @@ measures:
     pivot_k: 2
     tolerance: 0.02
     min_touches: 2
+
+  # --- doc §5.3, market regime (index only; breadth is its own slice) -----
+  # Computed ONCE per run from index_bar and joined onto every symbol by
+  # trade_date. A symbol day the index does not cover is NaN, never
+  # forward-filled: carrying yesterday's regime forward would assert a market
+  # state we have no index for.
+  index_above_ma_50:       {enabled: true, window_days: 50}
+  index_ma_50_slope:       {enabled: true, window_days: 50, slope_days: 10}
+  index_change_20d:        {enabled: true, window_days: 20}
+  index_drawdown_from_high: {enabled: true, window_days: 60}
+
+# Which index the regime measures read. VN-Index is the market doc §5.3 means.
+market:
+  index_symbol: VNINDEX
