@@ -13,36 +13,7 @@ import pytest
 
 from vnstock_research.features import REGISTRY, base, compute
 
-
-def frame(n=60, volume=1000.0, close=10.0, gaps=None, excluded=None,
-          adjustable=True):
-    """A clean synthetic symbol, with defects injected where asked."""
-    dates = pd.bdate_range("2020-01-01", periods=n).date
-    closes = np.full(n, float(close)) if np.isscalar(close) else np.asarray(
-        close, dtype=float
-    )
-    vols = np.full(n, float(volume)) if np.isscalar(volume) else np.asarray(
-        volume, dtype=float
-    )
-    df = pd.DataFrame(
-        {
-            "symbol": "TST",
-            "trade_date": dates,
-            "open": closes, "high": closes, "low": closes, "close": closes,
-            "matched_volume": vols,
-            "volume_is_adjustable": True,
-            "gap_before": 0,
-            "excluded": False,
-        }
-    )
-    for i in gaps or []:
-        df.loc[i, "gap_before"] = 10
-    for i in excluded or []:
-        df.loc[i, "excluded"] = True
-    if adjustable is not True:
-        df.loc[adjustable, "volume_is_adjustable"] = False
-    return df
-
+from ._helpers import frame
 
 ONLY_RVOL = {"rvol": {"enabled": True, "lookback_days": 20}}
 
@@ -127,15 +98,25 @@ def test_volume_measure_on_a_non_adjustable_span_returns_nan():
     assert np.isnan(out["rvol"].iloc[35])  # window still reaches back into it
 
 
-def test_a_non_volume_measure_is_unaffected_by_the_volume_flag():
-    # The guard is driven by the declared `needs`, so it must not fire on a
-    # measure that does not read volume. (None of the §4.1 set qualifies --
-    # they all read volume -- so this asserts the mechanism, via the registry.)
-    assert all(REGISTRY[name].reads_volume for name in REGISTRY)
-    assert not base.Measure(
-        name="x", doc_ref="", kind="numeric", needs=("close",),
-        lookback=lambda p: 1, fn=lambda b, p: b["close"],
-    ).reads_volume
+def test_every_volume_measure_declares_that_it_reads_volume():
+    # The guard is driven by the declared `needs`. A §4.1 measure that forgot
+    # to declare matched_volume would silently compute across a span where
+    # share counts differ.
+    for name in ("rvol", "sustained_volume", "up_down_volume_ratio",
+                 "price_volume_agreement", "price_volume_divergence",
+                 "traded_value", "volume_dry_up"):
+        assert REGISTRY[name].reads_volume, name
+
+
+def test_booleans_stay_nan_when_an_input_is_undefined():
+    """Ben's fix: a comparison against NaN yields False, which reads as
+    "evaluated and did not hold" when the truth is "could not evaluate"."""
+    undefined = pd.Series([np.nan, 1.0, np.nan])
+    condition = pd.Series([False, True, False])
+    out = base.boolean_from(condition, undefined)
+    assert np.isnan(out.iloc[0])
+    assert out.iloc[1] == 1.0
+    assert np.isnan(out.iloc[2])
 
 
 # --- NaN vs 0 vs disabled --------------------------------------------------

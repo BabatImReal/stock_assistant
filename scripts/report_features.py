@@ -1,4 +1,4 @@
-"""Occurrence rates and distributions for the §4.1 volume measures.
+"""Occurrence rates and distributions for the feature measures (§4.1, §5.1-5.2).
 
 Not a statistic about the market yet -- hit-rate-against-base-rate needs the
 return generator, which is the backtest step (open-questions B2). This answers
@@ -39,7 +39,7 @@ def say(line: str = "") -> None:
 def main() -> None:
     n = int(sys.argv[1]) if len(sys.argv) > 1 else 40
     cfg = load_config()
-    say(f"Volume features (doc §4.1)   {datetime.now():%Y-%m-%d %H:%M}")
+    say(f"Feature measures (doc §4.1, §5.1-5.2)   {datetime.now():%Y-%m-%d %H:%M}")
     say(f"enabled measures: {', '.join(k for k, v in cfg.items() if v['enabled'])}")
     say("")
 
@@ -87,7 +87,7 @@ def main() -> None:
     say("  the warm-up rows at the start of each symbol's history.")
 
     REPORTS.mkdir(parents=True, exist_ok=True)
-    path = REPORTS / f"volume-features-{datetime.now():%Y%m%d-%H%M}.txt"
+    path = REPORTS / f"features-{datetime.now():%Y%m%d-%H%M}.txt"
     path.write_text("\n".join(out), encoding="utf-8")
     say(f"\nwritten to {path.relative_to(REPO)}")
 

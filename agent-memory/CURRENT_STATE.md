@@ -1,11 +1,14 @@
-# Current state — 2026-09-22 (end of session 03, run 2)
+# Current state — 2026-09-22 (end of session 03, run 3)
 
 Rewritten from scratch. Every number below was read from the database, from
 `git log`, or from a test run in this run.
 
 ## Phase
-**Phase 5 — features (doc §4–5). Slice 1 (volume) BUILT. Slice 2 (trend and
-context) not started.**
+**Phase 5 — features. Slice 1 (§4.1 volume) and slice 2 (§5.1–5.2 per-symbol
+trend and levels) BUILT — 17 measures.**
+Market-level context (§5.3–5.4 regime, breadth, sector) NOT built: the design
+is proposed and waiting on Ben, because an index series is not a single-symbol
+series and the existing frame and guards do not cover it.
 
 ## The database — build 5, promoted 'good'
 | | |
@@ -18,35 +21,55 @@ context) not started.**
 | builds | 1 failed, 2 good, 3 good, 5 good (4 discarded before promotion) |
 
 ## Verified by running it this run
-- `uv run pytest` → **52 passed** (16 of them the new feature tests).
+- `uv run pytest` → **64 passed** (27 of them feature tests).
 - `uv run ruff check .` → clean.
-- The four contract guards were **proven by removal**: deleting the guard line
-  in `features/base.py` fails exactly those four tests and passes the other 12.
-- `scripts/report_volume_features.py 40` → 118,743 stock-days scored across 40
-  liquid symbols, feature set `1846768b2661b224`.
+- Guards **proven by removal** this run: deleting the `_window_ok` guard fails
+  exactly the four contract tests; neutering `boolean_from` fails the
+  NaN-preservation test; removing the pivot confirmation filter fails the
+  look-ahead test. One of my own tests was found passing for the wrong reason
+  and was rewritten until it failed without the guard.
+- `scripts/report_features.py 40` → 118,743 stock-days scored across 40
+  liquid symbols, 17 measures, feature set `f4b43e9a3cdca1e3`.
 - Git head `0dfe90c`; working tree clean apart from this file.
 
-## Features slice 1 — doc §4.1, built and run
-Seven measures, all on MATCHED volume only: `rvol`, `sustained_volume`,
-`up_down_volume_ratio`, `price_volume_agreement`, `price_volume_divergence`,
-`traded_value`, `volume_dry_up`. Switched on/off in
-`config/rules/features.yaml`; the enabled set and resolved parameters are
-recorded as a `FeatureSet` fingerprint.
+## Features built — 17 measures
+**§4.1 volume (7), matched volume only:** rvol, sustained_volume,
+up_down_volume_ratio, price_volume_agreement, price_volume_divergence,
+traded_value, volume_dry_up.
+**§5.1–5.2 per-symbol price (10):** ma_20, ma_50, ma_20_slope, ma_50_slope,
+price_vs_ma_20, price_vs_ma_50, price_change_10d, price_change_20d,
+near_support, near_resistance.
 
-Observed on 40 liquid symbols since 2012:
+Price-only measures remain available on backfilled spans; volume measures do
+not. That split is driven by each measure's declared `needs`, and both
+directions are tested.
+
+Observed on 40 liquid symbols since 2012 (118,743 stock-days):
 
 | measure | scored | NaN | fires | median | p95 |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| rvol | 104,779 | 11.8% | — | 0.887 | 2.250 |
-| sustained_volume | 102,839 | 13.4% | — | 1.000 | 4.000 |
+| rvol | 105,065 | 11.5% | — | 0.887 | 2.250 |
+| sustained_volume | 103,379 | 12.9% | — | 1.000 | 4.000 |
 | up_down_volume_ratio | 105,065 | 11.5% | — | 1.127 | 3.098 |
-| price_volume_agreement | 105,065 | 11.5% | 17.87% | — | — |
-| price_volume_divergence | 105,065 | 11.5% | 7.87% | — | — |
+| price_volume_agreement | 105,352 | 11.3% | 17.86% | — | — |
+| price_volume_divergence | 105,352 | 11.3% | 7.88% | — | — |
 | traded_value (k VND) | 111,346 | 6.2% | — | 75.0M | 632.8M |
-| volume_dry_up | 103,933 | 12.5% | 10.10% | — | — |
+| volume_dry_up | 104,495 | 12.0% | 10.10% | — | — |
+| ma_20 / ma_50 | 110,806 / 102,728 | 6.7% / 13.5% | — | 14.97 / 14.94 | 71.8 / 71.9 |
+| ma_20_slope / ma_50_slope | 109,357 / 100,214 | 7.9% / 15.6% | — | 0.002 / 0.003 | 0.045 / 0.061 |
+| price_vs_ma_20 / _50 | 110,806 / 102,728 | 6.7% / 13.5% | — | 0.003 / 0.007 | 0.102 / 0.177 |
+| price_change_10d / 20d | 113,561 / 110,513 | 4.4% / 6.9% | — | 0.003 / 0.006 | 0.133 / 0.202 |
+| **near_support** | 100,214 | 15.6% | **40.25%** | — | — |
+| **near_resistance** | 100,214 | 15.6% | **40.87%** | — | — |
 
-Nothing is materialised: measures compute on demand until the measure set is
-stable. **Base rates are NOT computed** — that needs the return generator (B2).
+**Flagged, not fixed:** the two level measures fire on ~40% of scored days,
+which is not selective enough to be useful as written. The parameters are the
+provisional textbook values (60-day lookback, 2% tolerance, 2 touches). Doc
+§3.5 says fix parameters first and measure before adjusting, so they have NOT
+been tuned — this is a question for the broker-friend session.
+
+Nothing is materialised; measures compute on demand. **Base rates are still NOT
+computed** — that needs the return generator (B2).
 
 ## What exists
 Phase 4 is complete: schema and migrations (005), historical load back to 2000,
@@ -86,8 +109,8 @@ Recorded for the **backtest** step, not to be acted on during features:
 
 ## Next steps
 1. Ben confirms his broker fee (affects net returns only).
-2. **Slice 2: trend and context measures** (doc §5.1–5.4) — moving averages and
-   slopes, support and resistance, market regime from the index, sector.
+2. **Ben approves the market-level design**, then §5.3–5.4: regime from the
+   VN-Index, breadth, sector.
 3. Then patterns (doc §3), then the backtest (which starts by clearing B1
    and B2).
 

@@ -111,6 +111,27 @@ class FeatureSet:
         return hashlib.sha256(blob.encode()).hexdigest()[:16]
 
 
+def boolean_from(condition: pd.Series, *inputs: pd.Series) -> pd.Series:
+    """A boolean measure that stays NaN where its INPUTS are undefined.
+
+    `(a >= x) & (b >= y)` silently yields False when b is NaN, because a
+    comparison against NaN is False. That reads downstream as "the condition was
+    evaluated and did not hold" when the truth is "we could not evaluate it" --
+    the same collapse the float64 storage exists to prevent, sneaking back in
+    one level lower.
+
+    Example that motivated this: price-volume agreement compares the recent
+    average volume with the earlier one. When the earlier window's mean is zero
+    the ratio is undefined, and the measure was returning False on days it knew
+    nothing about.
+    """
+    out = condition.astype("float64")
+    undefined = pd.Series(False, index=condition.index)
+    for series in inputs:
+        undefined = undefined | series.isna()
+    return out.where(~undefined)
+
+
 def _window_ok(bars: pd.DataFrame, lookback: int, needs_volume: bool) -> pd.Series:
     """True where a window of `lookback` prior rows plus today is usable.
 

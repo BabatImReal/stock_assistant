@@ -25,7 +25,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from .base import measure
+from .base import boolean_from, measure
 
 
 def _rvol(bars: pd.DataFrame, lookback: int) -> pd.Series:
@@ -40,7 +40,9 @@ def _rvol(bars: pd.DataFrame, lookback: int) -> pd.Series:
     doc_ref="doc §4.1",
     kind="numeric",
     needs=("matched_volume",),
-    lookback=lambda p: int(p["lookback_days"]) + 1,
+    # rvol at row i uses the PREVIOUS lookback_days rows plus today, so it
+    # reaches exactly lookback_days rows back -- not one more.
+    lookback=lambda p: int(p["lookback_days"]),
 )
 def rvol(bars: pd.DataFrame, p: dict) -> pd.Series:
     """Relative volume. Above ~1.5-2x is unusual interest (doc §4.1)."""
@@ -52,7 +54,9 @@ def rvol(bars: pd.DataFrame, p: dict) -> pd.Series:
     doc_ref="doc §4.1",
     kind="numeric",
     needs=("matched_volume",),
-    lookback=lambda p: int(p["window_days"]) + int(p["rvol_lookback_days"]) + 1,
+    # the oldest row touched is (window_days - 1) back for the rolling count,
+    # and each of those needs rvol_lookback_days behind it.
+    lookback=lambda p: int(p["window_days"]) - 1 + int(p["rvol_lookback_days"]),
 )
 def sustained_volume(bars: pd.DataFrame, p: dict) -> pd.Series:
     """How many of the last N sessions were heavy.
@@ -104,14 +108,16 @@ def _changes(bars: pd.DataFrame, window: int) -> tuple[pd.Series, pd.Series]:
     doc_ref="doc §4.1",
     kind="boolean",
     needs=("matched_volume", "close"),
-    lookback=lambda p: 2 * int(p["window_days"]),
+    # two windows back to back, sharing one boundary row: 2w - 1, not 2w.
+    lookback=lambda p: 2 * int(p["window_days"]) - 1,
 )
 def price_volume_agreement(bars: pd.DataFrame, p: dict) -> pd.Series:
     """Price rising AND volume rising: a healthy move (doc §4.1)."""
     price_change, volume_change = _changes(bars, int(p["window_days"]))
-    return (price_change >= float(p["min_price_change"])) & (
+    condition = (price_change >= float(p["min_price_change"])) & (
         volume_change >= float(p["min_volume_change"])
     )
+    return boolean_from(condition, price_change, volume_change)
 
 
 @measure(
@@ -119,14 +125,15 @@ def price_volume_agreement(bars: pd.DataFrame, p: dict) -> pd.Series:
     doc_ref="doc §4.1",
     kind="boolean",
     needs=("matched_volume", "close"),
-    lookback=lambda p: 2 * int(p["window_days"]),
+    lookback=lambda p: 2 * int(p["window_days"]) - 1,
 )
 def price_volume_divergence(bars: pd.DataFrame, p: dict) -> pd.Series:
     """Price rising while volume shrinks: the move running out of fuel."""
     price_change, volume_change = _changes(bars, int(p["window_days"]))
-    return (price_change >= float(p["min_price_change"])) & (
+    condition = (price_change >= float(p["min_price_change"])) & (
         volume_change <= float(p["max_volume_change"])
     )
+    return boolean_from(condition, price_change, volume_change)
 
 
 @measure(
@@ -157,7 +164,7 @@ def traded_value(bars: pd.DataFrame, p: dict) -> pd.Series:
     doc_ref="doc §4.1",
     kind="boolean",
     needs=("matched_volume",),
-    lookback=lambda p: int(p["quiet_days"]) + int(p["rvol_lookback_days"]) + 1,
+    lookback=lambda p: int(p["quiet_days"]) - 1 + int(p["rvol_lookback_days"]),
 )
 def volume_dry_up(bars: pd.DataFrame, p: dict) -> pd.Series:
     """Volume well below average for several sessions running.
@@ -166,6 +173,11 @@ def volume_dry_up(bars: pd.DataFrame, p: dict) -> pd.Series:
     breakout. Requiring several quiet days rather than one is deliberate: a
     single thin session is frequently a holiday or a half-day, not a message.
     """
-    quiet = _rvol(bars, int(p["rvol_lookback_days"])) < float(p["max_rvol"])
+    rv = _rvol(bars, int(p["rvol_lookback_days"]))
     days = int(p["quiet_days"])
-    return quiet.astype("float64").rolling(days, min_periods=days).sum() == days
+    quiet = (rv < float(p["max_rvol"])).astype("float64")
+    condition = quiet.rolling(days, min_periods=days).sum() == days
+    # NaN if any day in the quiet run had an undefined rvol: "we cannot tell"
+    # is not the same as "volume was normal".
+    undefined = rv.isna().astype("float64").rolling(days, min_periods=days).max()
+    return boolean_from(condition, undefined.replace(1.0, float("nan")))

@@ -44,3 +44,27 @@ measures:
     max_rvol: 0.7              # volume well below normal
     rvol_lookback_days: 20
     quiet_days: 3              # ... and sustained, not a single quiet session
+
+  # --- doc §5.1-5.2, per-symbol trend and levels -------------------------
+  # These read PRICE only, never volume, so they remain available on
+  # backfilled spans where the price is adjusted and the volume never could be.
+  ma_20:            {enabled: true, window_days: 20}
+  ma_50:            {enabled: true, window_days: 50}
+  ma_20_slope:      {enabled: true, window_days: 20, slope_days: 5}
+  ma_50_slope:      {enabled: true, window_days: 50, slope_days: 10}
+  price_vs_ma_20:   {enabled: true, window_days: 20}
+  price_vs_ma_50:   {enabled: true, window_days: 50}
+  price_change_10d: {enabled: true, window_days: 10}
+  price_change_20d: {enabled: true, window_days: 20}
+  near_support:
+    enabled: true
+    lookback_days: 60          # doc §5.2: "held at least twice in the last 60 days"
+    pivot_k: 2                 # a pivot needs 2 rows either side to be confirmed
+    tolerance: 0.02            # "within ~2%"
+    min_touches: 2             # once is an accident; twice is a level
+  near_resistance:
+    enabled: true
+    lookback_days: 60
+    pivot_k: 2
+    tolerance: 0.02
+    min_touches: 2

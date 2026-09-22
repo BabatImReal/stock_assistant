@@ -142,3 +142,13 @@ Related: [[architecture]] [[validation]] [[open-questions]]
 | 2026-09-22 | **Boolean measures are stored as float64** | So an unevaluable boolean stays NaN instead of collapsing to False, which would read as "no signal here" when the truth is "we cannot tell" | a bool dtype |
 | 2026-09-22 | **RVOL divides by the previous N sessions, excluding today** | Including today lets a huge day inflate its own denominator and understates exactly the spikes the measure exists to find | a window including today |
 | 2026-09-22 | `bars.py` reads the **current promoted good build only** | `bar_adjusted` is build-scoped and a build is one consistent adjustment policy; reading across builds would splice two policies into one series | reading whatever rows exist |
+
+## Session 03 — features slice 2 (doc §5.1-5.2, per-symbol)
+
+| Date | Decision | Reason | Rejected |
+| --- | --- | --- | --- |
+| 2026-09-22 | **Booleans stay NaN when an INPUT is undefined**, via `base.boolean_from` | `(a >= x) & (b >= y)` yields False when b is NaN, because a comparison against NaN is False. That reads as "evaluated and did not hold" when the truth is "could not evaluate" — the same collapse the float64 storage prevents, one level lower | letting the comparison decide |
+| 2026-09-22 | **Lookbacks tightened to what each measure truly reaches** | They were over-declared by 1–2 rows, which only inflated the NaN rate near gaps, but an over-declared window is a quiet inaccuracy in the one number the gap guard depends on. NaN share fell ~0.5pt across the volume measures | leaving them safe-but-wrong |
+| 2026-09-22 | **A pivot within `pivot_k` rows of today is not counted** | Confirming a pivot needs rows on both sides; one whose confirmation window is still open would be look-ahead. Proven by removal — the test fails without the filter | using every pivot in the window |
+| 2026-09-22 | Trend measures declare `needs=("close",)` and so remain available on **backfilled spans** | This is the price-yes / volume-no decision working in both directions, driven by the declared `needs` rather than by anyone remembering it. Tested explicitly | applying the volume guard to everything |
+| 2026-09-22 | `tests/` is now a package with a shared `_helpers.frame` | Both feature suites must test against the SAME synthetic frame; if they drifted, a guard could pass in one suite and be silently untested in the other | duplicating the helper |

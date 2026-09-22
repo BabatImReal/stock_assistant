@@ -24,6 +24,7 @@ Everything here is a rule that can be switched on or off and measured, so that
 its contribution can be tested rather than assumed.
 """
 
+from . import trend as _trend  # noqa: E402,F401  (registers the §5.1-5.2 measures)
 from . import volume as _volume  # noqa: E402,F401  (registers the §4.1 measures)
 from .base import (  # noqa: E402
     REGISTRY,
