@@ -64,7 +64,7 @@ def main() -> None:
     liq = cfg["liquidity"]
     start = cfg["universe"]["research_start"]
 
-    say(f"Warning investigation, build 2   {datetime.now():%Y-%m-%d %H:%M}")
+    say(f"Warning investigation   {datetime.now():%Y-%m-%d %H:%M}")
     say(
         f"liquid = avg matched value >= {liq['min_avg_matched_value']:,} "
         f"thousand VND over {liq['lookback_days']} sessions"
@@ -80,6 +80,15 @@ def main() -> None:
                 liq["min_trading_days_in_lookback"],
             ),
         )
+        # The latest promoted build, not a hard-coded id: this script is meant
+        # to be re-run after every load.
+        cur.execute(
+            "SELECT build_id FROM adjustment_build WHERE status = 'good' "
+            "ORDER BY build_id DESC LIMIT 1"
+        )
+        (build,) = cur.fetchone()
+        say(f"build_id = {build}")
+
         cur.execute("SELECT count(*) FROM liquid")
         (n_liquid,) = cur.fetchone()
         say(f"liquid universe: {n_liquid} symbols of 1,709")
@@ -107,7 +116,7 @@ def main() -> None:
                 FROM bar_raw r
                 JOIN adjustment_factor f
                   ON f.symbol = r.symbol AND f.trade_date = r.trade_date
-                 AND f.build_id = 2
+                 AND f.build_id = %s
                 WHERE r.trade_date >= %s
                 WINDOW w AS (PARTITION BY r.symbol ORDER BY r.trade_date)
             )
@@ -118,7 +127,7 @@ def main() -> None:
                                             ELSE 0.17 END
               AND abs(factor - prev_factor) < 0.000001
             """,
-            (start,),
+            (build, start),
         )
         cur.execute("SELECT count(*) FROM beyond")
         (n_beyond,) = cur.fetchone()
