@@ -130,3 +130,15 @@ Related: [[architecture]] [[validation]] [[open-questions]]
 | 2026-09-22 | **Backfill seams are rescaled only when the two spans meet across ≤ 20 days**; longer gaps are reported and left alone | Across a long gap the ratio is mostly real price movement. VHM's spans meet across 308 days with a raw ratio of 3.82 — that is the stock tripling, not a level mismatch. Rescaling by it would have erased a real move | rescaling every seam by its raw ratio |
 | 2026-09-22 | TDP and VHM spans written to `excluded_window` as **unreconciled backfill seams** | Their vnstock level is not comparable to CafeF's and cannot be fixed without an overlap | leaving them usable |
 | 2026-09-22 | **The nightly job writes a heartbeat row every run**, with `no_new_data` and `stale_source` as distinct statuses | The failure that matters is silence: a dead job looks exactly like a job with nothing to do, and the scan then reports on stale data | logging only failures |
+
+## Session 03 — features slice 1 (doc §4.1)
+
+| Date | Decision | Reason | Rejected |
+| --- | --- | --- | --- |
+| 2026-09-22 | **All seven doc §4.1 measures built in this slice**, none deferred | The table in doc §4.1 lists exactly seven; price–volume agreement and divergence turned out to need only an N-day change in close and in average volume, not the trend module, so there was no reason to defer them | deferring agreement/divergence to the trend slice |
+| 2026-09-22 | **Measures compute on demand; nothing materialised yet** | The measure set is not stable, and a materialised table costs either a migration per measure or a JSONB blob. Materialise when the backtest starts making repeated passes | a `feature_daily` table now |
+| 2026-09-22 | **A measure declares its `lookback` and its `needs`** | Declaring the lookback is what lets the no-gap rule be enforced centrally without reading each measure's body; declaring `needs` is what makes the volume guard automatic rather than remembered | inferring the window from the code; per-measure guards |
+| 2026-09-22 | **NaN, 0 and "no column" are three distinct states** | NaN = no signal / excluded / unknowable; 0 = a real measured zero; a disabled measure produces no column at all. Collapsing any pair would let a consumer read "we cannot tell" as "nothing happened" | filling NaN with 0 or False |
+| 2026-09-22 | **Boolean measures are stored as float64** | So an unevaluable boolean stays NaN instead of collapsing to False, which would read as "no signal here" when the truth is "we cannot tell" | a bool dtype |
+| 2026-09-22 | **RVOL divides by the previous N sessions, excluding today** | Including today lets a huge day inflate its own denominator and understates exactly the spikes the measure exists to find | a window including today |
+| 2026-09-22 | `bars.py` reads the **current promoted good build only** | `bar_adjusted` is build-scoped and a build is one consistent adjustment policy; reading across builds would splice two policies into one series | reading whatever rows exist |

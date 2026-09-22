@@ -23,3 +23,15 @@ same shape, and only the preceding trend tells them apart.
 Everything here is a rule that can be switched on or off and measured, so that
 its contribution can be tested rather than assumed.
 """
+
+from . import volume as _volume  # noqa: E402,F401  (registers the §4.1 measures)
+from .base import (  # noqa: E402
+    REGISTRY,
+    FeatureSet,
+    Measure,
+    compute,
+    load_config,
+    measure,
+)
+
+__all__ = ["REGISTRY", "FeatureSet", "Measure", "compute", "load_config", "measure"]

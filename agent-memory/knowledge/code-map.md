@@ -61,7 +61,10 @@ All files are `__init__.py` with a docstring only. No functions yet.
 | `data/cafef.py` | Everything format-specific about CafeF's bulk files: BOM, AmiBroker headers that mean nothing in CC_/NN_, 3-letter filter, weekend rejection for the index | pandas |
 | `data/checks.py` | The data-quality gate: 14 checks, `fail` blocks promotion, `warn` is recorded. Includes the traded-value invariant, the key proof that G1 was done right | psycopg |
 | `data/reconcile.py` | **Real code.** Two-source reconciliation: `normalise`, `reconcile_column`, `reconcile`, `sample_by_year`, `missing_trading_days`, `write_report`, `ReconResult`. Tolerances `PRICE_TOLERANCE=0.5%`, `VOLUME_TOLERANCE=1%` with the reasoning in comments. Built for both the post-download sample check and the nightly all-stock check | pandas |
-| `features/__init__.py` | Volume, trend and context measures (§4-5). Matched volume only | `data` |
+| `features/__init__.py` | Package docstring plus the registry exports; importing it registers the §4.1 measures | `data` |
+| `features/base.py` | **The measure contract.** `Measure`, `REGISTRY`, the `@measure` decorator, `compute()`, `FeatureSet`. Enforces the three guarantees centrally: no look-ahead, no window spans a gap or an excluded row, volume measures NaN on non-adjustable spans. NaN / 0 / no-column are three distinct states | pandas, pyyaml |
+| `features/bars.py` | Loads one symbol's bars from the **current promoted build only**, with `gap_before` in SESSIONS (from `trading_day`) and an `excluded` flag from `excluded_window`. Reads ADJUSTED matched volume so a window spanning a split has a consistent share basis | pandas, `data.db` |
+| `features/volume.py` | The seven doc §4.1 measures: rvol, sustained_volume, up_down_volume_ratio, price_volume_agreement, price_volume_divergence, traded_value, volume_dry_up. Matched volume only | pandas, `features.base` |
 | `patterns/__init__.py` | Pattern rules as arithmetic on OHLCV (§3). Thresholds from `config/rules/` | `features` |
 | `backtest/__init__.py` | Forward returns, base rates, validation (§2, §8). Owns blocker G3 | `patterns` |
 | `report/__init__.py` | The daily recommendation or "nothing today" (§7.4, §7.3) | `backtest` |
@@ -87,6 +90,9 @@ All files are `__init__.py` with a docstring only. No functions yet.
 | `scripts/check_backfill_seams.py` | Measures and rescales the level mismatch where a backfilled span meets CafeF; refuses to rescale across long gaps | pandas, `data.db` |
 | `scripts/measure_fillability.py` | How often the ceiling/floor rules bite, whole market vs liquid | pyyaml, `data.checks` |
 | `migrations/005_job_run.sql` | The `job_run` heartbeat table | — |
+| `config/rules/features.yaml` | Which measures are on and with what parameters — switching one off is a config change, never a code change | — |
+| `scripts/report_volume_features.py` | Occurrence rates and distributions per measure, plus the NaN share and why | pandas, `features` |
+| `tests/test_features_volume.py` | 16 tests: the arithmetic, and failing-without-the-guard tests for both contracts (gap→NaN, non-adjustable volume→NaN), NaN vs 0 vs disabled, and a truncation-based look-ahead test | — |
 | `config/rules/costs.yaml` | Broker fee (provisional) and the 0.1% sale tax | — |
 | `config/rules/market_rules.yaml` | Price limits **with the date each took effect** and tick sizes by price band; settlement cycle. Used by the price-limit check | — |
 | `scripts/analyse_missed_actions.py` | For beyond-limit moves in the liquid universe, compares our adjusted series against vnstock's to tell "CafeF missed a corporate action" from "the move was real" | pandas, vnstock, `data.checks` |

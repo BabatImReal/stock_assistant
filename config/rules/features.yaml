@@ -1,0 +1,46 @@
+# Feature measures: which are on, and with what parameters.
+#
+# Every measure is a RULE that can be switched on and off and measured
+# (doc §4: volume is defined and measured exactly like a pattern). Turning one
+# off is a config change, never a code change, and the enabled set plus the
+# resolved parameters are recorded with every computation so a number can be
+# traced back to the exact measure version that produced it.
+#
+# Thresholds here are CHOICES, not facts (doc §3.5). These are the textbook
+# starting values from doc §4.1; they are fixed BEFORE anything is measured and
+# are not to be tuned while looking at results (doc §8.1).
+#
+# NON-NEGOTIABLE: every measure below reads MATCHED volume only. Negotiated
+# block volume lives in a different table and no money-flow measure may touch
+# it (doc §4.3) -- one pre-agreed deal can otherwise fake a day of accumulation.
+
+measures:
+  # --- doc §4.1, in this slice -------------------------------------------
+  rvol:
+    enabled: true
+    lookback_days: 20          # average of the PREVIOUS 20 sessions
+  sustained_volume:
+    enabled: true
+    window_days: 7             # doc says "last 5-7"; 7 is the looser end
+    threshold: 1.5             # RVOL above this counts as a heavy day
+    rvol_lookback_days: 20
+  up_down_volume_ratio:
+    enabled: true
+    window_days: 20            # volume on green days vs red days
+  price_volume_agreement:
+    enabled: true
+    window_days: 10            # price up AND volume up over the window
+    min_price_change: 0.03     # "rising" must mean something; 3% over 10 days
+    min_volume_change: 0.10
+  price_volume_divergence:
+    enabled: true
+    window_days: 10            # price up while volume shrinks
+    min_price_change: 0.03
+    max_volume_change: -0.10
+  traded_value:
+    enabled: true              # close x matched volume; comparable across prices
+  volume_dry_up:
+    enabled: true
+    max_rvol: 0.7              # volume well below normal
+    rvol_lookback_days: 20
+    quiet_days: 3              # ... and sustained, not a single quiet session
