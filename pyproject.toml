@@ -13,6 +13,7 @@ requires-python = ">=3.12"
 # that actually needs them, so nothing unused ends up in the lock file.
 dependencies = [
     "pandas>=3.0.6",
+    "psycopg[binary]>=3.3.6",
     "requests>=2.34.2",
     "vnstock>=4.0.2",
 ]

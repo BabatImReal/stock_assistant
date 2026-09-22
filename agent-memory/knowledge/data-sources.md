@@ -109,8 +109,10 @@ only the values identify them. Findings:
 
 ```python
 from vnstock import Quote
-Quote(source="vci", symbol="VNM").history(start="2012-01-01", end="2015-12-31",
-                                          interval="1D")
+
+Quote(source="vci", symbol="VNM").history(
+    start="2012-01-01", end="2015-12-31", interval="1D"
+)
 ```
 
 ### CONFIRMED

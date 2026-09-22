@@ -56,3 +56,13 @@ Related: [[architecture]] [[validation]] [[open-questions]]
 | 2026-09-22 | **G12 is tested before it is decided**: check whether CafeF bulk volume is already matched-only, using stock-days with large negotiated deals | If the bulk volume already excludes block trades, the principle in [[money-flow]] §4.3 is satisfied by the primary source and no scraper is needed. Testing costs an afternoon; building the wrong thing costs weeks | choosing between scrape / accept / pay before knowing what the number already is |
 | 2026-09-22 | **G12 closed: CafeF bulk volume is matched-only; use it directly** | Measured on 20 large-deal stock-days, 20/20 exact, with an 8× separation between the two candidate answers on the clearest day | building a per-stock scraper; accepting total volume with a caveat; paying for SSI |
 | 2026-09-22 | **Negotiated volume comes from `NN_<Low>`, treated as "unknown" when the row is missing** | The series is exact where present but covers only 46% of HSX stock-days in 2024. Treating a missing row as zero would silently assert "no block trade" on days we know nothing about | assuming zero; discarding the series |
+
+## Phase 4 data model (session 02, run 4)
+
+| Date | Decision | Reason | Rejected |
+| --- | --- | --- | --- |
+| 2026-09-22 | **Data model APPROVED** as written in [[data-model]] | — | — |
+| 2026-09-22 | `index_bar` table approved | Market regime (doc §5.3) and funnel step 3 need the VN-Index; there is nowhere else to put it | leaving the index to a later phase |
+| 2026-09-22 | **Backfill transferred symbols with a flag.** Backfilled spans are usable for **price-based patterns and trend**; **volume-based signals are disabled on them** | vnstock returns adjusted prices only, so no factor can be derived for those spans and volume cannot be adjusted (G1). Losing the price history entirely would be worse — ACB would start in 2020 | not backfilling; backfilling silently and letting volume signals run on unadjustable volume |
+| 2026-09-22 | Reconciliation: **liquid universe nightly + full market weekly**, with "liquid" a **config value** (minimum average matched traded value) | 1,600 symbols nightly is ~27 min of requests against a free service; the liquid names are the only ones that can be recommended anyway. Config, not hard-coded, because it is a threshold and thresholds are choices (doc §3.5) | all stocks every night; a hard-coded liquidity number |
+| 2026-09-22 | **Every research result records the `build_id` it was measured on** | Adjusted prices change when a new corporate action appears. Without the build id, a number measured last week cannot be reproduced or even interpreted | storing results without provenance |

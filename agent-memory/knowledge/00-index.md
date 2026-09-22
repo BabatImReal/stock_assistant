@@ -12,6 +12,7 @@ One line per file. Read only what the task needs.
 | funnel-and-scale.md | Research phase, daily scan funnel, report contents, data volumes, nightly update (doc §7) |
 | validation.md | Overfitting and the other traps, testing sequence, metrics to report (doc §8) |
 | architecture.md | Agent roles, code-vs-LLM split, data layer, why no vision model or ML (doc §9-10) |
+| data-model.md | **APPROVED** Phase 4 design: tables, pipeline, re-adjustment policy, data-quality checks |
 | data-sources.md | SSI FastConnect endpoints and fields; what is confirmed vs unconfirmed (doc §7.5) |
 | code-map.md | Every folder and file in the repo, one line each |
 | decisions.md | Date, decision, reason, rejected alternatives |
