@@ -1,11 +1,11 @@
-# Current state — 2026-09-22 (end of session 03, run 1)
+# Current state — 2026-09-22 (end of session 03, run 2)
 
 Rewritten from scratch. Every number below was read from the database, from
 `git log`, or from a test run in this run.
 
 ## Phase
-**Phase 5 — features (doc §4–5). Opening run: nothing built yet.**
-Blocked on Ben approving the features module layout (proposed this run).
+**Phase 5 — features (doc §4–5). Slice 1 (volume) BUILT. Slice 2 (trend and
+context) not started.**
 
 ## The database — build 5, promoted 'good'
 | | |
@@ -18,9 +18,35 @@ Blocked on Ben approving the features module layout (proposed this run).
 | builds | 1 failed, 2 good, 3 good, 5 good (4 discarded before promotion) |
 
 ## Verified by running it this run
-- `uv run pytest` → **36 passed**.
+- `uv run pytest` → **52 passed** (16 of them the new feature tests).
 - `uv run ruff check .` → clean.
-- Git head `f7a543b`; session-03 memory edits are the only uncommitted changes.
+- The four contract guards were **proven by removal**: deleting the guard line
+  in `features/base.py` fails exactly those four tests and passes the other 12.
+- `scripts/report_volume_features.py 40` → 118,743 stock-days scored across 40
+  liquid symbols, feature set `1846768b2661b224`.
+- Git head `0dfe90c`; working tree clean apart from this file.
+
+## Features slice 1 — doc §4.1, built and run
+Seven measures, all on MATCHED volume only: `rvol`, `sustained_volume`,
+`up_down_volume_ratio`, `price_volume_agreement`, `price_volume_divergence`,
+`traded_value`, `volume_dry_up`. Switched on/off in
+`config/rules/features.yaml`; the enabled set and resolved parameters are
+recorded as a `FeatureSet` fingerprint.
+
+Observed on 40 liquid symbols since 2012:
+
+| measure | scored | NaN | fires | median | p95 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| rvol | 104,779 | 11.8% | — | 0.887 | 2.250 |
+| sustained_volume | 102,839 | 13.4% | — | 1.000 | 4.000 |
+| up_down_volume_ratio | 105,065 | 11.5% | — | 1.127 | 3.098 |
+| price_volume_agreement | 105,065 | 11.5% | 17.87% | — | — |
+| price_volume_divergence | 105,065 | 11.5% | 7.87% | — | — |
+| traded_value (k VND) | 111,346 | 6.2% | — | 75.0M | 632.8M |
+| volume_dry_up | 103,933 | 12.5% | 10.10% | — | — |
+
+Nothing is materialised: measures compute on demand until the measure set is
+stable. **Base rates are NOT computed** — that needs the return generator (B2).
 
 ## What exists
 Phase 4 is complete: schema and migrations (005), historical load back to 2000,
@@ -59,11 +85,11 @@ Recorded for the **backtest** step, not to be acted on during features:
   enforcing the no-gap rule all remain.
 
 ## Next steps
-1. **Ben approves the features module layout.**
-2. Build slice 1: the §4.1 volume measures, matched volume only, each
-   switchable and tested.
-3. Then slice 2: trend and context (doc §5). Then patterns (doc §3), then the
-   backtest (which starts by clearing B1 and B2).
+1. Ben confirms his broker fee (affects net returns only).
+2. **Slice 2: trend and context measures** (doc §5.1–5.4) — moving averages and
+   slopes, support and resistance, market regime from the index, sector.
+3. Then patterns (doc §3), then the backtest (which starts by clearing B1
+   and B2).
 
 ## Parked
 - **TypeSafe / Jev** for the later news-veto worker.
