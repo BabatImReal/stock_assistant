@@ -82,6 +82,8 @@ data is correct. Fix the note immediately and log the correction in the run.
 - Real charts are layered: many patterns and cases fire at once. Each
   stock-day gets a full fingerprint (doc §3.6).
 - Money flow uses MATCHED volume only, never negotiated/deal volume.
+- Every dataset is reconciled against a second source before use.
+  Mismatches beyond tolerance are flagged and excluded until explained.
 - History window: 2012 to now. Prices adjusted for stock dividends and
   rights.
 - Validation (doc §8): no look-ahead bias; parameters fixed before testing;
@@ -100,7 +102,7 @@ data is correct. Fix the note immediately and log the correction in the run.
 ## Roadmap
   Phase 1  Understand the doc, build memory               <- start here
   Phase 2  Project skeleton (uv, ruff, pytest, Docker with Timescale)
-  Phase 3  SSI history probe: confirm real data before any schema
+  Phase 3  Free-source probe (CafeF + vnstock) with reconciliation
   Later    Schema + full download, price adjustment, features, pattern
            rules, backtest, daily scan, report, agents, real-time layer.
   The current phase is recorded in CURRENT_STATE.md.

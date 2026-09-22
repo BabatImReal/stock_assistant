@@ -11,7 +11,11 @@ readme = "README.md"
 requires-python = ">=3.12"
 # Empty on purpose. Phase 2 is a skeleton; dependencies are added in the phase
 # that actually needs them, so nothing unused ends up in the lock file.
-dependencies = []
+dependencies = [
+    "pandas>=3.0.6",
+    "requests>=2.34.2",
+    "vnstock>=4.0.2",
+]
 
 [dependency-groups]
 # Dev tools. `uv sync` installs these too; `uv sync --no-dev` skips them.

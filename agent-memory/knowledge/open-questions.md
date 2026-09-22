@@ -107,6 +107,58 @@ breaks ties — before the daily scan is built.
 period is still open (doc §11.3). Circular until answered. **Resolve:** Ben's
 four questions above, holding period first.
 
+### G12 — No free source has matched vs negotiated volume
+**Found by the Phase 3 probe, 2026-09-22.** CafeF's CC_ files are order-book
+supply/demand aggregates and its NN_ files are foreign flow; neither separates
+matched (khớp lệnh) from negotiated (thỏa thuận) volume. vnstock's free tier has
+neither. But "money flow uses MATCHED volume only" is a **non-negotiable
+principle** in CLAUDE.md and [[money-flow]] §4.3, and it exists because a single
+block deal can fake a day of accumulation.
+**Ben's instruction 2026-09-22: TEST FIRST, then choose.** Before picking an
+option, check whether CafeF's bulk volume is *already* matched-only — take 10–20
+stock-days with large negotiated deals (identified from CafeF's per-stock history
+page) and compare the bulk volume against matched-only and matched+deal.
+- If it is matched-only, **G12 closes** and the principle is already satisfied.
+- If not, plan a **polite one-time backfill of the split for all real tickers**
+  (not only shortlisted ones) plus a nightly update, and show Ben the plan
+  before building it.
+The remaining fallbacks if the backfill proves impractical: accept total volume
+with the limitation stated everywhere, or pay for SSI — the only confirmed
+source of the split.
+
+### G13 — Foreign flow stopped being published in the bulk files — DECIDED 2026-09-22
+**Ben's decision: exclude foreign flow from all signals until a live source is
+confirmed; recorded as a later layer.** The finding stands as below.
+
+**Found by the probe.** In `CafeF.NN_*`, the columns carrying foreign data were
+populated on ~95% of days through 2024 and have been **all-zero since January
+2025**. So foreign flow (doc §4.4) exists for 2015–2024 and not for the present.
+**Resolve:** confirm whether CafeF moved it elsewhere, before any signal is built
+on a series that stops dead mid-history — a backtest would look fine and the live
+scan would silently see zeros.
+
+### G14 — The index file contains phantom weekend sessions
+**Found by the probe.** VNINDEX has rows dated Saturday 2026-02-07 and Sunday
+2026-03-08, with plausible values, on which no stock traded; 7 stock rows fall on
+weekends too (2016–2017). Using the index as the trading calendar therefore
+invents sessions, which shows up downstream as every stock "missing" days.
+**Resolve:** derive the calendar from stock rows (or weekday-filter it) and
+reject index rows with no matching stock activity.
+
+### G15 — CafeF and vnstock disagree on adjustment policy — DECIDED 2026-09-22
+**Ben's decision: CafeF is canonical. The VNM divergence is recorded as a policy
+difference, not an error.** The finding stands as below.
+
+**Found by the probe.** VNM differs by a constant 1.65% for every day from
+2012-01-03 to 2019-09-13 and agrees exactly afterwards: one corporate action
+around 2019-09-16 that CafeF adjusts for and VCI does not. Both series are
+internally consistent; they encode **different definitions**. A pattern measured
+on one is not measured on the other.
+**Resolve:** decide which policy the project uses (proposal: CafeF, since the
+adjusted ÷ unadjusted pair also yields the volume factor G1 needs), and treat a
+constant-ratio divergence as an adjustment-policy difference rather than an
+error — reconcile.py already surfaces it as a median ratio.
+
 ### G11 — Survivorship bias may be unmeetable
 [[validation]] requires delisted stocks in history; [[data-sources]] records
 their coverage as unconfirmed. If SSI does not have them, the defence cannot be
@@ -115,11 +167,21 @@ the bias explicitly in every reported statistic rather than ignoring it.
 
 ## Technical / factual, to resolve with data (not opinion)
 These are not blockers; the blockers are in the section above.
+- [x] **Does any CafeF file separate matched vs negotiated (thỏa thuận)
+      volume?** **NO** — probed 2026-09-22. The CC_ files are order-book
+      supply/demand aggregates and the NN_ files are foreign flow; neither
+      splits matched from negotiated. [[money-flow]] §4.3 is a non-negotiable
+      principle with **no data behind it from any free source**. Escalated to
+      blocker G12 below.
+- [x] **Are delisted stocks included in the CafeF files?** **PARTIALLY** —
+      82 HSX / 71 HNX / 309 UPCOM delisted 3-letter symbols are present, many
+      with real history, but 37 of the 82 HSX ones have under 50 rows and 11
+      have a single stub row dated 2015-09-01. A partial defence for blocker
+      G11, not a complete one.
 - [ ] Everything under "NOT CONFIRMED" in [[data-sources]] — Phase 3 probe.
 - [ ] Re-confirm current price-limit and T+2 rules against the exchanges
       (doc §5.6 says to); and the different rules in force 2012–2014.
 
-Related: [[decisions]] [[data-sources]]
 
 ## Environment (session 01, runs 3-4 — verified, closed)
 - [x] **uv works.** 0.12.17. `.python-version` pins the project to Python 3.12
@@ -142,3 +204,39 @@ Related: [[decisions]] [[data-sources]]
       `.../cli-plugins/docker-compose`.
 
 Phase 2 environment is fully verified. Nothing outstanding here.
+
+## Tools to evaluate later
+
+### TypeSafe — Jev model (<https://docs.typesafe.ai>)
+A fast, cheap model that answers **typed** questions — Choice, Score, yes/no —
+and returns a confidence with each answer. The typed output is the interesting
+part: it comes back as something code can branch on, rather than prose that has
+to be parsed.
+
+**Candidate uses**
+- The **news-veto worker** (doc §5.5, §9.1). Classify Vietnamese news per stock:
+  is it negative, what type of event, how severe — with low-confidence answers
+  routed to review rather than acted on. News is a veto in this system, not a
+  signal, so a wrong "negative" costs a missed opportunity and a wrong "fine"
+  costs a bad pick; confidence gating fits that shape.
+- Other backend or frontend **judgement** tasks where an answer has to be a
+  value rather than a paragraph.
+
+**Not for** numbers, dates, counting or pattern detection. Its own docs say to
+keep those in code — which matches this project's non-negotiable principle that
+deterministic code computes every number and the LLM only reads news and
+explains ([[architecture]] doc §9, §10.3).
+
+**Unknowns to test before trusting it**
+- Vietnamese language quality. Unproven, and this is the whole use case.
+- Resistance to manipulative rumour articles — a real hazard in a
+  retail-dominated market where news moves prices hard (doc §5.5). A model that
+  can be talked into "not negative" by a promotional piece is worse than no
+  news layer.
+- Access is **waitlist-only**.
+
+**Status: parked.** Revisit after the core pipeline works. The news layer is
+explicitly a later layer, and evaluating a model for it now would be building
+the roof before the walls.
+
+Related: [[decisions]] [[data-sources]] [[architecture]]

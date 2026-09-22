@@ -357,6 +357,21 @@ That fits on a laptop. Detecting every pattern across every stock and every day 
 
 **Backup if SSI history is short:** other Vietnamese data providers and open-source libraries that aggregate broker data exist; they would need the same checks (depth, adjustment, matched vs deal split) before use.
 
+#### Data source decision (updated 2026-09-22)
+
+**SSI FastConnect is paused** — registration costs money, and nothing is paid for until the system proves effective. The research phase uses free sources:
+
+| Role | Source | What it provides |
+| --- | --- | --- |
+| **Primary** | CafeF bulk files (cafef.vn/du-lieu/du-lieu-download.chn) | "Upto 3 sàn" full history for HOSE/HNX/UPCoM in both **adjusted and unadjusted** versions; Index history; "cung cầu" file (buy/sell order volumes, foreign trading). No account, no rate limits. |
+| **Reference / verification** | vnstock (free community tier, registered: 60 calls/min) | Daily OHLCV from \~2012 via VCI/KBS. Used to cross-check CafeF, not as the main source. Free tier lacks block trades and foreign flow. |
+
+**Why both CafeF versions matter:** the ratio adjusted ÷ unadjusted on each day gives the exact adjustment factor for every corporate action, which is also needed to adjust volume.
+
+**Verification rule:** every dataset is reconciled against the second source before use. Mismatches beyond tolerance are flagged and excluded until explained. Agreement does not prove truth (both derive from exchange data), but it catches download, parsing, missing-day and adjustment errors.
+
+**Still unconfirmed:** whether CafeF files separate matched vs negotiated volume, and whether delisted stocks are included. SSI remains the option to revisit once the system is proven.
+
 ## 8. Validation discipline — how not to fool ourselves
 
 This is the section that decides whether the project is real. With 1,500 stocks × dozens of patterns × several filters × several holding periods, there are **tens of thousands of combinations**. By pure chance, hundreds will look excellent on history. Most of those are luck and will fail going forward. The rules below exist to separate real edges from luck.
