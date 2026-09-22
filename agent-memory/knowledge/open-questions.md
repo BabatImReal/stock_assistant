@@ -120,3 +120,25 @@ These are not blockers; the blockers are in the section above.
       (doc §5.6 says to); and the different rules in force 2012–2014.
 
 Related: [[decisions]] [[data-sources]]
+
+## Environment (session 01, runs 3-4 — verified, closed)
+- [x] **uv works.** 0.12.17. `.python-version` pins the project to Python 3.12
+      (uv had otherwise chosen 3.13, which is not what Ben specified).
+      `uv sync`, `uv run pytest` (4 passed), `uv run ruff check`,
+      `uv run ruff format --check` and `uv run pre-commit run --all-files`
+      (7 hooks) all pass.
+- [x] **Docker works.** Ben launched Docker Desktop and ran
+      `docker compose up -d`. `vnstock-db` is up and healthy on port 5432,
+      PostgreSQL 16.15 with the **timescaledb 2.30.1 extension already
+      created** — no `CREATE EXTENSION` step is needed. The named volume
+      `stock_assistant_vnstock-db-data` exists. The README's
+      `docker compose exec db psql -U vnstock -d vnstock` command works as
+      written.
+- Note for future sessions: Docker Desktop puts its CLI in `~/.docker/bin`
+      (added to PATH by `~/.zprofile`), not `/usr/local/bin`. A Claude session
+      started *before* Docker Desktop's first launch will not see `docker` on
+      its PATH; the binaries are at
+      `/Applications/Docker.app/Contents/Resources/bin/docker` and
+      `.../cli-plugins/docker-compose`.
+
+Phase 2 environment is fully verified. Nothing outstanding here.

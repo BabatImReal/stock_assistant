@@ -1,0 +1,25 @@
+# Secrets. SSI credentials live here and nowhere else (CLAUDE.md).
+.env
+.env.*
+!.env.example
+
+# Downloaded and derived market data. Rebuildable, and far too large for git.
+# The two folders themselves stay in git (via their own .gitignore files) so the
+# layout exists after a fresh clone; everything inside them is ignored.
+data/*
+!data/raw/
+!data/processed/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store

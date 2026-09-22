@@ -1,0 +1,46 @@
+# Project definition and tool configuration.
+# Managed with uv (https://docs.astral.sh/uv/): `uv sync` installs everything
+# listed here into a local .venv. One file instead of requirements.txt +
+# setup.cfg + tox.ini.
+
+[project]
+name = "vnstock-research"
+version = "0.1.0"
+description = "Pattern research for the Vietnamese stock market (HOSE, HNX, UPCoM)"
+readme = "README.md"
+requires-python = ">=3.12"
+# Empty on purpose. Phase 2 is a skeleton; dependencies are added in the phase
+# that actually needs them, so nothing unused ends up in the lock file.
+dependencies = []
+
+[dependency-groups]
+# Dev tools. `uv sync` installs these too; `uv sync --no-dev` skips them.
+dev = [
+    "ruff>=0.6",
+    "pytest>=8.0",
+    "pre-commit>=3.7",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/vnstock_research"]
+
+[tool.ruff]
+# Ruff is linter and formatter in one tool, so there is no separate black/isort.
+line-length = 88
+target-version = "py312"
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+# E/W pycodestyle, F pyflakes, I import sorting, UP pyupgrade, B bugbear.
+# Deliberately modest: a research codebase should not fight its linter.
+select = ["E", "W", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Import the package from src/ without needing it installed in editable mode.
+pythonpath = ["src"]
+addopts = "-q"

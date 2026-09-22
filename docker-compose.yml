@@ -1,0 +1,39 @@
+# Local database only. Start it with:  docker compose up -d
+#
+# PostgreSQL with the TimescaleDB extension. Timescale turns a normal Postgres
+# table into a "hypertable" that is partitioned by time behind the scenes, which
+# is what we want for ~5 million daily candles (doc §7.5) and for the nightly
+# append of one new day.
+#
+# No Redis and no message broker yet, on purpose (doc §11.5). They belong to
+# the real-time layer, which is a later phase; adding them now would be
+# infrastructure with nothing to do.
+
+services:
+  db:
+    image: timescale/timescaledb:latest-pg16
+    container_name: vnstock-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-vnstock}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vnstock}
+      POSTGRES_DB: ${POSTGRES_DB:-vnstock}
+    ports:
+      # host:container - 5432 on your machine maps to 5432 inside the container.
+      # Change the left number if something else already uses 5432 locally.
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      # Named volume: the data survives `docker compose down` and container
+      # rebuilds. `docker compose down -v` deletes it - that is the only
+      # command that throws the database away.
+      - vnstock-db-data:/var/lib/postgresql/data
+    healthcheck:
+      # Lets other services (later) wait until Postgres actually accepts
+      # connections, rather than merely having started.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vnstock}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  vnstock-db-data:

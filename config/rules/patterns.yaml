@@ -1,0 +1,63 @@
+# Pattern parameters.
+#
+# Why this is a config file and not numbers inside functions (doc §3.5):
+# "lower wick >= 2x body" could equally be 1.5x or 3x. Every threshold here is
+# a CHOICE, and quietly choosing the value that makes history look best is the
+# single most common way to fool yourself (doc §8.1). Keeping them in one file
+# means every choice is visible, reviewable by the broker friend, and
+# changeable without touching code — and every change is a diff in git.
+#
+# STATUS: provisional textbook values, taken from doc §3. Nothing has been
+# measured yet. Per doc §8.2 these are fixed BEFORE testing begins and are not
+# tuned during discovery.
+
+horizons:
+  # PROVISIONAL - blocked on open-questions.md G3 and G10. The doc measures
+  # 3 and 5 days from the signal day, but entry is t+1 at the earliest and T+2
+  # settlement means the earliest realistic sell is ~t+3. Ben has not yet
+  # chosen 3 days, 5 days, or "until target or stop".
+  forward_days: [3, 5]
+  entry_offset_days: 1   # signal at day t close -> entry at t+1 (no look-ahead)
+
+single_candle:            # doc §3.1
+  hammer:
+    lower_wick_to_body_min: 2.0
+    body_position: top_third      # body sits in the top third of the range
+    upper_wick_to_body_max: 0.5
+  inverted_hammer:
+    upper_wick_to_body_min: 2.0
+    body_position: bottom_third
+  doji:
+    body_to_range_max: 0.10       # doc says ~5-10% of range
+  marubozu:
+    body_to_range_min: 0.90
+
+two_candle:               # doc §3.2
+  engulfing:
+    min_body_cover: 1.0           # today's body covers 100% of yesterday's
+  harami:
+    max_body_ratio: 0.5           # today's body at most half of yesterday's
+  piercing_line:
+    min_close_into_prev_body: 0.5 # closes above the midpoint
+
+consolidation:            # doc §3.4 - probably closest to what the friend watches
+  tight_range:
+    lookback_days: 5
+    range_vs_20d_avg_max: 0.6     # avg range of last N days < 60% of normal
+  higher_lows:
+    lookback_days: 4
+  breakout:
+    lookback_days: 20             # close above the highest high of last N days
+    min_rvol: 1.5
+
+volume:                   # doc §4.1-4.2
+  rvol_lookback_days: 20
+  rvol_confirm_min: 1.5           # the "volume confirmed" version of a pattern
+  sustained_window_days: 7
+  sustained_min_days_above: 4     # days in the window with RVOL > confirm_min
+  dry_up_rvol_max: 0.7
+  source: matched_only            # NON-NEGOTIABLE (doc §4.3): never deal volume
+
+reliability:              # doc §6.3, §8.1
+  min_occurrences_per_stock: 30   # below this, fall back to group then market
+  suspicious_hit_rate: 0.75       # above this, suspect a bug or a leak first
