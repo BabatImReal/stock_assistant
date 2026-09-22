@@ -1,7 +1,7 @@
-# Current state — 2026-09-22 (end of session 02, run 6)
+# Current state — 2026-09-22 (end of session 02, run 7)
 
 ## Phase
-**Phase 4 — data foundation. Steps 1–3 DONE. Build 3 promoted, verified.**
+**Phase 4 — data foundation. Steps 1–3 DONE. Build 5 promoted (inferred factors).**
 Step 4, the **nightly update, is NOT built** — Ben asked to stop and report the
 checks and reconciliation first.
 
@@ -18,8 +18,9 @@ checks and reconciliation first.
   `5e7198d` P4 step 1, `d3d722f` P4 steps 2–3. Only run-4 memory is uncommitted.
 
 ## What is in the database (build 2)
-- `bar_raw` **2,839,388 rows**, 1,709 symbols, **2000-07-28 → 2026-09-21**.
-- Research window (2012+): **2,470,680** adjusted bars.
+- `bar_raw` **2,886,721 rows**, 1,709 symbols, **2000-07-28 → 2026-09-21**.
+- Research window (2012+): **2,511,070** adjusted bars.
+- Factors: 2,824,492 cafef, 47,334 vnstock, 14,775 inferred.
 - `negotiated_volume` 4,228,174 rows (absence = unknown, never zero).
 - `index_bar` 11,456 rows; `trading_day` 18,505 exchange-days; 116 symbols with
   more than one exchange span.
@@ -41,16 +42,31 @@ checks and reconciliation first.
   difference** — VNM ~0.9835, MBB ~1.08, PNJ ~1.031 — all ending January 2022.
   The other seven symbols are 98.9–100%.
 
-## Exchange transfers (blocker G4) — COUNTED
+## Exchange transfers (blocker G4) — COUNTED AND BACKFILLED
+- **Backfilled 46 of the 47 liquid Class B symbols**: 47,334 bars, median gap
+  3.1 years. ACB now runs from **2006-11-21** (14.1 years recovered), SHB 12.5y,
+  VCG 12.3y. VLB skipped, no usable data.
+- Backfilled spans carry `is_adjusted_source=true` and
+  `volume_is_adjustable=false`: usable for price patterns and trend, and
+  **volume signals must skip them**.
+
 - **Class A = 116** (CafeF kept both spans; gaps now excused via
   `symbol_exchange`, no backfill needed).
 - **Class B = 251** (pre-transfer history missing; 47 of them liquid).
   By exchange: UPCOM 164, HOSE 68, HNX 19. Verified by control test.
   Gap sizes are lower bounds — the probe asked a 3-year window.
 
+## Missed corporate actions — HANDLED
+Of 187 beyond-limit candidates in the liquid universe: 64 real moves,
+**10 repaired** by inferring a round stock-dividend factor confirmed by a volume
+jump (build 5, `source='inferred'`, `bar_raw` untouched), **113 excluded** as
+unexplained in `excluded_window` (~16,025 calendar days). The volume test is
+weak below ~20% dividend rates, which is why the repair rate is low.
+
 ## Open items needing Ben
-- **63 confirmed missed corporate actions** in the liquid universe.
-- Suspension-resumption handling for the nightly job.
+- Suspension-resumption handling for the nightly job (open-questions).
+- The 113 excluded windows would shrink a lot given a real corporate-action
+  calendar.
 
 ## Next steps
 1. Ben reviews the checks and reconciliation.

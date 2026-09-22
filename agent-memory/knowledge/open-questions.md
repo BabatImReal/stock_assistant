@@ -233,8 +233,14 @@ Phase 2 environment is fully verified. Nothing outstanding here.
       restatement. Decide the handling before the nightly job is built: most
       likely, treat a symbol's first bar after a long gap as a new span and
       re-derive its factors rather than diffing them.
-- [ ] **63 confirmed missed corporate actions** (see below) need a handling
-      policy. Proposal in the run-6 report: exclude a window around each.
+- [x] **Missed corporate actions — handled 2026-09-22.** Of 123 suspect events,
+      **10 were repaired** by inferring the factor from a round stock-dividend
+      ratio confirmed by a volume jump (build 5), and **113 were excluded** as
+      unexplained, covering ~16,025 calendar days. The volume half of the test is
+      weak evidence below ~20% dividend rates — it discriminates well for a 1:1
+      bonus and barely at all for a 5% one, which is why only 10 of 123 passed.
+      Worth revisiting with a real corporate-action calendar if one becomes
+      available.
 - [ ] Price limits and tick sizes in `config/rules/market_rules.yaml` are
       **unconfirmed** — the doc says to re-confirm against the exchanges
       (doc §5.6). They currently affect data-quality counts only, not backtests.

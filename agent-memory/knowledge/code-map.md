@@ -79,6 +79,9 @@ All files are `__init__.py` with a docstring only. No functions yet.
 | `scripts/run_checks.py` | Runs the checks and the cross-source reconciliation, stores both, and promotes the build to 'good' only if nothing blocking failed | `data.checks`, `data.reconcile`, vnstock |
 | `scripts/verify_date_shifts.py` | Checks every `date_shifted` bar against vnstock on exact volume match; deletes the ones that cannot be verified, cascading to `adjustment_factor` and `bar_adjusted` | pandas, vnstock, `data.db` |
 | `scripts/investigate_warnings.py` | Classifies the beyond-price-limit moves, explains the latest-factor≠1 symbols, and reports every warning whole-market vs liquid universe | pandas, pyyaml, `data.db` |
+| `migrations/004_inferred_factors_and_exclusions.sql` | `adjustment_factor.source` ('cafef'/'inferred'/'vnstock') and the `excluded_window` table | — |
+| `scripts/repair_missed_actions.py` | Infers the factor for a missed corporate action from a round stock-dividend ratio confirmed by a volume jump; writes a new build; excludes what it cannot repair | pandas, vnstock, `data.checks` |
+| `scripts/backfill_transfers.py` | Backfills pre-transfer history from vnstock for the liquid Class B symbols, flagged so volume signals skip those spans | pandas, vnstock, `data.db` |
 | `config/rules/market_rules.yaml` | Price limits **with the date each took effect** and tick sizes by price band; settlement cycle. Used by the price-limit check | — |
 | `scripts/analyse_missed_actions.py` | For beyond-limit moves in the liquid universe, compares our adjusted series against vnstock's to tell "CafeF missed a corporate action" from "the move was real" | pandas, vnstock, `data.checks` |
 | `tests/test_data_integrity.py` | Live-database checks, skipped when no DB: `date_shifted` really is written, no weekend bars survive, the price-limit SQL uses the rule in force | psycopg |

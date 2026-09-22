@@ -279,6 +279,17 @@ def run_all(conn, build_id: int) -> list[Check]:
                   ON f.symbol = r.symbol AND f.trade_date = r.trade_date
                  AND f.build_id = %s
                 WHERE r.trade_date >= DATE '2012-01-01'
+                  -- Backfilled spans are ALREADY adjusted, so this test does
+                  -- not apply to them: its premise is "an unadjusted price
+                  -- gapped and no factor changed". An adjusted series has the
+                  -- corporate-action gaps removed by construction, and at the
+                  -- low prices a long adjustment produces (ACB's 2006 close
+                  -- adjusts to a couple of thousand VND) two-decimal rounding
+                  -- alone can push a legal 7 percent move past the limit.
+                  -- (No stray per-cent signs in this comment: psycopg reads
+                  -- them as parameter placeholders.) Including
+                  -- them added 1,916 phantom violations.
+                  AND NOT r.is_adjusted_source
                 WINDOW w AS (PARTITION BY r.symbol ORDER BY r.trade_date)
             )
             SELECT count(*) FROM moves
@@ -327,6 +338,17 @@ def run_all(conn, build_id: int) -> list[Check]:
                 SELECT symbol, min(trade_date) lo, max(trade_date) hi
                 FROM bar_raw WHERE trade_date >= DATE '2012-01-01'
                 GROUP BY symbol HAVING count(*) > 250
+            ),
+            transfer_gap AS (
+                -- The days between leaving one exchange and joining the next
+                -- are a real non-trading period, not missing data (116 Class A
+                -- symbols). Excused here so this check agrees with
+                -- scripts/investigate_warnings.py instead of reporting a
+                -- different number for the same thing.
+                SELECT e1.symbol, e1.valid_to AS gap_from, e2.valid_from AS gap_to
+                FROM symbol_exchange e1
+                JOIN symbol_exchange e2
+                  ON e2.symbol = e1.symbol AND e2.valid_from > e1.valid_to
             )
             SELECT count(*) FROM (
                 SELECT s.symbol, count(*) AS missing
@@ -334,6 +356,11 @@ def run_all(conn, build_id: int) -> list[Check]:
                 LEFT JOIN bar_raw b
                        ON b.symbol = s.symbol AND b.trade_date = c.trade_date
                 WHERE b.symbol IS NULL
+                  AND NOT EXISTS (
+                      SELECT 1 FROM transfer_gap t
+                      WHERE t.symbol = s.symbol
+                        AND c.trade_date > t.gap_from AND c.trade_date < t.gap_to
+                  )
                 GROUP BY s.symbol HAVING count(*) > 20
             ) t
             """
