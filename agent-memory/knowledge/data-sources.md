@@ -66,17 +66,37 @@ warrants (`CACB2101`…) and must be filtered out.
   traded on either. 7 stock rows fall on weekends too (2016–2017). The trading
   calendar must be derived from stock rows, or weekend-filtered, not taken from
   the index file as-is.
-- **No matched vs negotiated split anywhere in the bulk files.** See below.
+- **CORRECTION (2026-09-22, G12 test): the bulk files DO carry the matched vs
+  negotiated split.** The Phase 3 probe said they did not. That was wrong — it
+  read the AmiBroker headers at face value. See "The split" below.
+
+### The split — CONFIRMED, and the bulk files have it
+**CafeF's bulk OHLCV volume is MATCHED-ONLY.** Tested on the 20 stock-days in the
+last quarter with the largest negotiated deals (64%–88% of total volume):
+bulk volume equalled matched-only on **20/20** and matched+deal on **0/20**. On
+HDB 2026-08-19 the two candidate answers differ by 8× (7.07M vs 59.6M), so the
+test is not marginal.
+
+So [[money-flow]] §4.3 — money flow uses matched volume only — **is already
+satisfied by the primary source**, with no scraper and no workaround.
+
+The negotiated series is available too, from `NN_<Low>`, but its **coverage is
+patchy in recent years**: rows exist for 97–100% of HSX stock-days in 2012–2020,
+then 92% (2021), 80% (2022), 89% (2023), **46% (2024)**, 73% (2025), 100% (2026).
+Where a row exists it is exact; where it is missing, deal volume is unknown
+rather than zero — a distinction that matters if it is ever used as a filter.
 
 ### CC_ and NN_ files — what they actually hold
 Every file reuses the same AmiBroker header, so the column *names* mean nothing;
 only the values identify them. Findings:
-- `NN_*` (nước ngoài / foreign): `<High>` equals the OHLCV volume on **100%** of
-  days. `<Low>` is non-zero on only ~6% of recent days and looks like block
-  trades. **`<Open>`, `<Close>`, `<Volume>` and `<OI>` have been all-zero since
-  January 2025** — they were populated through 2024 (95% of days) and then
-  stopped. So **foreign flow (doc §4.4) exists historically but is dead in the
-  current files.**
+- `NN_*`: **`<High>` = matched volume (khớp lệnh), `<Low>` = negotiated volume
+  (thỏa thuận)** — identified by matching values against CafeF's per-stock page
+  on 20 large-deal days, 20/20 exact for both. `<High>` equals the OHLCV volume
+  on 100% of rows every year 2012–2026 (99.8% in 2023).
+  **`<Open>`, `<Close>`, `<Volume>` and `<OI>` have been all-zero since January
+  2025** — populated through 2024 and then stopped. Those were the foreign-flow
+  columns, so **foreign flow (doc §4.4) exists historically but is dead in the
+  current files** (blocker G13, excluded by Ben's decision).
 - `CC_*` (cung cầu / supply-demand): order-book aggregates — order counts and
   values on the buy and sell side — not a matched/negotiated split.
 - Old rows (2006–2007) carry identical placeholder values across different

@@ -107,7 +107,25 @@ breaks ties — before the daily scan is built.
 period is still open (doc §11.3). Circular until answered. **Resolve:** Ben's
 four questions above, holding period first.
 
-### G12 — No free source has matched vs negotiated volume
+### G12 — CLOSED 2026-09-22: CafeF bulk volume is matched-only
+**Tested, not assumed.** On the 20 stock-days with the largest negotiated deals
+in the last quarter (deal = 64–88% of total), CafeF's bulk OHLCV volume equalled
+matched-only 20/20 and matched+deal 0/20. On HDB 2026-08-19 the two answers
+differ by 8×, so the result is unambiguous.
+
+**Consequence: no scraper, no backfill, no SSI purchase is needed for volume.**
+[[money-flow]] §4.3 is satisfied by the primary source.
+
+**Second finding, and a correction.** The Phase 3 report claimed no bulk file
+carried the split. That was wrong — it trusted the AmiBroker headers. The `NN_`
+files do carry it: `<High>` = matched, `<Low>` = negotiated, 20/20 exact, and
+`<High>` equals the OHLCV volume on 100% of rows every year 2012–2026. Caveat:
+NN row coverage drops in recent years (46% of HSX stock-days in 2024, 73% in
+2025), and a missing row means "unknown", not "no deal".
+
+Superseded text below, kept for the record:
+
+### (superseded) No free source has matched vs negotiated volume
 **Found by the Phase 3 probe, 2026-09-22.** CafeF's CC_ files are order-book
 supply/demand aggregates and its NN_ files are foreign flow; neither separates
 matched (khớp lệnh) from negotiated (thỏa thuận) volume. vnstock's free tier has
