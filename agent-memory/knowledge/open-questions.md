@@ -223,6 +223,22 @@ These are not blockers; the blockers are in the section above.
 
 Phase 2 environment is fully verified. Nothing outstanding here.
 
+## For the nightly job design (session 02, run 5-6)
+
+- [ ] **Suspension–resumption breaks factor-change detection.** Nightly detection
+      treats a changed factor on a past day as a restatement. A symbol that stops
+      trading keeps a frozen factor (68 symbols have a latest factor ≠ 1 for
+      exactly this reason, none of them liquid). If such a symbol **resumes**,
+      its whole factor series can shift at once and look like a mass
+      restatement. Decide the handling before the nightly job is built: most
+      likely, treat a symbol's first bar after a long gap as a new span and
+      re-derive its factors rather than diffing them.
+- [ ] **63 confirmed missed corporate actions** (see below) need a handling
+      policy. Proposal in the run-6 report: exclude a window around each.
+- [ ] Price limits and tick sizes in `config/rules/market_rules.yaml` are
+      **unconfirmed** — the doc says to re-confirm against the exchanges
+      (doc §5.6). They currently affect data-quality counts only, not backtests.
+
 ## Tools to evaluate later
 
 ### TypeSafe — Jev model (<https://docs.typesafe.ai>)

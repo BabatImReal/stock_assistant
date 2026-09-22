@@ -74,6 +74,9 @@ data is correct. Fix the note immediately and log the correction in the run.
 Never state that a file was written, a test passed or a task was done unless it
 actually happened in this run. Say "not done yet" instead.
 Never modify .env without asking first; propose the change instead.
+Every fix must be proven by a check that fails without it (a test, or a query
+showing the changed values). After editing, verify the edit applied; formatters
+can change the text you matched on.
 
 ## Non-negotiable principles
 - Deterministic code detects patterns and computes every number. LLMs only
@@ -92,6 +95,7 @@ Never modify .env without asking first; propose the change instead.
 - Validation (doc §8): no look-ahead bias; parameters fixed before testing;
   discover/validate/holdout split; costs and VN rules (price limits, T+2,
   fees, 0.1% sale tax) always modelled.
+- No pattern window or forward-return window may span a gap in trading.
 - "No recommendation today" is a valid output.
 
 ## Working rules

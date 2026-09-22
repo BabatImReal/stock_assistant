@@ -1,0 +1,44 @@
+# Vietnamese market rules that change the arithmetic (doc §5.6).
+#
+# These are FACTS about the market, not tuning choices -- but they change over
+# time, so each one carries the date it took effect. A backtest must apply the
+# rule in force on the date it is testing, not today's rule (doc §7.5: "backtests
+# must apply the rules in force at each date").
+#
+# STATUS: the doc says explicitly that price-limit and settlement details must be
+# re-confirmed against the exchanges before building. Recorded as an open
+# question. The values below are used for data-quality checks only, where being
+# slightly wrong costs a miscounted warning, not a wrong backtest.
+
+price_limits:
+  # Daily limit as a fraction of the reference price, by exchange, with the date
+  # the value took effect. The 2013-01-15 widening is the one that matters for a
+  # 2012-onward window.
+  HOSE:
+    - {from: "2000-01-01", limit: 0.05}
+    - {from: "2013-01-15", limit: 0.07}
+  HNX:
+    - {from: "2000-01-01", limit: 0.07}
+    - {from: "2013-01-15", limit: 0.10}
+  UPCOM:
+    - {from: "2009-06-24", limit: 0.10}
+    - {from: "2013-01-15", limit: 0.15}
+
+tick_size:
+  # In THOUSANDS of VND, matching how CafeF quotes prices.
+  # A percentage limit is meaningless on a cheap stock: at a 100 VND tick a share
+  # trading at 600 VND moves 16.7% in one tick. Every limit check therefore
+  # allows the limit PLUS one tick.
+  HOSE:
+    - {under: 10.0,  tick: 0.01}   # 10 VND
+    - {under: 50.0,  tick: 0.05}   # 50 VND
+    - {under: null,  tick: 0.10}   # 100 VND
+  HNX:
+    - {under: null,  tick: 0.10}
+  UPCOM:
+    - {under: null,  tick: 0.10}
+
+settlement:
+  # Shares bought today arrive ~2 trading days later, so the earliest realistic
+  # sell is around day 3 (doc §5.6). Recorded here; used by the backtest later.
+  cycle_days: 2

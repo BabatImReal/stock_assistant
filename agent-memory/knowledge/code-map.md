@@ -79,6 +79,9 @@ All files are `__init__.py` with a docstring only. No functions yet.
 | `scripts/run_checks.py` | Runs the checks and the cross-source reconciliation, stores both, and promotes the build to 'good' only if nothing blocking failed | `data.checks`, `data.reconcile`, vnstock |
 | `scripts/verify_date_shifts.py` | Checks every `date_shifted` bar against vnstock on exact volume match; deletes the ones that cannot be verified, cascading to `adjustment_factor` and `bar_adjusted` | pandas, vnstock, `data.db` |
 | `scripts/investigate_warnings.py` | Classifies the beyond-price-limit moves, explains the latest-factor≠1 symbols, and reports every warning whole-market vs liquid universe | pandas, pyyaml, `data.db` |
+| `config/rules/market_rules.yaml` | Price limits **with the date each took effect** and tick sizes by price band; settlement cycle. Used by the price-limit check | — |
+| `scripts/analyse_missed_actions.py` | For beyond-limit moves in the liquid universe, compares our adjusted series against vnstock's to tell "CafeF missed a corporate action" from "the move was real" | pandas, vnstock, `data.checks` |
+| `tests/test_data_integrity.py` | Live-database checks, skipped when no DB: `date_shifted` really is written, no weekend bars survive, the price-limit SQL uses the rule in force | psycopg |
 | `config/rules/universe.yaml` | Liquidity floor (defines the "liquid universe"), research start date, and `exclude_date_shifted` | — |
 | `scripts/count_exchange_transfers.py` | Counts symbols affected by exchange transfers (G4): class A from CafeF alone, class B by asking vnstock for the window before CafeF's first date | pandas, vnstock |
 | `tests/test_db.py` | Schema checks that need no server: migrations ordered, 3-letter constraint present, negotiated volume cannot be faked with a zero row | — |

@@ -288,12 +288,33 @@ def main() -> None:
                 SELECT symbol, min(trade_date) lo, max(trade_date) hi
                 FROM bar_raw WHERE trade_date >= %s
                 GROUP BY symbol HAVING count(*) > 250
+            ), transfer_gap AS (
+                -- Class A stitching. 116 symbols moved exchange and CafeF kept
+                -- both spans. The days between leaving one venue and joining
+                -- the next are a real non-trading period, not missing data, so
+                -- they must not be counted as gaps. Derived from
+                -- symbol_exchange rather than stored: the spans already say it.
+                SELECT e1.symbol, e1.valid_to AS gap_from, e2.valid_from AS gap_to
+                FROM symbol_exchange e1
+                JOIN symbol_exchange e2
+                  ON e2.symbol = e1.symbol AND e2.valid_from > e1.valid_to
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM symbol_exchange e3
+                    WHERE e3.symbol = e1.symbol
+                      AND e3.valid_from > e1.valid_to
+                      AND e3.valid_from < e2.valid_from
+                )
             ), gaps AS (
                 SELECT s.symbol, count(*) AS missing
                 FROM span s JOIN cal c ON c.trade_date BETWEEN s.lo AND s.hi
                 LEFT JOIN bar_raw b
                        ON b.symbol = s.symbol AND b.trade_date = c.trade_date
                 WHERE b.symbol IS NULL
+                  AND NOT EXISTS (
+                      SELECT 1 FROM transfer_gap t
+                      WHERE t.symbol = s.symbol
+                        AND c.trade_date > t.gap_from AND c.trade_date < t.gap_to
+                  )
                 GROUP BY s.symbol HAVING count(*) > 20
             )
             SELECT count(*),
@@ -305,8 +326,9 @@ def main() -> None:
             (start, start),
         )
         n_gap, n_gap_liq, worst = cur.fetchone()
+        say("symbols missing > 20 sessions (transfer gaps excused):")
         say(
-            f"symbols missing > 20 sessions:        {n_gap:>6,} all"
+            f"                                      {n_gap:>6,} all"
             f"   {n_gap_liq:>5,} liquid   (worst: {worst:,} sessions)"
         )
 

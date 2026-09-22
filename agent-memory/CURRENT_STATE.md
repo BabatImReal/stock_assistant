@@ -1,7 +1,7 @@
-# Current state — 2026-09-22 (end of session 02, run 4)
+# Current state — 2026-09-22 (end of session 02, run 6)
 
 ## Phase
-**Phase 4 — data foundation. Steps 1–3 DONE and committed.**
+**Phase 4 — data foundation. Steps 1–3 DONE. Build 3 promoted, verified.**
 Step 4, the **nightly update, is NOT built** — Ben asked to stop and report the
 checks and reconciliation first.
 
@@ -41,10 +41,16 @@ checks and reconciliation first.
   difference** — VNM ~0.9835, MBB ~1.08, PNJ ~1.031 — all ending January 2022.
   The other seven symbols are 98.9–100%.
 
-## In progress
-- `scripts/count_exchange_transfers.py` running in the background: the exact
-  class-B count (symbols whose pre-transfer history CafeF dropped). Class A
-  (CafeF kept both spans, needs stitching only) is already known: **116**.
+## Exchange transfers (blocker G4) — COUNTED
+- **Class A = 116** (CafeF kept both spans; gaps now excused via
+  `symbol_exchange`, no backfill needed).
+- **Class B = 251** (pre-transfer history missing; 47 of them liquid).
+  By exchange: UPCOM 164, HOSE 68, HNX 19. Verified by control test.
+  Gap sizes are lower bounds — the probe asked a 3-year window.
+
+## Open items needing Ben
+- **63 confirmed missed corporate actions** in the liquid universe.
+- Suspension-resumption handling for the nightly job.
 
 ## Next steps
 1. Ben reviews the checks and reconciliation.

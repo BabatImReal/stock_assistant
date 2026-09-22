@@ -17,12 +17,16 @@ Nothing here deletes data. A failing build is simply not promoted.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
-# Daily price limits by exchange (doc §5.6). Used only as a plausibility band:
-# these are today's limits and the early years differed, which is why a
-# violation is a warning to investigate rather than an automatic failure.
-PRICE_LIMIT = {"HOSE": 0.07, "HNX": 0.10, "UPCOM": 0.15}
-LIMIT_TOLERANCE = 0.02  # rounding in thousands-of-VND prices, plus rule changes
+import yaml
+
+# Market rules live in config, with the date each value took effect, because a
+# backtest must apply the rule in force on the date it is testing (doc §7.5).
+# Loaded here so the price-limit check uses the real limit rather than today's.
+MARKET_RULES = (
+    Path(__file__).resolve().parents[3] / "config" / "rules" / "market_rules.yaml"
+)
 
 # A trading day with fewer than this many symbols is not a real session.
 MIN_SYMBOLS_PER_DAY = 20
@@ -35,6 +39,49 @@ class Check:
     severity: str  # 'fail' | 'warn'
     observed: str
     detail: dict
+
+
+def limit_sql() -> str:
+    """SQL for the daily price limit in force on a given row's date and exchange.
+
+    Built from config rather than hard-coded: HOSE widened from 5% to 7% and HNX
+    from 7% to 10% on 2013-01-15, inside our research window, so using today's
+    limit would wrongly excuse two years of real violations and wrongly flag
+    none of them.
+    """
+    rules = yaml.safe_load(MARKET_RULES.read_text())["price_limits"]
+    cases = []
+    for exchange, periods in rules.items():
+        # Latest effective date first, so the first matching WHEN wins.
+        for period in sorted(periods, key=lambda r: r["from"], reverse=True):
+            cases.append(
+                f"WHEN exchange = '{exchange}' AND trade_date >= "
+                f"DATE '{period['from']}' THEN {period['limit']}"
+            )
+    return "CASE " + " ".join(cases) + " ELSE 0.07 END"
+
+
+def tick_sql(price_col: str) -> str:
+    """SQL for the tick size at a given price, in thousands of VND.
+
+    A percentage limit is the wrong test on a cheap stock: at a 10 VND tick a
+    share trading at 600 VND moves 1.7% per tick, and at a 100 VND tick on HNX
+    it moves 16.7%. Every limit comparison therefore allows the limit PLUS one
+    tick, which removes the whole artefact instead of excusing it with a fudge
+    factor.
+    """
+    rules = yaml.safe_load(MARKET_RULES.read_text())["tick_size"]
+    cases = []
+    for exchange, bands in rules.items():
+        for band in bands:
+            if band["under"] is None:
+                cases.append(f"WHEN exchange = '{exchange}' THEN {band['tick']}")
+            else:
+                cases.append(
+                    f"WHEN exchange = '{exchange}' AND {price_col} < "
+                    f"{band['under']} THEN {band['tick']}"
+                )
+    return "CASE " + " ".join(cases) + " ELSE 0.1 END"
 
 
 def _one(cur, sql: str, params: tuple = ()) -> tuple:
@@ -215,10 +262,15 @@ def run_all(conn, build_id: int) -> list[Check]:
         # corporate action. It is only suspicious when the factor did NOT change
         # on the same day -- that combination means either bad data or an event
         # nobody adjusted for.
+        #
+        # The comparison uses the limit IN FORCE on that date plus one tick, so
+        # neither the 2013 rule change nor cheap-stock tick granularity produces
+        # phantom violations.
         cur.execute(
-            """
+            f"""
             WITH moves AS (
-                SELECT r.symbol, r.trade_date, r.exchange,
+                SELECT r.symbol, r.trade_date, r.exchange, r.close,
+                       lag(r.close) OVER w AS prev_close,
                        r.close / lag(r.close) OVER w - 1 AS move,
                        f.factor,
                        lag(f.factor) OVER w AS prev_factor
@@ -230,17 +282,11 @@ def run_all(conn, build_id: int) -> list[Check]:
                 WINDOW w AS (PARTITION BY r.symbol ORDER BY r.trade_date)
             )
             SELECT count(*) FROM moves
-            WHERE move IS NOT NULL
-              AND abs(move) > CASE exchange
-                                WHEN 'HOSE' THEN %s WHEN 'HNX' THEN %s ELSE %s END
+            WHERE move IS NOT NULL AND prev_close > 0
+              AND abs(move) > ({limit_sql()}) + ({tick_sql("prev_close")}) / prev_close
               AND abs(factor - prev_factor) < 0.000001
             """,
-            (
-                build_id,
-                PRICE_LIMIT["HOSE"] + LIMIT_TOLERANCE,
-                PRICE_LIMIT["HNX"] + LIMIT_TOLERANCE,
-                PRICE_LIMIT["UPCOM"] + LIMIT_TOLERANCE,
-            ),
+            (build_id,),
         )
         (n_limit,) = cur.fetchone()
         checks.append(
@@ -248,7 +294,7 @@ def run_all(conn, build_id: int) -> list[Check]:
                 "moves_beyond_price_limit_without_a_factor_change",
                 n_limit == 0,
                 "warn",
-                f"{n_limit:,} symbol-days since 2012",
+                f"{n_limit:,} symbol-days since 2012 (limit in force + 1 tick)",
                 {"rows": n_limit},
             )
         )
