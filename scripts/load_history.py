@@ -151,6 +151,7 @@ def main() -> None:
                 "source",
                 "is_adjusted_source",
                 "source_file",
+                "date_shifted",
             ],
         )
         conn.commit()

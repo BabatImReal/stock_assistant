@@ -150,6 +150,23 @@ Tolerances: 0.5% on price, 1% on volume (reasoning in `reconcile.py`).
 Per symbol: FPT 99.97%, SSI 99.86%, HPG 98.91%, ACB 100% (only 1,435 days
 exist), **VNM 47.68%**.
 
+### KNOWN POLICY DIFFERENCE — no further action (Ben, 2026-09-22)
+Three symbols disagree with vnstock by a near-constant ratio over a long span,
+then agree exactly afterwards. That is two different answers to "is this event
+adjusted for", not corruption, and **CafeF is canonical** (decision 2026-09-22):
+
+| Symbol | Span of the divergence | Ratio |
+| --- | --- | --- |
+| VNM | 2012-01-03 → 2022-01-19 | ~0.9835 |
+| MBB | 2012-01-03 → 2022-01-20 | ~1.08 |
+| PNJ | 2012-01-03 → 2022-01-19 | ~1.031 |
+
+All three resolve in January 2022. Every other symbol tested is 98.9–100%.
+**Consequence to remember:** those three symbols' pre-2022 history will not match
+a chart drawn from any other source. Nothing is broken; it is a different
+definition. `reconcile.py` already separates this case from corruption by
+reporting the median ratio of the mismatches.
+
 **VNM is one explained divergence, not corruption.** Every day from 2012-01-03
 to 2019-09-13 differs by a constant ratio of **0.9835** (1.65%), and after that
 they agree exactly. One corporate action around 2019-09-16 that CafeF adjusts

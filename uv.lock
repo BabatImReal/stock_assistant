@@ -1443,6 +1443,7 @@ source = { editable = "." }
 dependencies = [
     { name = "pandas" },
     { name = "psycopg", extra = ["binary"] },
+    { name = "pyyaml" },
     { name = "requests" },
     { name = "vnstock" },
 ]
@@ -1458,6 +1459,7 @@ dev = [
 requires-dist = [
     { name = "pandas", specifier = ">=3.0.6" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.3.6" },
+    { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "requests", specifier = ">=2.34.2" },
     { name = "vnstock", specifier = ">=4.0.2" },
 ]

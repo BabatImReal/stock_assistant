@@ -71,6 +71,9 @@ End of every run, before replying to Ben:
 
 Honesty rule: if a note disagrees with the actual code or data, the code or
 data is correct. Fix the note immediately and log the correction in the run.
+Never state that a file was written, a test passed or a task was done unless it
+actually happened in this run. Say "not done yet" instead.
+Never modify .env without asking first; propose the change instead.
 
 ## Non-negotiable principles
 - Deterministic code detects patterns and computes every number. LLMs only

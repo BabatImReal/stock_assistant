@@ -76,3 +76,13 @@ Related: [[architecture]] [[validation]] [[open-questions]]
 | 2026-09-22 | The `factor > 1` check **blocks inside the research window only**, with a whole-history warning | Pre-2012 data is stored but never measured on. One symbol (GGG, 2010) has 120 such factors; blocking a build over data research never reads would train us to ignore the gate | blocking on the whole history; dropping the check |
 | 2026-09-22 | **Weekend-dated bars are moved to the previous business day when that day is free for the symbol**, dropped on collision, and flagged in `bar_raw.date_shifted` | CafeF dated a whole HNX session one day late (Saturday 2023-08-26 = Friday's session, verified against vnstock). Dropping would lose real data for 214 symbols; repairing invisibly would be worse | dropping all weekend rows; repairing without a flag |
 | 2026-09-22 | Reconciliation compares **adjusted close vs adjusted close, and raw volume vs raw volume** | vnstock adjusts price but not volume. Comparing our adjusted volume with theirs measures the factor, not agreement — it scored 1.92% before the fix and 98.74% after | comparing adjusted volume to vnstock volume |
+
+## Session 02 run 5
+
+| Date | Decision | Reason | Rejected |
+| --- | --- | --- | --- |
+| 2026-09-22 | CLAUDE.md honesty rule extended: **never claim a file was written, a test passed or a task was done unless it happened in this run**; say "not done yet". And **never modify `.env` without asking** — propose the change | Run 3 reported `data-model.md` as written when it was not, and run 4 edited `.env` without asking | — |
+| 2026-09-22 | **Every date-shifted bar is verified against vnstock; unverifiable ones are deleted** | One worked example justified the repair; it did not justify 85 rows. 84 verified on exact volume match, 1 (BDT 2025-05-02) deleted because the reference has no session at the target date | trusting the repair on the strength of one example |
+| 2026-09-22 | **Research excludes `date_shifted` bars by default** (`config/rules/universe.yaml`) | They are repaired data. Verified, but research should not silently depend on a bar whose date we corrected | including them once verified |
+| 2026-09-22 | VNM/MBB/PNJ vs vnstock recorded as a **known policy difference, no further action** | CafeF is canonical; both series are internally consistent | investigating further; excluding the symbols |
+| 2026-09-22 | **"Liquid universe" is defined in `config/rules/universe.yaml`** — avg matched traded value ≥ 1bn VND/day over 60 sessions (PROVISIONAL, pending G10) | Ben asked for a config value, not a hard-coded number. It is also the yardstick for how much a data-quality warning matters | a hard-coded threshold |

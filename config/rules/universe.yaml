@@ -1,0 +1,31 @@
+# Which stocks are eligible for research and for the daily scan.
+#
+# Like every threshold in this project these are CHOICES, kept in config so they
+# are visible and reviewable rather than buried in a query (doc §3.5).
+#
+# The liquidity floor exists because thin stocks produce beautiful statistics
+# that cannot be traded in real size (doc §5.6). It is also the definition of
+# the "liquid universe" used for nightly reconciliation and for judging how much
+# a data-quality warning actually matters: a defect on a stock nobody could buy
+# is not the same as a defect on one that could be recommended.
+#
+# PROVISIONAL - blocked on open-questions.md G10 (Ben has not yet set his
+# minimum liquidity). 1,000,000 thousand VND = 1 billion VND/day is a common
+# retail floor and is used until he decides.
+
+liquidity:
+  # Average daily MATCHED traded value (close x matched volume), in THOUSANDS of
+  # VND, since CafeF prices are quoted in thousands.
+  min_avg_matched_value: 1000000      # = 1 billion VND/day
+  lookback_days: 60
+  # A stock must also actually trade: days with volume are what count.
+  min_trading_days_in_lookback: 40
+
+universe:
+  # Research window. History is STORED from 2000 (Ben, 2026-09-22) but only
+  # measured on from here.
+  research_start: "2012-01-01"
+  # Bars the loader moved off a non-trading date are excluded from research by
+  # default (Ben, 2026-09-22). They are real data with a corrected date, but
+  # they are repaired data and research should not silently depend on them.
+  exclude_date_shifted: true
