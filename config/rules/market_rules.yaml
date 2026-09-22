@@ -71,19 +71,31 @@ tick_size:
         - {under: null, tick: 0.10}
 
 settlement:
-  # Shares bought today arrive this many trading days later, so the earliest
-  # realistic sell is the following session (doc §5.6). This is the rule that
-  # makes a 1-day pattern edge untradeable and the 3-5 day horizon viable.
+  # How many TRADING sessions after the trade date the shares can first be sold.
+  # Three eras, VERIFIED by Ben against Vietnamese sources:
+  #   - hanoimoi.vn: T+2 settlement from 4/1/2016; trades of 29-31/12/2015 still
+  #     settled T+3.
+  #   - VNDirect support: trading from the afternoon of T+2 since 29/8/2022,
+  #     previously T+3.
   #
-  # NOT VERIFIED. Ben believes T+3 before 2016 and T+2 after, which matches the
-  # common account, and Circular 203/2015/TT-BTC (issued 2015-12-21) is the
-  # instrument usually cited. I could not confirm the effective date from a
-  # primary source in this session, so the date below is a best estimate and
-  # must be checked before any backtest depends on it.
-  cycles:
-    - {from: "2000-07-28", days: 3, verified: false}
-    - {from: "2016-01-01", days: 2, verified: false}
-  # Separately and later, the time of day shares become available was brought
-  # forward within the T+2 cycle (reported as 2022-08-29). It does not change
-  # the number of days, so it does not affect the earliest sell SESSION.
-  intraday_change_note: "2022-08-29, availability moved earlier within T+2"
+  # The subtlety that matters: moving to a "T+2 settlement" in 2016 did NOT make
+  # shares sellable on T+2, because settlement landed at 16:30 -- after the
+  # market closed. The earliest sell stayed T+3 until the 2022 change moved
+  # settlement to before 13:00, which finally put the shares in reach during the
+  # T+2 afternoon session.
+  #
+  # earliest_sell_offset is what the backtest uses: the smallest k for which
+  # close(t+1+k) is a price we could actually have sold at.
+  eras:
+    - from: "2000-07-28"
+      settles: "morning of T+3"
+      earliest_sell_offset: 3
+      verified: true
+    - from: "2016-01-04"
+      settles: "16:30 on T+2, after the close"
+      earliest_sell_offset: 3
+      verified: true
+    - from: "2022-08-25"
+      settles: "before 13:00 on T+2"
+      earliest_sell_offset: 2
+      verified: true

@@ -1,10 +1,11 @@
-# Current state — 2026-09-22 (end of session 02, run 8)
+# Current state — 2026-09-22 (end of session 02, run 9)
 
 Every number below was read from the database or from `git log` in this run.
 
 ## Phase
-**Phase 4 — data foundation. Steps 1–3 done. Step 4 (the nightly job) NOT built.**
-Blocked on Ben: approval of the G3 forward-return definition (proposed this run).
+**Phase 4 — data foundation COMPLETE. All four steps built and run.**
+Next is features (doc §4–5). Nothing blocks it except Ben's broker fee, which
+only affects the net-return figure.
 
 ## The database — build 5, promoted 'good'
 | | |
@@ -13,13 +14,15 @@ Blocked on Ben: approval of the G3 forward-return definition (proposed this run)
 | research window (2012+) | **2,511,070** adjusted bars |
 | `negotiated_volume` | 4,228,174 rows (absence = unknown, never zero) |
 | `index_bar` | 11,456 | `trading_day` | 18,505 exchange-days |
-| `excluded_window` | 113 windows (~16,025 calendar days) |
+| `excluded_window` | 115 windows (~18,726 calendar days) |
 | factors in build 5 | cafef 2,824,492 · vnstock 47,334 · **inferred 14,775** |
 | symbols with backfill | 46 |
 | builds | 1 failed, 2 good, 3 good, 5 good (4 was discarded before promotion) |
 
 ## What works, verified by running it
-- `uv run pytest` → **22 passed** (18 unit + 4 live-database).
+- `uv run pytest` → **36 passed** (unit + live-database + forward returns).
+- `scripts/nightly_update.py` → ran once; correctly reported `no_new_data` and
+  wrote a heartbeat row. **One command: `uv run python scripts/nightly_update.py`**
 - `uv run ruff check .` → clean. Pre-commit: 7 hooks.
 - `scripts/load_history.py` → loads CafeF back to 2000.
 - `scripts/run_checks.py` → 14 checks + reconciliation; promotes a build only
@@ -59,11 +62,26 @@ measure from 2012), **G9** (ranking function undefined), **G10** (Ben's four
 parameters), **G11** (survivorship — partial coverage, now better after the
 backfill).
 
+## G3 — closed and implemented
+signal at close of t → entry at open of t+1 → `return_k = close(t+1+k) /
+open(t+1) − 1`, k ≥ the earliest-sell offset for the ERA of the entry date.
+Three settlement eras, all verified: T+3; T+2 settling 16:30 from 2016-01-04
+(so earliest sell is **still T+3**); T+2 settling before 13:00 from 2022-08-25.
+Entries rejected when t+1 opens at the ceiling (**0.133%** of liquid bars);
+exits deferred past a floor close (**0.342%**, cap 5 sessions, only 3 runs
+market-wide exceed it). Gross and net both stored; round trip **0.40%** with a
+**provisional** 0.15%/side broker fee.
+
+## Backfill seams
+35 of 46 needed a level rescale; **44 of 46 now within 2%**. TDP and VHM meet
+across 73 and 308 days, where the ratio is real price movement rather than a
+mismatch — left alone and written to `excluded_window`.
+
 ## Next steps
-1. **Ben approves the G3 forward-return definition.**
-2. Phase 4 step 4: the nightly job. Must settle suspension–resumption handling
-   (`open-questions.md`) and re-detect missed corporate actions each night.
-3. Then features (doc §4–5), then pattern rules (doc §3).
+1. Ben confirms his broker fee (affects net returns only).
+2. **Features** (doc §4–5): volume measures on matched volume, trend, support
+   and resistance, market regime.
+3. Then pattern rules (doc §3), then the backtest.
 
 ## Parked
 - **TypeSafe / Jev** for the later news-veto worker.

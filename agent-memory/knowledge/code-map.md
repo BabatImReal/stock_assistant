@@ -82,6 +82,12 @@ All files are `__init__.py` with a docstring only. No functions yet.
 | `migrations/004_inferred_factors_and_exclusions.sql` | `adjustment_factor.source` ('cafef'/'inferred'/'vnstock') and the `excluded_window` table | — |
 | `scripts/repair_missed_actions.py` | Infers the factor for a missed corporate action from a round stock-dividend ratio confirmed by a volume jump; writes a new build; excludes what it cannot repair | pandas, vnstock, `data.checks` |
 | `scripts/backfill_transfers.py` | Backfills pre-transfer history from vnstock for the liquid Class B symbols, flagged so volume signals skip those spans | pandas, vnstock, `data.db` |
+| `src/vnstock_research/backtest/forward_returns.py` | **G3 implemented.** Settlement eras, `earliest_sell_offset`, `valid_horizons`, ceiling/floor detection, gross→net with fees and sale tax | pyyaml |
+| `scripts/nightly_update.py` | The nightly job: daily CafeF files, append, factors, checks, promote — with a heartbeat row every run | requests, pandas, `data.*` |
+| `scripts/check_backfill_seams.py` | Measures and rescales the level mismatch where a backfilled span meets CafeF; refuses to rescale across long gaps | pandas, `data.db` |
+| `scripts/measure_fillability.py` | How often the ceiling/floor rules bite, whole market vs liquid | pyyaml, `data.checks` |
+| `migrations/005_job_run.sql` | The `job_run` heartbeat table | — |
+| `config/rules/costs.yaml` | Broker fee (provisional) and the 0.1% sale tax | — |
 | `config/rules/market_rules.yaml` | Price limits **with the date each took effect** and tick sizes by price band; settlement cycle. Used by the price-limit check | — |
 | `scripts/analyse_missed_actions.py` | For beyond-limit moves in the liquid universe, compares our adjusted series against vnstock's to tell "CafeF missed a corporate action" from "the move was real" | pandas, vnstock, `data.checks` |
 | `tests/test_data_integrity.py` | Live-database checks, skipped when no DB: `date_shifted` really is written, no weekend bars survive, the price-limit SQL uses the rule in force | psycopg |

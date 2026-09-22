@@ -1,0 +1,23 @@
+# Trading costs. Every backtest reports GROSS and NET returns, because a small
+# average gain is exactly the kind that disappears after costs (doc §5.6, §8.3).
+#
+# These are choices and obligations, kept in config so a change is a one-line
+# diff rather than an archaeology exercise.
+
+fees:
+  # PROVISIONAL: a typical Vietnamese retail online rate, used until Ben
+  # confirms his actual broker rate.
+  broker_fee_rate: 0.0015        # 0.15% per side, charged on both buy and sell
+  broker_fee_provisional: true
+
+taxes:
+  # Statutory. Charged on the SALE proceeds only, regardless of profit or loss --
+  # so a losing trade still pays it, which is why it cannot be netted against
+  # the gain.
+  sale_tax_rate: 0.001           # 0.1% of sale value
+
+# Round-trip cost on a flat trade = buy fee + sell fee + sale tax
+#                                 = 0.15% + 0.15% + 0.10% = 0.40%.
+# Worth keeping in view: the research literature puts a realistic edge at a few
+# points of hit rate with average moves of a couple of percent (doc §6.3), so
+# 0.40% is a meaningful slice of it.

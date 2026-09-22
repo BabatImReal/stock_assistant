@@ -65,12 +65,12 @@ the detection does not. **Resolve when step 4 is built.** Note the
 suspension-resumption trap below — a resuming symbol's whole series can shift at
 once and look like a mass restatement.
 
-### G3 — Forward returns: DEFINITION PROPOSED 2026-09-22, awaiting Ben
+### G3 — CLOSED 2026-09-22: definition approved and implemented
 The document measures 3 and 5 days forward **from the signal day t**. That is
 not a number anyone can trade: entry cannot happen before t+1, and settlement
 means the shares are not sellable immediately.
 
-**Proposed definition (awaiting approval):**
+**Approved definition** (implemented in `backtest/forward_returns.py`):
 
     signal      at the close of day t
     entry       at the OPEN of day t+1        (first price available after the
@@ -289,7 +289,10 @@ Phase 2 environment is fully verified. Nothing outstanding here.
 
 ## For the nightly job design (session 02, run 5-6)
 
-- [ ] **Suspension–resumption breaks factor-change detection.** Nightly detection
+- [x] **Suspension–resumption — DECIDED and implemented in the nightly job.**
+      A first bar after a long gap starts a new span and its factors are
+      re-derived, not diffed. Original note:
+- [ ] ~~**Suspension–resumption breaks factor-change detection.**~~ Nightly detection
       treats a changed factor on a past day as a restatement. A symbol that stops
       trading keeps a frozen factor (68 symbols have a latest factor ≠ 1 for
       exactly this reason, none of them liquid). If such a symbol **resumes**,
