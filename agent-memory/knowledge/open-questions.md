@@ -425,6 +425,13 @@ CafeF's RAW_HSX file carries DPG trading on 2018-01-23 while HOSE was halted.
 So `trading_day`'s per-exchange split is unreliable historically. This matters
 for any per-exchange breadth or universe (Task 2 proposal) and for G4.
 
+## Sector (doc §5.4) — PROPOSED 2026-09-23, awaiting Ben (S1–S6)
+The proposal is in session 2026-09-23-03, run 4. The source facts are in
+[[data-sources]] ("SECTOR / INDUSTRY membership"). Nothing is built. The key
+limitation: **membership is CURRENT-ONLY**. Applied to history, it is a label
+look-ahead and a small survivor bias. It must be treated like the exchange-label
+problem: flagged, never silently applied.
+
 ## For the backtest step — recorded 2026-09-22, DO NOT act on these yet
 
 These are review findings about work already done. They belong to the backtest

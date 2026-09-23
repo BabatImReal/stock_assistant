@@ -178,6 +178,42 @@ session-level anomalies, not a definitional difference about block trades.
 
 ---
 
+## SECTOR / INDUSTRY membership — measured 2026-09-23 (session 03 run 4)
+
+**Nothing in our data has it.** `symbol` holds dates, exchange and flags only.
+No DB column matches sector/industry/icb. CafeF bulk files are pure OHLCV. The
+CafeF per-stock JSON has no industry field. CafeF's index files carry only
+VNINDEX and HNX-INDEX, with no sector indices.
+
+**vnstock `Listing(source="vci").symbols_by_industries()`: CONFIRMED.**
+- **ICB** (the legacy 4-digit codes, e.g. 8000 Financials → 8300 Banks), at
+  levels 1–4, with Vietnamese names. `industries_icb()` gives the English
+  names (177 codes).
+- About 2,050 entities, including funds (QU) and covered types, with
+  `com_type_code` CT/QU/CK/NH/BH. Free; one call.
+- **Current snapshot only: no date field, no reclassification history.**
+- Coverage of OUR symbols: 1,580 of 1,709. All 1,214 active symbols are
+  covered, and 366 of 495 inactive ones. **99.0% of liquid stock-days since
+  2012** are covered. 19 of the 825 ever-liquid symbols are missing, all
+  delisted (e.g. KLS, SDI, KDF).
+- Among today's 280 liquid symbols:
+  - Level 1: 11 groups. Level 2: 19 groups (size 2–47, median 7). Level 3: 33
+    groups (size 1–47, median 4).
+  - Level 2 "Financial services" is 28 of 31 securities brokers.
+  - Level 2 "Basic resources" is only 8 of 17 steel (the rest paper, mining).
+    Level 4 isolates steel.
+
+**Second source, vnstock `Listing(source="kbs")`**: 697 symbols in KBS's own
+2-digit taxonomy, NOT ICB. Coarse reconciliation: 74.6% of stocks share their
+KBS industry's modal ICB level 2 (a floor, since the taxonomies differ). The
+doc's named groups agree well: banks 24/25, securities 32/32, real estate
+69/83 (the 12 others are developers that ICB files under construction).
+`msn`: not implemented.
+
+**Sector-index history** (HOSE VNFIN / VNREAL / VNMAT): NOT available via
+vnstock VCI (ValueError). VN30 is available from 2012-02-06. No free
+sector-index history source found.
+
 ## PAUSED — SSI FastConnect (revisit when the system is proven)
 Kept, not deleted: registration costs money and nothing is paid for until the
 system proves effective (doc §7.5, decision 2026-09-22). Nothing below was ever
