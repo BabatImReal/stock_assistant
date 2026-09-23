@@ -70,4 +70,10 @@ Always keep bullish and bearish evidence side by side; never hide the bearish
 column. Whether a higher timeframe overrides a lower one is a rule to
 **measure**, not assume.
 
+## Build status
+PROPOSED 2026-09-23 (session 2026-09-23-03, run 8): catalogue with rules and
+config, fingerprint = `compute()` output stacked per stock-day (Parquet +
+manifest, schema from the registries), the G5 interface (`query` now;
+`encode`/`neighbours` after G5), and tranches T1–T6. Awaiting P1–P9. No code.
+
 Related: [[money-flow]] [[context-vietnam]] [[validation]] [[funnel-and-scale]]

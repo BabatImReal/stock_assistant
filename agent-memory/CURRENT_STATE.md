@@ -1,4 +1,4 @@
-# Current state — 2026-09-23 (end of session 2026-09-23-03, run 7)
+# Current state — 2026-09-23 (end of session 2026-09-23-03, run 8)
 
 Rewritten from scratch. DB and git figures were re-checked at the end of this
 run (vnstock-db reachable; `git log`).
@@ -14,6 +14,13 @@ on `features/exchange-labels`. Then patterns (doc §3).
   and the five merged branches were deleted locally and on GitHub.
 - The only other branch: **`features/exchange-labels`**, off main, work in
   progress, pushed (run 7), NOT reviewed.
+
+## PROPOSED: patterns (§3) + the layered fingerprint (§3.6)
+Session log run 8: 19 boolean patterns + 5 candle-anatomy numerics, each a
+rule with config; the fingerprint = `compute()` output stacked per stock-day
+(Parquet + manifest; schema from the registries); the G5 interface (`query`
+now, `encode`/`neighbours` after G5); tranches T1–T6. **Awaiting P1–P9. No
+code.** Note: the feature layer is 25 measures, not 23.
 
 ## In progress: exchange labels (branch `features/exchange-labels`)
 Built so far: migration 009 `exchange_membership` (applied, EMPTY);
@@ -99,6 +106,6 @@ liquid-universe breadth measure; `sector_advance_share_10d`; sector rotation
 as a report view; 14 pre-2012 repeated index rows.
 
 ## Reading order for the next session
-1. This file. 2. `knowledge/00-index.md`. 3. Runs 6–7 of
+1. This file. 2. `knowledge/00-index.md`. 3. Runs 6–8 of
 `logs/sessions/2026-09-23-session-03.md`. 4. Only the knowledge files the task
 needs. 5. Only the code the task touches, via `code-map.md`.
