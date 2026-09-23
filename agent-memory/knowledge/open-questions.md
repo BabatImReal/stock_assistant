@@ -361,21 +361,33 @@ The 5 VNINDEX sessions are resolved (see decisions.md, session 2026-09-23-03):
 
 New, found while resolving them. NOT fixed this run:
 
-### Nightly-hardening slice (Ben, 2026-09-23): a separate slice, do NOT touch during features
-Grouped so it is done as one piece of work:
-- **G16**: the nightly job never writes `index_bar` (below).
-- **G17**: build 5 fails the factor>1 gate check after the seam rescale (below).
-- **Holiday-list check**: weekends are gate-checked, holidays are not. Lunar
-  holidays move every year, so it needs a dated holiday list in config
-  (`knowledge/context-vietnam.md`, "Trading days").
-- **Historical exchange labels**: `bar_raw.exchange` / `symbol_exchange` carry
-  the current exchange (below).
-- **2026-07-31 index disagreement** with vnstock (below).
-- **Schedule `scripts/snapshot_industry.py`** (e.g. monthly) so dated ICB
-  membership accrues. Until it runs again, every sector value keeps borrowing
-  the 2026-09-23 labels. Added 2026-09-23 (sector slice); not scheduled.
+### Nightly-hardening slice — WORKED 2026-09-23 (run 6, `features/nightly-hardening`)
+- **G16**: FIXED. The nightly writes the session's index rows (tested).
+- **G17**: FIXED. Seam-rescale provenance (migration 008) plus a narrow
+  exemption; the gate re-run passes (build 5 stays 'good').
+- **Holiday list**: DONE. `config/rules/holidays.yaml` (121 verified dates) +
+  2 blocking checks. **Must be extended each year** from the HOSE/SSC
+  announcement.
+- **Snapshot scheduling**: DONE. Every nightly run snapshots ICB (idempotent).
+  NOTE: the nightly itself is still not scheduled (cron/launchd): Ben's call.
+- **2026-07-31**: FIXED. CafeF stale copies, repaired from VCI with KBS
+  agreeing (also HNX 2023-05-08).
+- **Historical exchange labels**: PROPOSED only (session log run 6). Awaiting
+  X1–X4.
 
-### G16 — The nightly job never writes `index_bar`
+### G18 — The nightly does not update negotiated volume or the symbol master (found 2026-09-23)
+Its docstring promised both (step 4), next to the index. Only the index (G16)
+and the calendar are written. Negotiated volume is not read by any measure (a
+money-flow rule keeps it out), but the data-quality check and the future
+foreign/deal analysis read it. The symbol master's `last_trade_date` /
+`is_active` go stale. The docstring now says so honestly. Not fixed: out of
+this run's scope.
+
+### Pre-2012 repeated index sessions (report only)
+14 index rows from 2002–2009 repeat the previous session's OHLC (e.g. VNINDEX
+2008-05-27..29). They are outside the research window and not investigated.
+
+### G16 — FIXED 2026-09-23 (was: the nightly job never writes `index_bar`)
 `scripts/nightly_update.py`'s docstring says step 4 updates "the index" and it
 has a regex for `CafeF.Index.*.zip`, but no code inserts into `index_bar`. It
 hasn't done damage yet (`job_run` has 1 row, `no_new_data`). But the first
@@ -400,7 +412,7 @@ Including a run 2024-11-26 → 12-06. Not read by any measure today
 (`features.yaml` market.index_symbol = VNINDEX). Needs the same diagnosis
 before HNX-INDEX is used for anything.
 
-### G17 — The promoted build 5 FAILS a blocking gate check today
+### G17 — FIXED 2026-09-23 (was: the promoted build 5 FAILS a blocking gate check)
 Re-running the gate read-only on 2026-09-23:
 `factor_never_above_one_in_research_window` → **15,670 factors > 1 since 2012**
 (fail). All of them are `source='vnstock'`, on 21 symbols, factor 1.02 → 2.02.

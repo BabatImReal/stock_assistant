@@ -1,105 +1,89 @@
-# Current state — 2026-09-23 (end of session 2026-09-23-03, run 5)
+# Current state — 2026-09-23 (end of session 2026-09-23-03, run 6)
 
 Rewritten from scratch. DB and git figures were re-checked at the end of this
 run (vnstock-db reachable; `git log`).
 
 ## Phase
-**Phase 5: features. 25 measures.** Slices 1–3 (volume, trend, index regime)
-are on main. Slice 4 (breadth + point-in-time universe) is on
-`features/breadth-pit-build`. **Slice 5, sector (§5.4), is BUILT on
-`features/sector-build` and awaits Ben's review.** Next after review: patterns
-(doc §3).
+**Phase 5: features (§4–5) complete, 25 measures, reviewed by Ben.** This run:
+the nightly-hardening / integrity block on `features/nightly-hardening`.
+Next: Ben's review and his decision on historical exchange labels (X1–X4),
+then patterns (doc §3).
 
 ## Git (Ben reviews on the branch and merges; I do not touch main)
-- `main` = `4f36815` (GitHub too). Nothing from 2026-09-23 is on main.
-- The stack, oldest first, each branch built on the one before:
-  1. `features/pit-universe-breadth` `f4f52af`: calendar rebuild, guarded index
-     fill, trading-days note. Approved.
-  2. `features/breadth-pit-build` `163546e`: the PIT universe and breadth.
-  3. `features/sector-build`: sector. It carries a cherry-pick of the proposal
-     commit from `features/sector-proposal` (`c02ed23`, memory notes only), so
-     that branch is superseded.
-- Merge order: 1 → 2 → 3.
+- `main` = `4f36815` (GitHub too).
+- The stack, oldest first: `features/pit-universe-breadth` `f4f52af` →
+  `features/breadth-pit-build` `163546e` → `features/sector-build` `1003b72` →
+  **`features/nightly-hardening`** (this run). Merge in that order.
 
-## The database: build 5, promoted 'good'
+## The database: build 5, promoted 'good', gate re-run clean this run
 | | |
 | --- | --- |
 | `bar_raw` | 2,886,721 rows, 1,709 symbols, 2000-07-28 → 2026-09-21 |
-| research window (2012+) | 2,511,070 adjusted bars; 2,470,679 usable for volume |
-| `trading_day` | 18,511 exchange-days; 3,669 distinct dates since 2012 |
-| `index_bar` | 11,458 rows (VNINDEX 6,361 cafef + 2 vnstock; HNX-INDEX 5,095) |
-| `symbol_industry` | **new (migration 007)**: 1 snapshot, 2026-09-23, 1,722 symbols |
-| migrations | 001–007 |
+| research window (2012+) | 2,511,070 adjusted bars |
+| `adjustment_factor` (build 5) | cafef 2,824,492; inferred 14,775; **seam_rescale 27,518 (33 symbols, new tag)**; vnstock 19,816 (13 symbols, factor 1) |
+| `index_bar` | 11,458 rows: VNINDEX 6,360 cafef + 3 vnstock; HNX-INDEX 5,093 cafef + 2 vnstock |
+| `symbol_industry` | 1 snapshot (2026-09-23), 1,722 symbols |
+| `job_run` | 1 row (the nightly has still never appended a session) |
+| migrations | 001–008 |
 
-## Built this run (sector, decisions locked by Ben; see decisions.md run 5)
-- **Membership** (`data/sectors.py`): ICB level 2 from vnstock VCI, with steel
-  (L4 1757) split out of basic resources. That is the ONLY manual exception.
-  Each date uses the latest snapshot on or before it. Earlier dates borrow the
-  first snapshot and are flagged. Covers all 1,214 active symbols. KBS rough
-  cross-check: banks 24/25, securities 32/32, real estate 63/74.
-- **The sector frame** (`features/sector.py`) is its OWN frame, keyed by
-  (trade_date, sector): 74,580 rows, 20 sectors.
-  - It takes the equal-weighted median daily return on the adjusted close,
-    over ALL tradeable members.
-  - A member counts only if it also traded the session before.
-- **Measures**: `sector_change_20d` (in the new `SECTOR_REGISTRY`) and
-  `stock_vs_sector_20d` (per-symbol; it also needs the stock's own clean
-  window).
-- **The join** is explicit in `compute()`: symbol → its sector on that date →
-  (trade_date, sector).
-- **Thin sector-day guard**: fewer than 5 members, or a drop below 0.80 × the
-  trailing median. It blanks 8.7% of sector-days (banks 1.2%, Telecom 59%).
-  At the 20-session level small sectors lose much more: IT 50%, retail 44%,
-  oil & gas 36% of stock-days.
-- **THE HARD GATE**:
-  - Every value that read a borrowed label carries `flag__<measure>`, and
-    `FeatureSet.flagged` lists each measure.
-  - `quarantine_flagged()` blanks flagged values.
-  - Sector-conditioned statistics are EXPLORATORY until dated membership
-    accrues (B3).
-  - Today **100% of historical sector values are flagged**.
-- Real data: a stock's 20-session change correlates 0.63 with its sector's
-  (VCB 0.72, HPG 0.69, SSI 0.78, VHM 0.45).
+**Gate (run_checks.py, re-run twice this run): 0 blocking failures**, reconciliation
+87.48% (bar 85%), build 5 stays 'good'. 20 checks.
+
+## Done this run (details in decisions.md, run 6)
+1. **G17 FIXED.** Migration 008 gives seam-rescale factors their own source and
+   a reason. The gate exempts ONLY those, and only on backfilled vnstock bars.
+   Proof: the live test failed with 15,670 rows before and passes after, and a
+   rolled-back injection shows any other factor above 1 still fails.
+2. **G16 FIXED.** The nightly writes the session's VN-Index and HNX-Index rows
+   (`write_index`). Tested with a daily-file fixture; idempotent.
+3. **Holidays DONE.** `config/rules/holidays.yaml` holds 121 verified weekday
+   closures for 2012–2026. Two blocking checks. An injected holiday row is
+   caught. **Extend it every year.**
+4. **Snapshot scheduling DONE.** The nightly takes the ICB snapshot on every run.
+   Proven three ways: `main()` in a no-commit test, and the real step run twice
+   (1,722 rows, unchanged).
+5. **2026-07-31 FIXED.** CafeF stale copies: 07-31 repeated 07-30 for both
+   indices, and HNX 2023-05-08 carried 05-09. Repaired from VCI (KBS agrees to
+   0.000%). New warn check `index_has_no_repeated_sessions` went from 3 to 0.
+6. **Historical exchange labels: PROPOSED, not built** (session log run 6).
+   KBS `listing_date` dates each symbol's move to its current exchange, but not
+   the exchange before it.
+
+## NOT done, on purpose
+- **The full nightly has not been run end to end.** CafeF has 2026-09-22
+  ready; a real run appends it to the research DB. That is Ben's call.
+- The nightly is not scheduled (cron/launchd).
 
 ## Verified by running it this run
-- `uv run pytest` → **127 passed, 0 skipped** (DB reachable, 7 live-DB tests).
-- `uv run ruff check .` → clean. The new files are ruff-formatted.
-- **Mutation check**: 22 sector rules, each removed in turn; **22/22 tests
-  failed** as they should (after two tests were strengthened; see the log).
-- `scripts/report_features.py 40` runs with all 25 measures.
+- `uv run pytest` → **137 passed, 0 skipped** (DB reachable; 11 live-DB
+  integrity tests + 3 live nightly tests).
+- `uv run ruff check .` → clean.
 
-## Blockers
-Closed or handled: G1, G3, G4, G12, G13, G14, G15.
-
-**Nightly-hardening slice (queued; do not touch during features):**
-- G16: the nightly job never writes `index_bar`.
-- G17: build 5 fails the factor>1 check.
-- The holiday-list check.
-- Historical exchange labels.
-- The 2026-07-31 index disagreement.
-- NEW: **schedule `snapshot_industry.py`** so dated ICB membership accrues.
-
-Backtest items: B1, B2, and **B3 (new): quarantine flagged sector features;
-pooled fallbacks on current labels must say so**.
-
-Also open: G2, G5, G9, G10 (the liquidity floor is provisional), G11.
+## Blockers / open
+- **X1–X4 (exchange labels)**: awaiting Ben.
+- **G18 (new)**: the nightly does not update negotiated volume or the symbol
+  master. Its docstring now says so.
+- G2 (restatement detection) is still not implemented. It matters as soon as
+  the nightly runs for real.
+- G5, G9, G10 (the liquidity floor is provisional), G11; backtest B1, B2, B3.
 
 ## Rule to remember when judging missing data
 The market is closed on Saturday, Sunday and public holidays. A missing day is
-only a defect when it is a weekday the market was open.
+only a defect when it is a weekday the market was open. Listed holidays are
+in `config/rules/holidays.yaml`.
 
 ## Next steps
-1. Ben reviews `features/sector-build` and merges the stack in order.
-2. Patterns (doc §3), then the backtest (B1, B2, B3; filter by
-   `universe.liquid` per date).
-3. The nightly-hardening slice, including the ICB snapshot schedule.
+1. Ben reviews `features/nightly-hardening`, decides X1–X4, and says whether
+   to run and schedule the nightly (note G2 and G18 first).
+2. Patterns (doc §3), then the backtest (B1, B2, B3; `universe.liquid` per
+   date; `quarantine_flagged`).
 
 ## Parked
 TypeSafe / Jev; SSI FastConnect; the broker fee is provisional at 0.15%/side; a
 liquid-universe breadth measure; `sector_advance_share_10d`; sector rotation
-as a report view.
+as a report view; 14 pre-2012 repeated index rows.
 
 ## Reading order for the next session
-1. This file. 2. `knowledge/00-index.md`. 3. Run 5 of
+1. This file. 2. `knowledge/00-index.md`. 3. Run 6 of
 `logs/sessions/2026-09-23-session-03.md`. 4. Only the knowledge files the task
 needs. 5. Only the code the task touches, via `code-map.md`.

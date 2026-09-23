@@ -28,8 +28,61 @@ MARKET_RULES = (
     Path(__file__).resolve().parents[3] / "config" / "rules" / "market_rules.yaml"
 )
 
+# Index rows since 2012 whose full OHLC equals the previous session's: a stale
+# copy (found 2026-09-23: CafeF 2026-07-31 repeated 07-30 for both indices;
+# HNX-INDEX 2023-05-08 carried 05-09's prices). Which row of the pair is wrong
+# needs a second source: scripts/backfill_index_gaps.py --stale.
+INDEX_REPEATED_SQL = """
+SELECT count(*) FROM (
+    SELECT trade_date, open, high, low, close,
+           lag(open)  OVER w AS po, lag(high) OVER w AS ph,
+           lag(low)   OVER w AS pl, lag(close) OVER w AS pc
+    FROM index_bar
+    WINDOW w AS (PARTITION BY symbol ORDER BY trade_date)
+) i
+WHERE trade_date >= DATE '2012-01-01'
+  AND open = po AND high = ph AND low = pl AND close = pc
+"""
+
+# Dated VN market holidays (weekdays the market is closed). Dated per year
+# because Tet and Hung Kings are lunar. A MINIMUM list: see the file header.
+HOLIDAYS = MARKET_RULES.parent / "holidays.yaml"
+
+# (sessions in the calendar, bar_raw rows) on a listed holiday. Both must be 0.
+HOLIDAY_SESSIONS_SQL = """
+SELECT (SELECT count(DISTINCT trade_date) FROM trading_day
+        WHERE trade_date = ANY(%(days)s)),
+       (SELECT count(*) FROM bar_raw WHERE trade_date = ANY(%(days)s))
+"""
+
+
+def holiday_list() -> list[tuple[int, object]]:
+    """(year it is filed under, date) for every listed holiday."""
+    cfg = yaml.safe_load(HOLIDAYS.read_text())["holidays"]
+    return [(int(y), h["date"]) for y, days in cfg.items() for h in days]
+
+
 # A trading day with fewer than this many symbols is not a real session.
 MIN_SYMBOLS_PER_DAY = 20
+
+# Factors above 1 inside the research window, for the blocking check below.
+# ONE exemption (G17, migration 008): a backfill-seam rescale factor, tagged
+# source='seam_rescale' AND sitting on a backfilled vnstock bar. The rescale
+# lifts a whole vnstock span to meet CafeF's level, so its factor can exceed 1
+# without any price having been inflated. Any other factor above 1 still fails,
+# including a 'seam_rescale' tag on a bar that is not a backfill.
+# Shared with tests/test_data_integrity.py.
+FACTOR_ABOVE_ONE_SQL = """
+SELECT count(*) FROM adjustment_factor f
+WHERE f.build_id = %(build)s AND f.factor > 1.0001
+  AND f.trade_date >= DATE '2012-01-01'
+  AND NOT (
+      f.source = 'seam_rescale'
+      AND EXISTS (SELECT 1 FROM bar_raw r
+                  WHERE r.symbol = f.symbol AND r.trade_date = f.trade_date
+                    AND r.source = 'vnstock')
+  )
+"""
 
 # Exchange-days where trading_day disagrees with its own definition (a count
 # of bar_raw rows). Any script that edits bar_raw without re-deriving the
@@ -190,12 +243,8 @@ def run_all(conn, build_id: int) -> list[Check]:
         # Blocking only inside the research window. Data before 2012 is stored
         # but never measured on, so a pre-2012 oddity must be visible without
         # blocking a build that research would never touch.
-        (n_gt1_window,) = _one(
-            cur,
-            "SELECT count(*) FROM adjustment_factor WHERE build_id = %s "
-            "AND factor > 1.0001 AND trade_date >= DATE '2012-01-01'",
-            (build_id,),
-        )
+        cur.execute(FACTOR_ABOVE_ONE_SQL, {"build": build_id})
+        (n_gt1_window,) = cur.fetchone()
         checks.append(
             Check(
                 "factor_never_above_one_in_research_window",
@@ -207,7 +256,7 @@ def run_all(conn, build_id: int) -> list[Check]:
         )
         cur.execute(
             "SELECT count(*), count(DISTINCT symbol) FROM adjustment_factor "
-            "WHERE build_id = %s AND factor > 1.0001",
+            "WHERE build_id = %s AND factor > 1.0001 AND source <> 'seam_rescale'",
             (build_id,),
         )
         n_gt1, n_gt1_sym = cur.fetchone()
@@ -218,6 +267,24 @@ def run_all(conn, build_id: int) -> list[Check]:
                 "warn",
                 f"{n_gt1:,} factors > 1 across {n_gt1_sym} symbol(s), all pre-2012",
                 {"rows": n_gt1, "symbols": n_gt1_sym},
+            )
+        )
+
+        # The exemption must stay visible, not become a silent hole.
+        cur.execute(
+            "SELECT count(*), count(DISTINCT symbol), min(factor), max(factor) "
+            "FROM adjustment_factor WHERE build_id = %s AND source = 'seam_rescale'",
+            (build_id,),
+        )
+        n_seam, n_seam_sym, lo_seam, hi_seam = cur.fetchone()
+        checks.append(
+            Check(
+                "seam_rescale_factors_exempted",
+                True,
+                "warn",
+                f"{n_seam:,} seam-rescale factors on {n_seam_sym} symbol(s), "
+                f"ratio {lo_seam}..{hi_seam}: exempt from the factor>1 check",
+                {"rows": n_seam, "symbols": n_seam_sym},
             )
         )
 
@@ -272,6 +339,32 @@ def run_all(conn, build_id: int) -> list[Check]:
                 f"{n_drift:,} exchange-days where trading_day != bar_raw "
                 "(fix: db.rebuild_trading_day)",
                 {"rows": n_drift},
+            )
+        )
+
+        # A session or a bar on a listed holiday is a phantom: the market was
+        # closed (2025-05-02 was exactly this). Blocking, like the weekend check.
+        cur.execute(
+            HOLIDAY_SESSIONS_SQL, {"days": [d for _, d in holiday_list()]}
+        )
+        n_hol_sessions, n_hol_bars = cur.fetchone()
+        checks.append(
+            Check(
+                "calendar_has_no_holiday_sessions",
+                n_hol_sessions == 0,
+                "fail",
+                f"{n_hol_sessions} sessions on listed holidays "
+                "(config/rules/holidays.yaml)",
+                {"rows": n_hol_sessions},
+            )
+        )
+        checks.append(
+            Check(
+                "bar_raw_has_no_holiday_rows",
+                n_hol_bars == 0,
+                "fail",
+                f"{n_hol_bars} bar_raw rows on listed holidays",
+                {"rows": n_hol_bars},
             )
         )
 
@@ -453,6 +546,18 @@ def run_all(conn, build_id: int) -> list[Check]:
             """
         )
         (n_missing_index,) = cur.fetchone()
+        (n_repeat,) = _one(cur, INDEX_REPEATED_SQL)
+        checks.append(
+            Check(
+                "index_has_no_repeated_sessions",
+                n_repeat == 0,
+                "warn",
+                f"{n_repeat} index sessions since 2012 repeat the previous "
+                "session's OHLC exactly (stale copy; repair with "
+                "backfill_index_gaps.py --stale)",
+                {"rows": n_repeat},
+            )
+        )
         checks.append(
             Check(
                 "index_covers_every_trading_session",

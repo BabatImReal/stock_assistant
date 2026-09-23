@@ -39,6 +39,8 @@ NN_FILES = {
     "UPCOM": "CafeF.NN_UPCOM.Upto*.csv",
 }
 INDEX_FILE = "CafeF.INDEX.Upto*.csv"
+# The nightly EOD file: CafeF.INDEX.<dd.mm.yyyy>.csv (a digit, never "Upto").
+DAILY_INDEX_FILE = "CafeF.INDEX.[0-9]*.csv"
 
 
 def latest_dir() -> Path:
@@ -130,7 +132,7 @@ def negotiated(day: Path) -> pd.DataFrame:
     return pd.concat(frames, ignore_index=True)
 
 
-def index_bars(day: Path) -> pd.DataFrame:
+def index_bars(day: Path, pattern: str = INDEX_FILE) -> pd.DataFrame:
     """Index history, with weekend rows rejected at the door.
 
     The file carries rows dated Saturday 2026-02-07 and Sunday 2026-03-08 with
@@ -138,7 +140,7 @@ def index_bars(day: Path) -> pd.DataFrame:
     dropped here rather than stored and filtered later, so nothing downstream
     can accidentally treat them as sessions.
     """
-    df = read_csv(_one(day, INDEX_FILE))
+    df = read_csv(_one(day, pattern))
     weekday = pd.to_datetime(df["trade_date"]).dt.dayofweek
     df = df[weekday < 5]
     return df[["symbol", "trade_date", "open", "high", "low", "close", "volume"]]

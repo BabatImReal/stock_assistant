@@ -68,7 +68,9 @@ break by swapping in a working Saturday; for example, 2025-05-02 was closed.
 - The calendar (`trading_day`) is derived from stock rows, so closed days are
   absent by construction. The danger runs the other way: a stray row ON a
   closed day creates a phantom session (2025-05-02; see decisions.md
-  2026-09-23). Weekends are rejected by a gate check. **Holidays have no check
-  yet**, because there is no holiday list in config.
+  2026-09-23). Weekends are rejected by a gate check. Holidays too, since
+  2026-09-23: `config/rules/holidays.yaml` lists 121 verified weekday closures
+  (2012–2026) and two blocking checks enforce them. It is a MINIMUM list:
+  decree-set extra Tet and bridge days are not listed. **Extend it every year.**
 - Checked 2026-09-23: 0 weekend dates in the calendar, and none on 1/1, 30/4,
   1/5 or 2/9.

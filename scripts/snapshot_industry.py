@@ -4,8 +4,10 @@ ICB membership is only published as CURRENT. The only way to get point-in-time
 membership is to record it ourselves, dated, again and again. This script
 writes one snapshot per run date. Re-running on the same date is a no-op.
 
-It also prints the rough cross-check against KBS's own taxonomy (decision
-2026-09-23: KBS is a cross-check only, never a source). Because the taxonomies
+The nightly job takes the same snapshot on every run
+(scripts/nightly_update.py). This script is for a manual run, and it also
+prints the rough cross-check against KBS's own taxonomy (decision 2026-09-23:
+KBS is a cross-check only, never a source). Because the taxonomies
 differ, agreement is a floor, not a mismatch count. What matters is that the
 groups the doc names (banks, securities, real estate) line up.
 
@@ -23,22 +25,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 import pandas as pd  # noqa: E402
 
 from vnstock_research.data import db, sectors  # noqa: E402
-
-
-def fetch_vci() -> pd.DataFrame:
-    """One row per 3-letter symbol: ICB level 2 and 4 codes and names."""
-    from vnstock import Listing
-
-    raw = Listing(source="vci").symbols_by_industries()
-    raw = raw[raw["symbol"].str.fullmatch(r"[A-Z]{3}")]
-    out = {}
-    for level in (2, 4):
-        lv = raw[raw["icb_level"] == level].drop_duplicates("symbol")
-        out[f"icb_l{level}"] = lv.set_index("symbol")["icb_code"].astype(str)
-        out[f"icb_l{level}_name"] = lv.set_index("symbol")["icb_name"]
-    df = pd.DataFrame(out).dropna()
-    df.index.name = "symbol"
-    return df.reset_index()
 
 
 def kbs_cross_check(snap: pd.DataFrame) -> None:
@@ -60,7 +46,7 @@ def kbs_cross_check(snap: pd.DataFrame) -> None:
 def main() -> None:
     dry = "--dry-run" in sys.argv
     db.load_env()
-    snap = fetch_vci()
+    snap = sectors.fetch_vci()
     today = date.today()
     snap["sector"] = sectors.sector_id(snap["icb_l2"], snap["icb_l4"])
     print(
@@ -85,30 +71,7 @@ def main() -> None:
         if dry:
             print("dry run: nothing written")
             return
-        with conn.cursor() as cur:
-            cur.executemany(
-                "INSERT INTO symbol_industry (symbol, snapshot_date, source, "
-                "icb_l2, icb_l2_name, icb_l4, icb_l4_name) "
-                "VALUES (%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING",
-                [
-                    (
-                        r.symbol,
-                        today,
-                        sectors.SOURCE,
-                        r.icb_l2,
-                        r.icb_l2_name,
-                        r.icb_l4,
-                        r.icb_l4_name,
-                    )
-                    for r in snap.itertuples()
-                ],
-            )
-            cur.execute(
-                "SELECT count(*) FROM symbol_industry "
-                "WHERE snapshot_date = %s AND source = %s",
-                (today, sectors.SOURCE),
-            )
-            (n,) = cur.fetchone()
+        n = sectors.write_snapshot(conn, snap, today)
         conn.commit()
         print(f"snapshot {today}: {n:,} rows stored")
 

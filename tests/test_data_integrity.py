@@ -128,3 +128,78 @@ def test_the_latest_industry_snapshot_labels_the_traded_market(conn):
         )
         traded, labelled = cur.fetchone()
     assert traded and labelled / traded >= 0.99
+
+
+def _factors_above_one(cur) -> int:
+    from vnstock_research.features.bars import current_build
+
+    cur.execute(checks.FACTOR_ABOVE_ONE_SQL, {"build": current_build(cur.connection)})
+    return cur.fetchone()[0]
+
+
+def test_the_promoted_build_has_no_unexplained_factor_above_one(conn):
+    """G17. A factor above 1 means an adjusted price HIGHER than what traded,
+    which no dividend or split produces. The only exemption: backfill-seam
+    rescale factors, tagged source='seam_rescale' AND sitting on a backfilled
+    vnstock bar. Failed with 15,670 rows before the 2026-09-23 fix."""
+    with conn.cursor() as cur:
+        assert _factors_above_one(cur) == 0
+
+
+def test_the_exemption_covers_nothing_but_tagged_seam_rescales(conn):
+    """Any OTHER factor above 1 must still fail the gate: an untagged one, or a
+    tagged one on a bar that is not a vnstock backfill. Checked inside a
+    transaction that is always rolled back."""
+    from vnstock_research.features.bars import current_build
+
+    build = current_build(conn)
+    with conn.transaction(force_rollback=True), conn.cursor() as cur:
+        cur.execute(
+            "SELECT f.symbol, f.trade_date FROM adjustment_factor f "
+            "JOIN bar_raw r USING (symbol, trade_date) "
+            "WHERE f.build_id = %s AND r.source = 'cafef' "
+            "AND f.trade_date >= DATE '2012-01-01' LIMIT 2",
+            (build,),
+        )
+        (s1, d1), (s2, d2) = cur.fetchall()
+        before = _factors_above_one(cur)
+        cur.execute(
+            "UPDATE adjustment_factor SET factor = 1.5, source = 'cafef' "
+            "WHERE symbol = %s AND trade_date = %s AND build_id = %s", (s1, d1, build),
+        )
+        cur.execute(
+            "UPDATE adjustment_factor SET factor = 1.5, source = 'seam_rescale' "
+            "WHERE symbol = %s AND trade_date = %s AND build_id = %s", (s2, d2, build),
+        )
+        assert _factors_above_one(cur) == before + 2
+
+
+def test_no_session_and_no_bar_falls_on_a_listed_holiday(conn):
+    """A stray row on a closed day creates a phantom session (the 2025-05-02
+    class). Real data first, then an injected row inside a rolled-back
+    transaction must be caught by the same query."""
+    days = [d for _, d in checks.holiday_list()]
+    with conn.cursor() as cur:
+        cur.execute(checks.HOLIDAY_SESSIONS_SQL, {"days": days})
+        assert cur.fetchone() == (0, 0)
+    with conn.transaction(force_rollback=True), conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO bar_raw (symbol, trade_date, open, high, low, close, "
+            "matched_volume, exchange, source) "
+            "VALUES ('VNM', DATE '2024-02-12', 1, 1, 1, 1, 100, 'HOSE', 'cafef')"
+        )
+        cur.execute(
+            "INSERT INTO trading_day (trade_date, exchange, symbols_traded) "
+            "VALUES (DATE '2024-02-12', 'HOSE', 1)"
+        )
+        cur.execute(checks.HOLIDAY_SESSIONS_SQL, {"days": days})
+        assert cur.fetchone() == (1, 1)
+
+
+def test_no_index_session_repeats_the_previous_one_since_2012(conn):
+    """A full OHLC tuple identical to the previous session's is a stale copy
+    (CafeF 2026-07-31 carried 07-30's prices; 2023-05-08 HNX carried 05-09's).
+    Failed with 3 rows before the 2026-09-23 repair."""
+    with conn.cursor() as cur:
+        cur.execute(checks.INDEX_REPEATED_SQL)
+        assert cur.fetchone()[0] == 0

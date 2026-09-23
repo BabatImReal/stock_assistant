@@ -1,0 +1,164 @@
+# Vietnamese market holidays: WEEKDAYS the market is closed (Ben, 2026-09-23).
+#
+# Why a DATED list: Tet and Hung Kings follow the LUNAR calendar, so their
+# solar dates move every year and no rule in code can produce them. Each date is
+# written out, per year.
+#
+# What is listed (121 weekdays, 2012 -> 2026-09-21):
+#   - statutory holidays that fall on a weekday: New Year 1/1, Tet lunar
+#     1/1-1/3, Hung Kings lunar 10/3, Reunification 30/4, Labour Day 1/5,
+#     National Day 2/9;
+#   - the compensation day "in lieu of" a statutory holiday that fell on a
+#     weekend (the next working day);
+#   - the documented 2025 swap: Fri 2025-05-02 off (worked Sat 2025-04-26).
+# Every date was VERIFIED on 2026-09-23 against both sources: no session in
+# CafeF's calendar (trading_day), no bar_raw row, and no traded VNINDEX session
+# in vnstock (VCI). 0 conflicts.
+#
+# What is NOT listed, on purpose: the extra Tet days (30/12, lunar 1/4-1/5 and
+# bridges), National Day's second day (2021 on), and other bridge days. The
+# government sets those by decree each year, and they could not be verified as
+# a rule. So this is a MINIMUM list: a session on a listed date is certainly
+# wrong (data/checks.py fails the build), but an unlisted weekday without a
+# session is not proof of a data gap.
+#
+# MAINTENANCE: add each new year's dates when HOSE/SSC announce them (usually
+# late in the previous year), and verify them against vnstock once the year has
+# traded. A year with no entry is simply unchecked.
+holidays:
+  2012:
+    - {date: 2012-01-02, name: "in lieu of New Year (Sun 2012-01-01)"}
+    - {date: 2012-01-23, name: "Tet (lunar 1/1)"}
+    - {date: 2012-01-24, name: "Tet (lunar 1/2)"}
+    - {date: 2012-01-25, name: "Tet (lunar 1/3)"}
+    - {date: 2012-04-02, name: "in lieu of Hung Kings (lunar 10/3) (Sat 2012-03-31)"}
+    - {date: 2012-04-30, name: "Reunification Day"}
+    - {date: 2012-05-01, name: "Labour Day"}
+    - {date: 2012-09-03, name: "in lieu of National Day (Sun 2012-09-02)"}
+  2013:
+    - {date: 2013-01-01, name: "New Year"}
+    - {date: 2013-02-11, name: "Tet (lunar 1/2)"}
+    - {date: 2013-02-12, name: "Tet (lunar 1/3)"}
+    - {date: 2013-02-13, name: "in lieu of Tet (lunar 1/1) (Sun 2013-02-10)"}
+    - {date: 2013-04-19, name: "Hung Kings (lunar 10/3)"}
+    - {date: 2013-04-30, name: "Reunification Day"}
+    - {date: 2013-05-01, name: "Labour Day"}
+    - {date: 2013-09-02, name: "National Day"}
+  2014:
+    - {date: 2014-01-01, name: "New Year"}
+    - {date: 2014-01-31, name: "Tet (lunar 1/1)"}
+    - {date: 2014-02-03, name: "in lieu of Tet (lunar 1/2) (Sat 2014-02-01)"}
+    - {date: 2014-02-04, name: "in lieu of Tet (lunar 1/3) (Sun 2014-02-02)"}
+    - {date: 2014-04-09, name: "Hung Kings (lunar 10/3)"}
+    - {date: 2014-04-30, name: "Reunification Day"}
+    - {date: 2014-05-01, name: "Labour Day"}
+    - {date: 2014-09-02, name: "National Day"}
+  2015:
+    - {date: 2015-01-01, name: "New Year"}
+    - {date: 2015-02-19, name: "Tet (lunar 1/1)"}
+    - {date: 2015-02-20, name: "Tet (lunar 1/2)"}
+    - {date: 2015-02-23, name: "in lieu of Tet (lunar 1/3) (Sat 2015-02-21)"}
+    - {date: 2015-04-28, name: "Hung Kings (lunar 10/3)"}
+    - {date: 2015-04-30, name: "Reunification Day"}
+    - {date: 2015-05-01, name: "Labour Day"}
+    - {date: 2015-09-02, name: "National Day"}
+  2016:
+    - {date: 2016-01-01, name: "New Year"}
+    - {date: 2016-02-08, name: "Tet (lunar 1/1)"}
+    - {date: 2016-02-09, name: "Tet (lunar 1/2)"}
+    - {date: 2016-02-10, name: "Tet (lunar 1/3)"}
+    - {date: 2016-04-18, name: "in lieu of Hung Kings (lunar 10/3) (Sat 2016-04-16)"}
+    - {date: 2016-05-02, name: "in lieu of Reunification Day (Sat 2016-04-30)"}
+    - {date: 2016-05-03, name: "in lieu of Labour Day (Sun 2016-05-01)"}
+    - {date: 2016-09-02, name: "National Day"}
+  2017:
+    - {date: 2017-01-02, name: "in lieu of New Year (Sun 2017-01-01)"}
+    - {date: 2017-01-30, name: "Tet (lunar 1/3)"}
+    - {date: 2017-01-31, name: "in lieu of Tet (lunar 1/1) (Sat 2017-01-28)"}
+    - {date: 2017-02-01, name: "in lieu of Tet (lunar 1/2) (Sun 2017-01-29)"}
+    - {date: 2017-04-06, name: "Hung Kings (lunar 10/3)"}
+    - {date: 2017-05-01, name: "Labour Day"}
+    - {date: 2017-05-02, name: "in lieu of Reunification Day (Sun 2017-04-30)"}
+    - {date: 2017-09-04, name: "in lieu of National Day (Sat 2017-09-02)"}
+  2018:
+    - {date: 2018-01-01, name: "New Year"}
+    - {date: 2018-02-16, name: "Tet (lunar 1/1)"}
+    - {date: 2018-02-19, name: "in lieu of Tet (lunar 1/2) (Sat 2018-02-17)"}
+    - {date: 2018-02-20, name: "in lieu of Tet (lunar 1/3) (Sun 2018-02-18)"}
+    - {date: 2018-04-25, name: "Hung Kings (lunar 10/3)"}
+    - {date: 2018-04-30, name: "Reunification Day"}
+    - {date: 2018-05-01, name: "Labour Day"}
+    - {date: 2018-09-03, name: "in lieu of National Day (Sun 2018-09-02)"}
+  2019:
+    - {date: 2019-01-01, name: "New Year"}
+    - {date: 2019-02-05, name: "Tet (lunar 1/1)"}
+    - {date: 2019-02-06, name: "Tet (lunar 1/2)"}
+    - {date: 2019-02-07, name: "Tet (lunar 1/3)"}
+    - {date: 2019-04-15, name: "in lieu of Hung Kings (lunar 10/3) (Sun 2019-04-14)"}
+    - {date: 2019-04-30, name: "Reunification Day"}
+    - {date: 2019-05-01, name: "Labour Day"}
+    - {date: 2019-09-02, name: "National Day"}
+  2020:
+    - {date: 2020-01-01, name: "New Year"}
+    - {date: 2020-01-27, name: "Tet (lunar 1/3)"}
+    - {date: 2020-01-28, name: "in lieu of Tet (lunar 1/1) (Sat 2020-01-25)"}
+    - {date: 2020-01-29, name: "in lieu of Tet (lunar 1/2) (Sun 2020-01-26)"}
+    - {date: 2020-04-02, name: "Hung Kings (lunar 10/3)"}
+    - {date: 2020-04-30, name: "Reunification Day"}
+    - {date: 2020-05-01, name: "Labour Day"}
+    - {date: 2020-09-02, name: "National Day"}
+  2021:
+    - {date: 2021-01-01, name: "New Year"}
+    - {date: 2021-02-12, name: "Tet (lunar 1/1)"}
+    - {date: 2021-02-15, name: "in lieu of Tet (lunar 1/2) (Sat 2021-02-13)"}
+    - {date: 2021-02-16, name: "in lieu of Tet (lunar 1/3) (Sun 2021-02-14)"}
+    - {date: 2021-04-21, name: "Hung Kings (lunar 10/3)"}
+    - {date: 2021-04-30, name: "Reunification Day"}
+    - {date: 2021-05-03, name: "in lieu of Labour Day (Sat 2021-05-01)"}
+    - {date: 2021-09-02, name: "National Day"}
+  2022:
+    - {date: 2022-01-03, name: "in lieu of New Year (Sat 2022-01-01)"}
+    - {date: 2022-02-01, name: "Tet (lunar 1/1)"}
+    - {date: 2022-02-02, name: "Tet (lunar 1/2)"}
+    - {date: 2022-02-03, name: "Tet (lunar 1/3)"}
+    - {date: 2022-04-11, name: "in lieu of Hung Kings (lunar 10/3) (Sun 2022-04-10)"}
+    - {date: 2022-05-02, name: "in lieu of Reunification Day (Sat 2022-04-30)"}
+    - {date: 2022-05-03, name: "in lieu of Labour Day (Sun 2022-05-01)"}
+    - {date: 2022-09-02, name: "National Day"}
+  2023:
+    - {date: 2023-01-02, name: "in lieu of New Year (Sun 2023-01-01)"}
+    - {date: 2023-01-23, name: "Tet (lunar 1/2)"}
+    - {date: 2023-01-24, name: "Tet (lunar 1/3)"}
+    - {date: 2023-01-25, name: "in lieu of Tet (lunar 1/1) (Sun 2023-01-22)"}
+    - {date: 2023-05-01, name: "Labour Day"}
+    - {date: 2023-05-02, name: "in lieu of Hung Kings (lunar 10/3) (Sat 2023-04-29)"}
+    - {date: 2023-05-03, name: "in lieu of Reunification Day (Sun 2023-04-30)"}
+    - {date: 2023-09-04, name: "in lieu of National Day (Sat 2023-09-02)"}
+  2024:
+    - {date: 2024-01-01, name: "New Year"}
+    - {date: 2024-02-12, name: "Tet (lunar 1/3)"}
+    - {date: 2024-02-13, name: "in lieu of Tet (lunar 1/1) (Sat 2024-02-10)"}
+    - {date: 2024-02-14, name: "in lieu of Tet (lunar 1/2) (Sun 2024-02-11)"}
+    - {date: 2024-04-18, name: "Hung Kings (lunar 10/3)"}
+    - {date: 2024-04-30, name: "Reunification Day"}
+    - {date: 2024-05-01, name: "Labour Day"}
+    - {date: 2024-09-02, name: "National Day"}
+  2025:
+    - {date: 2025-01-01, name: "New Year"}
+    - {date: 2025-01-29, name: "Tet (lunar 1/1)"}
+    - {date: 2025-01-30, name: "Tet (lunar 1/2)"}
+    - {date: 2025-01-31, name: "Tet (lunar 1/3)"}
+    - {date: 2025-04-07, name: "Hung Kings (lunar 10/3)"}
+    - {date: 2025-04-30, name: "Reunification Day"}
+    - {date: 2025-05-01, name: "Labour Day"}
+    - {date: 2025-05-02, name: "2025 swap: May 2 off, worked Sat Apr 26"}
+    - {date: 2025-09-02, name: "National Day"}
+  2026:
+    - {date: 2026-01-01, name: "New Year"}
+    - {date: 2026-02-17, name: "Tet (lunar 1/1)"}
+    - {date: 2026-02-18, name: "Tet (lunar 1/2)"}
+    - {date: 2026-02-19, name: "Tet (lunar 1/3)"}
+    - {date: 2026-04-27, name: "in lieu of Hung Kings (lunar 10/3) (Sun 2026-04-26)"}
+    - {date: 2026-04-30, name: "Reunification Day"}
+    - {date: 2026-05-01, name: "Labour Day"}
+    - {date: 2026-09-02, name: "National Day"}

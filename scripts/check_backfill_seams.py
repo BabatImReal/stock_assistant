@@ -158,11 +158,16 @@ def main() -> None:
                     cur.execute(
                         """
                         UPDATE adjustment_factor
-                        SET factor = factor * %s, source = 'vnstock'
+                        SET factor = factor * %s, source = 'seam_rescale',
+                            reason = %s
                         WHERE build_id = %s AND symbol = %s
                           AND trade_date <= %s
                         """,
-                        (r.ratio, build, r.symbol, r.seam_from),
+                        # Its own source (migration 008), so the gate can tell a
+                        # rescale above 1 from a real defect (G17).
+                        (r.ratio,
+                         f"backfill seam rescale x{r.ratio:.6f} at {r.seam_from}",
+                         build, r.symbol, r.seam_from),
                     )
                     cur.execute(
                         """

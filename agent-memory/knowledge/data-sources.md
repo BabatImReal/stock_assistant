@@ -214,6 +214,29 @@ doc's named groups agree well: banks 24/25, securities 32/32, real estate
 vnstock VCI (ValueError). VN30 is available from 2012-02-06. No free
 sector-index history source found.
 
+## EXCHANGE history — measured 2026-09-23 (session 03 run 6)
+- `bar_raw.exchange` / CafeF files: **today's** exchange, partly. CafeF kept
+  both spans for the 116 Class A transfers (dated correctly). But it re-files
+  some transferred stocks' WHOLE history under the new exchange: DPG sits in
+  the HSX file from 2017, yet traded on 2018-01-23 while HOSE was halted. The 46
+  vnstock backfills are also labelled with today's exchange (ACB = HOSE for
+  2006–2020, really HNX).
+- **vnstock KBS `Company(sym).overview()` has `listing_date` = the date the
+  symbol joined its CURRENT exchange. CONFIRMED on 7 symbols**: HPG / VNM / PVS
+  equal to our first bar (never moved); DPG 2018-05-22, SHB 2021-10-11, VCG
+  2020-12-29, VIX 2021-01-08 (known transfers). It gives the LAST move only;
+  the exchange before it is not given. One call per symbol (~1,700 at 60/min,
+  about 30 min).
+- vnstock VCI `events()`: capped at the 50 most recent events (2–3 years) and
+  no transfer event type. Not a source.
+- vnstock `Listing.symbols_by_exchange()`: current only.
+
+## INDEX feeds — stale copies found 2026-09-23
+CafeF's index history holds rows that repeat a neighbouring session's OHLC
+(2026-07-31 both indices = 07-30; HNX 2023-05-08 = 05-09). vnstock VCI and KBS
+agree with each other to 0.000% on those dates, so either can repair them.
+14 pre-2012 repeats are not investigated.
+
 ## PAUSED — SSI FastConnect (revisit when the system is proven)
 Kept, not deleted: registration costs money and nothing is paid for until the
 system proves effective (doc §7.5, decision 2026-09-22). Nothing below was ever

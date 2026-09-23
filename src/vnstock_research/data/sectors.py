@@ -103,6 +103,48 @@ def assign(symbol: str, dates, labels: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame({"sector": sector[symbol], "labels_current": current[symbol]})
 
 
+def fetch_vci() -> pd.DataFrame:
+    """Today's ICB membership from vnstock VCI: one row per 3-letter symbol,
+    with level 2 and level 4 codes and names."""
+    from vnstock import Listing
+
+    raw = Listing(source="vci").symbols_by_industries()
+    raw = raw[raw["symbol"].str.fullmatch(r"[A-Z]{3}")]
+    out = {}
+    for level in (2, 4):
+        lv = raw[raw["icb_level"] == level].drop_duplicates("symbol")
+        out[f"icb_l{level}"] = lv.set_index("symbol")["icb_code"].astype(str)
+        out[f"icb_l{level}_name"] = lv.set_index("symbol")["icb_name"]
+    df = pd.DataFrame(out).dropna()
+    df.index.name = "symbol"
+    return df.reset_index()
+
+
+def write_snapshot(conn, snap: pd.DataFrame, day, source: str = SOURCE) -> int:
+    """Store `snap` as the snapshot dated `day`; return that day's row count.
+
+    Idempotent per day: re-running on the same date writes nothing new, so the
+    nightly job can call it every run. The caller commits.
+    """
+    with conn.cursor() as cur:
+        cur.executemany(
+            "INSERT INTO symbol_industry (symbol, snapshot_date, source, "
+            "icb_l2, icb_l2_name, icb_l4, icb_l4_name) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING",
+            [
+                (r.symbol, day, source, r.icb_l2, r.icb_l2_name, r.icb_l4,
+                 r.icb_l4_name)
+                for r in snap.itertuples()
+            ],
+        )
+        cur.execute(
+            "SELECT count(*) FROM symbol_industry "
+            "WHERE snapshot_date = %s AND source = %s",
+            (day, source),
+        )
+        return cur.fetchone()[0]
+
+
 def current_groups(labels: pd.DataFrame) -> pd.Series:
     """symbol -> sector from the LATEST snapshot, for the doc §7.1 small-sample
     fallback (this stock -> its sector -> whole market).

@@ -15,7 +15,21 @@ fills only the INDEX-GAP kind, and decides it per date with two guards:
 Rows go in with source='vnstock' (migration 006). Idempotent: an existing row
 is never overwritten.
 
-Run:  uv run python scripts/backfill_index_gaps.py [--dry-run]
+--stale: REPAIR stale copies instead (found 2026-09-23). CafeF sometimes
+publishes a session with the OHLC of the session next to it: 2026-07-31
+carried 07-30's prices for both indices; HNX-INDEX 2023-05-08 carried 05-09's.
+The pair's rows are identical, so which one is wrong needs outside evidence.
+Each row of every repeated pair since 2012 is replaced ONLY when all of these
+hold:
+  - vnstock VCI and KBS (two independent feeds) both have a traded session
+    that day and agree with each other within PRICE_TOLERANCE;
+  - our open/high/low/close differs from VCI by more than PRICE_TOLERANCE
+    (all four prices: a stale close can sit inside tolerance while the open
+    is 1.5% off, as 2023-05-08 did);
+  - our neighbours reconcile with VCI (the same guard as the gap fill).
+The replacement is VCI's row, marked source='vnstock'.
+
+Run:  uv run python scripts/backfill_index_gaps.py [--stale] [--dry-run]
 """
 
 from __future__ import annotations
@@ -32,12 +46,103 @@ from vnstock_research.data import db  # noqa: E402
 from vnstock_research.data.reconcile import PRICE_TOLERANCE  # noqa: E402
 
 OURS, THEIRS = "VNINDEX", "VNINDEX"  # the index the regime measures read
+# --stale repairs both indices: a stale row is wrong wherever it sits.
+INDICES = {"VNINDEX": "VNINDEX", "HNX-INDEX": "HNXINDEX"}
+PRICES = ["open", "high", "low", "close"]
 NEIGHBOUR_SESSIONS = 5  # either side; a diagnostic guard, not a research parameter
+
+
+def vnstock_window(source: str, symbol: str, d) -> pd.DataFrame:
+    """One small window around `d`: vnstock caps a request's span (8 years,
+    knowledge/data-sources.md), so a 2012-to-now request comes back truncated."""
+    from vnstock import Quote
+
+    v = Quote(source=source, symbol=symbol).history(
+        start=str(d - timedelta(days=30)), end=str(d + timedelta(days=30)),
+        interval="1D",
+    )
+    v["trade_date"] = pd.to_datetime(v["time"]).dt.date
+    return v.set_index("trade_date")
+
+
+def repair_stale(conn, dry: bool) -> None:
+    """See the module docstring, --stale."""
+    rows = conn.execute(
+        """
+        SELECT symbol, trade_date FROM (
+            SELECT symbol, trade_date, open, high, low, close,
+                   lag(open) OVER w po, lag(high) OVER w ph,
+                   lag(low) OVER w pl, lag(close) OVER w pc,
+                   lag(trade_date) OVER w prev_date
+            FROM index_bar WINDOW w AS (PARTITION BY symbol ORDER BY trade_date)
+        ) i
+        WHERE trade_date >= DATE '2012-01-01'
+          AND open = po AND high = ph AND low = pl AND close = pc
+        """
+    ).fetchall()
+    # Both rows of each pair are candidates; the evidence decides which is wrong.
+    cands = set()
+    for sym, d in rows:
+        (prev,) = conn.execute(
+            "SELECT max(trade_date) FROM index_bar WHERE symbol=%s AND trade_date<%s",
+            (sym, d),
+        ).fetchone()
+        cands |= {(sym, prev), (sym, d)}
+    print(f"repeated index sessions since 2012: {len(rows)}; "
+          f"rows to judge: {len(cands)}")
+    fixed = 0
+    for sym, d in sorted(cands, key=lambda x: (x[1], x[0])):
+        ours = pd.DataFrame(
+            conn.execute(
+                "SELECT trade_date, open, high, low, close FROM index_bar "
+                "WHERE symbol = %s AND trade_date BETWEEN %s AND %s "
+                "ORDER BY trade_date",
+                (sym, d - timedelta(days=30), d + timedelta(days=30)),
+            ).fetchall(),
+            columns=["trade_date", *PRICES],
+        ).set_index("trade_date").astype(float)
+        vci = vnstock_window("vci", INDICES[sym], d)
+        kbs = vnstock_window("kbs", INDICES[sym], d)
+        if d not in vci.index or d not in kbs.index or vci.at[d, "volume"] <= 0:
+            print(f"  {sym} {d}  SKIP: not a traded session in both feeds")
+            continue
+        feeds_agree = abs(vci.at[d, "close"] / kbs.at[d, "close"] - 1)
+        ours_off = (ours.loc[d, PRICES] / vci.loc[d, PRICES] - 1).abs().max()
+        pair = {x for s2, x in cands if s2 == sym and abs((x - d).days) <= 5}
+        nb = ours[~ours.index.isin(pair)]
+        nb = pd.concat([nb[nb.index < d].tail(NEIGHBOUR_SESSIONS),
+                        nb[nb.index > d].head(NEIGHBOUR_SESSIONS)])
+        nb = nb[nb.index.isin(vci.index)]
+        nb_off = (nb["close"] / vci.loc[nb.index, "close"] - 1).abs().max()
+        verdict = (
+            "KEEP: matches VCI" if ours_off <= PRICE_TOLERANCE
+            else "SKIP: VCI and KBS disagree" if feeds_agree > PRICE_TOLERANCE
+            else "SKIP: neighbours do not reconcile" if nb_off > PRICE_TOLERANCE
+            else "REPLACE"
+        )
+        print(f"  {sym} {d}  ours off VCI by {ours_off:.2%} (OHLC max); "
+              f"VCI vs KBS close {feeds_agree:.3%}; neighbours {nb_off:.3%} "
+              f"-> {verdict}")
+        if verdict == "REPLACE" and not dry:
+            r = vci.loc[d]
+            conn.execute(
+                "UPDATE index_bar SET open=%s, high=%s, low=%s, close=%s, "
+                "volume=%s, source='vnstock' WHERE symbol=%s AND trade_date=%s",
+                (r["open"], r["high"], r["low"], r["close"], int(r["volume"]),
+                 sym, d),
+            )
+            fixed += 1
+    conn.commit()
+    print(f"replaced {fixed}" + (" (dry run)" if dry else ""))
 
 
 def main() -> None:
     dry = "--dry-run" in sys.argv
     db.load_env()
+    if "--stale" in sys.argv:
+        with db.connect() as conn:
+            repair_stale(conn, dry)
+        return
     from vnstock import Quote
 
     with db.connect() as conn:

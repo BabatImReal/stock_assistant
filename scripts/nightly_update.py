@@ -11,9 +11,16 @@ Steps, in the order the approved pipeline sets out:
      A changed factor on a past day is a restatement: a corporate action landed,
      and the adjusted series must be REBUILT under a new build_id rather than
      patched in place
-  4. update negotiated volume, the index, the calendar and the symbol master
+  4. write the session's index rows (VN-Index, HNX-Index; G16) and the calendar.
+     NOT yet done here: negotiated volume and the symbol master (open-questions
+     G18). Until they are, this step must not claim them.
   5. run the data-quality checks
   6. promote the build only if nothing blocking failed
+
+On EVERY run, even one with no new session, it also stores today's industry
+snapshot (data/sectors.py), so dated sector membership accumulates day by day
+(decision 2026-09-23). A failed snapshot is reported, never fatal: sector
+labels must not stop the price data.
 
 Every run writes a heartbeat row, because the failure mode that matters is
 silence. A job that dies, or that runs against a source which published nothing,
@@ -33,7 +40,7 @@ import re
 import sys
 import time
 import zipfile
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 import pandas as pd
@@ -41,7 +48,7 @@ import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from vnstock_research.data import cafef, checks, db  # noqa: E402
+from vnstock_research.data import cafef, checks, db, sectors  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 RAW = REPO / "data" / "raw" / "cafef_daily"
@@ -128,6 +135,43 @@ def read_daily_stocks(day: Path) -> pd.DataFrame:
     return pd.concat(frames, ignore_index=True)
 
 
+def write_index(conn, day: Path, after) -> int:
+    """G16: store the session's index rows (VN-Index, HNX-Index) from the daily
+    CafeF file. Only sessions after `after`; never overwrites. The caller
+    commits. Returns the number of rows offered.
+
+    Without this, every nightly session lacks VNINDEX, so the regime measures
+    are NaN on exactly the day the scan needs them.
+    """
+    idx = cafef.index_bars(day, cafef.DAILY_INDEX_FILE)
+    idx = idx[idx["trade_date"] > after]
+    with conn.cursor() as cur:
+        for r in idx.itertuples():
+            cur.execute(
+                """
+                INSERT INTO index_bar (symbol, trade_date, open, high, low,
+                    close, volume, source)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,'cafef')
+                ON CONFLICT DO NOTHING
+                """,
+                (r.symbol, r.trade_date, r.open, r.high, r.low, r.close,
+                 int(r.volume)),
+            )
+    return len(idx)
+
+
+def refresh_labels(conn) -> None:
+    """Today's dated industry snapshot. Idempotent per day. Never fatal."""
+    try:
+        n = sectors.write_snapshot(conn, sectors.fetch_vci(), date.today())
+        conn.commit()
+        say(f"industry snapshot {date.today()}: {n:,} symbols")
+    except Exception as e:  # noqa: BLE001 - labels must not stop the price job
+        conn.rollback()
+        say(f"WARNING: industry snapshot failed ({type(e).__name__}: {e}); "
+            "sector labels not refreshed today")
+
+
 def heartbeat(conn, **fields) -> int:
     with conn.cursor() as cur:
         cur.execute(
@@ -157,6 +201,7 @@ def main() -> int:
     conn = db.connect()
     run_id = heartbeat(conn)
     try:
+        refresh_labels(conn)
         with conn.cursor() as cur:
             cur.execute("SELECT max(trade_date) FROM bar_raw")
             (have_through,) = cur.fetchone()
@@ -219,6 +264,8 @@ def main() -> int:
                     (row.symbol, row.trade_date, row.open, row.high, row.low,
                      row.close, int(row.volume), row.exchange, row.source_file),
                 )
+            n_index = write_index(conn, day, after=have_through)
+            say(f"index rows: {n_index}")
             # Today's factors. A symbol returning after a long gap starts a new
             # span: its factors are re-derived from the current file rather than
             # compared with the old ones, because an entire suspended series can
