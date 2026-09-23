@@ -1,4 +1,4 @@
-"""Occurrence rates and distributions for the feature measures (§4.1, §5.1-5.2).
+"""Occurrence rates and distributions for the feature measures (§4.1, §5.1-5.3).
 
 Not a statistic about the market yet -- hit-rate-against-base-rate needs the
 return generator, which is the backtest step (open-questions B2). This answers
@@ -23,7 +23,13 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from vnstock_research.data import db  # noqa: E402
-from vnstock_research.features import bars, compute, load_config, market  # noqa: E402
+from vnstock_research.features import (  # noqa: E402
+    bars,
+    breadth,
+    compute,
+    load_config,
+    market,
+)
 
 REPO = Path(__file__).resolve().parent.parent
 REPORTS = REPO / "data" / "reports"
@@ -39,7 +45,7 @@ def say(line: str = "") -> None:
 def main() -> None:
     n = int(sys.argv[1]) if len(sys.argv) > 1 else 40
     cfg = load_config()
-    say(f"Feature measures (doc §4.1, §5.1-5.2)   {datetime.now():%Y-%m-%d %H:%M}")
+    say(f"Feature measures (doc §4.1, §5.1-5.3)   {datetime.now():%Y-%m-%d %H:%M}")
     say(f"enabled measures: {', '.join(k for k, v in cfg.items() if v['enabled'])}")
     say("")
 
@@ -52,12 +58,17 @@ def main() -> None:
         missing = market.missing_sessions(conn)
         say(f"index frame: {len(index):,} sessions; "
             f"sessions the market traded and the index lacks: {missing}")
+        wide = breadth.load(conn, build=build)
+        say(f"breadth frame: {len(wide):,} sessions (incl. warm-up); stocks "
+            f"counted per session: median {wide['counted'].median():.0f}, "
+            f"min {wide['counted'].min()}, max {wide['counted'].max()}")
+        frames_by_name = {"index": index, "breadth": wide}
 
         frames, fs = [], None
         for symbol, frame in bars.load_many(conn, symbols):
             if frame.empty:
                 continue
-            values, fs = compute(frame, market=index)
+            values, fs = compute(frame, market=frames_by_name)
             values["symbol"] = symbol
             frames.append(values)
 

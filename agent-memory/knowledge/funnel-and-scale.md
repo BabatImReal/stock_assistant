@@ -26,6 +26,11 @@ Two phases: a **research phase** run once and refreshed periodically, and a
 | 6 | context conditions met (trend, support, volume, sector) | a handful |
 | 7 | rank by evidence strength, check news vetoes | **1 pick** + runners-up |
 
+Step 2 is implemented (2026-09-23) as the point-in-time liquid set,
+`data/universe.py`. On the latest session (2026-09-21) that is 280 symbols. In the
+backtest, step 2 must use the liquid set ON EACH historical date
+(`universe.liquid`), never today's list. Step 3's regime now includes breadth.
+
 ## "Nothing today" is a valid answer (§7.3)
 A tool that must produce a pick every day will eventually invent bad ones.
 Waiting is part of the discipline.

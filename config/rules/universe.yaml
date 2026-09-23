@@ -17,8 +17,13 @@ liquidity:
   # Average daily MATCHED traded value (close x matched volume), in THOUSANDS of
   # VND, since CafeF prices are quoted in thousands.
   min_avg_matched_value: 1000000      # = 1 billion VND/day
+  # SESSIONS of the trading calendar, D included, not calendar days: a Tet week
+  # is not four missing trading days. The canonical definition is
+  # src/vnstock_research/data/universe.py (2026-09-23). Five older one-off
+  # scripts approximate it with lookback_days x 1.5 calendar days; they predate
+  # it and are left as they were run.
   lookback_days: 60
-  # A stock must also actually trade: days with volume are what count.
+  # A stock must also actually trade: days with volume > 0 are what count.
   min_trading_days_in_lookback: 40
 
 universe:

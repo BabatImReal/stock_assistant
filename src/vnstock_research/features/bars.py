@@ -29,8 +29,6 @@ from __future__ import annotations
 
 import pandas as pd
 
-from ..data import db
-
 COLUMNS = [
     "symbol", "trade_date", "open", "high", "low", "close",
     "matched_volume", "volume_is_adjustable", "gap_before", "excluded",
@@ -103,31 +101,14 @@ def load_many(conn, symbols, start: str = "2012-01-01", build: int | None = None
 
 
 def liquid_symbols(conn, limit: int | None = None) -> list[str]:
-    """The liquid universe as of now, for reporting only.
+    """The symbols liquid on the LATEST session, most traded first. For reporting.
 
-    NOT for research: the liquid universe used in any statistic must be
-    point-in-time, computed as of each historical date (decision 2026-09-22),
-    because today's list silently selects the stocks that turned out well.
+    NOT a research filter: research uses the liquid set on EACH historical date
+    (`data.universe.liquid`), because today's list silently selects the stocks
+    that turned out well (decision 2026-09-22). One definition serves both;
+    it lives in data/universe.py.
     """
-    import yaml
+    from ..data import universe
 
-    cfg = yaml.safe_load(
-        (db.REPO / "config" / "rules" / "universe.yaml").read_text()
-    )["liquidity"]
-    with conn.cursor() as cur:
-        cur.execute(
-            """
-            SELECT symbol FROM (
-                SELECT r.symbol, avg(r.close * r.matched_volume) v, count(*) d
-                FROM bar_raw r
-                WHERE r.trade_date >= (SELECT max(trade_date) FROM bar_raw)
-                                      - make_interval(days => %s::int)
-                  AND r.matched_volume > 0
-                GROUP BY 1
-            ) x WHERE v >= %s AND d >= %s ORDER BY v DESC
-            """,
-            (int(cfg["lookback_days"] * 1.5), cfg["min_avg_matched_value"],
-             cfg["min_trading_days_in_lookback"]),
-        )
-        out = [r[0] for r in cur.fetchall()]
-    return out[:limit] if limit else out
+    symbols = list(universe.liquid_on_latest(conn).index)
+    return symbols[:limit] if limit else symbols

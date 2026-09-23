@@ -346,8 +346,11 @@ liquid universe** decision at the same time.
   market-wide fake decline on exactly the days most companies pay.
 - The same point-in-time machinery is what the liquid-universe decision needs,
   so building it once, properly, serves both.
-- **PROPOSED 2026-09-23** (session 2026-09-23-03 log, run 1). Awaiting Ben's
-  answers to Q1–Q5. No code yet.
+- **PROPOSED 2026-09-23**, decisions locked by Ben, **BUILT 2026-09-23** on
+  branch `features/breadth-pit-build` (session 2026-09-23-03 run 3). Awaiting
+  Ben's review before merge. See decisions.md.
+- Not built, on purpose: a second breadth measure over the liquid universe
+  (optional per Ben). Add it when a study needs it.
 
 ## Index and calendar findings — 2026-09-23 (session 03)
 
@@ -357,6 +360,17 @@ The 5 VNINDEX sessions are resolved (see decisions.md, session 2026-09-23-03):
 `index_covers_every_trading_session` will keep warning **2**; both are explained.
 
 New, found while resolving them. NOT fixed this run:
+
+### Nightly-hardening slice (Ben, 2026-09-23): a separate slice, do NOT touch during features
+Grouped so it is done as one piece of work:
+- **G16**: the nightly job never writes `index_bar` (below).
+- **G17**: build 5 fails the factor>1 gate check after the seam rescale (below).
+- **Holiday-list check**: weekends are gate-checked, holidays are not. Lunar
+  holidays move every year, so it needs a dated holiday list in config
+  (`knowledge/context-vietnam.md`, "Trading days").
+- **Historical exchange labels**: `bar_raw.exchange` / `symbol_exchange` carry
+  the current exchange (below).
+- **2026-07-31 index disagreement** with vnstock (below).
 
 ### G16 — The nightly job never writes `index_bar`
 `scripts/nightly_update.py`'s docstring says step 4 updates "the index" and it

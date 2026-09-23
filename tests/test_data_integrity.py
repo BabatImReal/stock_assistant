@@ -90,3 +90,21 @@ def test_calendar_matches_bar_raw(conn):
         cur.execute(checks.CALENDAR_DRIFT_SQL)
         (drift,) = cur.fetchone()
     assert drift == 0, f"{drift} exchange-days differ; run db.rebuild_trading_day"
+
+
+def test_the_liquid_set_on_the_latest_session_all_traded_that_session(conn):
+    """liquid_symbols() is the ONE definition (data/universe.py) applied to the
+    latest session. Liquid implies tradeable that day; an empty set would mean
+    the config or the window broke."""
+    from vnstock_research.features import bars
+
+    liquid = bars.liquid_symbols(conn)
+    assert liquid
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT symbol FROM bar_raw WHERE matched_volume > 0 "
+            "AND NOT date_shifted "
+            "AND trade_date = (SELECT max(trade_date) FROM trading_day)"
+        )
+        traded = {r[0] for r in cur.fetchall()}
+    assert set(liquid) <= traded

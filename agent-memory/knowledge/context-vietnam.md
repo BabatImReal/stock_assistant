@@ -16,6 +16,12 @@ Each context item is itself a rule that can be switched on/off and measured.
   (how many stocks rose). In Vietnam most stocks move together, so a perfect
   setup during a market-wide sell-off usually fails. Record the regime with
   every signal and report hit rates separately per regime.
+  Breadth is built (2026-09-23): the share of advancers among stocks that
+  moved, over ALL tradeable stocks, on adjusted closes, counting a stock only
+  if it also traded the session before. Real data since 2012: daily median
+  0.505; correlation 0.80 with the index's daily return; 106 days where they
+  disagree sharply (index up while most stocks fell, or the reverse). Those are
+  the days the cap-weighted index hides.
 - **Sector (§5.4):** banks, real estate, securities firms, steel move as
   groups. A signal with its sector is more credible than one against it.
 

@@ -49,6 +49,10 @@ class Measure:
     needs: tuple[str, ...]
     lookback: Callable[[dict], int]
     fn: Callable[[pd.DataFrame, dict], pd.Series]
+    # Market measures only: which market frame the function reads. The index
+    # and breadth are separate frames, so a missing index day (a data defect)
+    # cannot blank breadth, and a thin breadth day cannot blank the index.
+    frame: str = "index"
 
     @property
     def reads_volume(self) -> bool:
@@ -98,6 +102,7 @@ def market_measure(
     kind: str,
     needs: tuple[str, ...],
     lookback: Callable[[dict], int],
+    frame: str = "index",
 ) -> Callable:
     """Register a market-level measure (doc §5.3).
 
@@ -110,7 +115,7 @@ def market_measure(
     def wrap(fn: Callable[[pd.DataFrame, dict], pd.Series]) -> Callable:
         MARKET_REGISTRY[name] = Measure(
             name=name, doc_ref=doc_ref, kind=kind, needs=needs,
-            lookback=lookback, fn=fn,
+            lookback=lookback, fn=fn, frame=frame,
         )
         return fn
 
@@ -244,21 +249,46 @@ def _market_window_ok(market: pd.DataFrame, lookback: int) -> pd.Series:
 
 
 def compute_market(
-    market: pd.DataFrame, config: dict[str, dict]
+    market: pd.DataFrame | dict[str, pd.DataFrame], config: dict[str, dict]
 ) -> tuple[pd.DataFrame, dict[str, dict]]:
-    """Run the enabled market measures once, indexed by trade_date."""
-    out = pd.DataFrame(index=market.index)
+    """Run the enabled market measures once, one row per trade_date.
+
+    `market` is either the index frame alone or a dict of frames by name
+    ({"index": ..., "breadth": ...}). Each measure runs on the frame it
+    declared, under that frame's own window guard. The frames are then joined
+    on trade_date (outer), so a date one frame lacks is NaN for its measures
+    only.
+    """
+    frames = market if isinstance(market, dict) else {"index": market}
+    per_frame: dict[str, pd.DataFrame] = {}
     params: dict[str, dict] = {}
     for name, settings in config.items():
         if not settings.get("enabled", False):
             continue
         m = MARKET_REGISTRY[name]
+        f = frames.get(m.frame)
+        if f is None:
+            raise ValueError(
+                f"market measure '{name}' reads the '{m.frame}' frame, but no "
+                f"{m.frame} frame was supplied"
+            )
+        out = per_frame.setdefault(
+            m.frame, pd.DataFrame({"trade_date": f["trade_date"].to_numpy()},
+                                  index=f.index)
+        )
         p = {k: v for k, v in settings.items() if k != "enabled"}
-        values = pd.Series(m.fn(market, p), index=market.index).astype("float64")
-        out[name] = values.where(_market_window_ok(market, m.lookback(p)))
+        values = pd.Series(m.fn(f, p), index=f.index).astype("float64")
+        out[name] = values.where(_market_window_ok(f, m.lookback(p)))
         params[name] = p
-    out["trade_date"] = market["trade_date"].to_numpy()
-    return out, params
+    if not per_frame:
+        return pd.DataFrame(columns=["trade_date"]), params
+    outs = list(per_frame.values())
+    joined = outs[0]
+    for other in outs[1:]:
+        joined = joined.merge(other, on="trade_date", how="outer")
+    if len(outs) > 1:
+        joined = joined.sort_values("trade_date").reset_index(drop=True)
+    return joined, params
 
 
 def compute(
