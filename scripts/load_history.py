@@ -205,18 +205,7 @@ def main() -> None:
 
         # --- trading calendar, from STOCK rows ------------------------------
         say("building trading_day from stock rows ...")
-        with conn.cursor() as cur:
-            cur.execute("TRUNCATE trading_day")
-            cur.execute(
-                """
-                INSERT INTO trading_day (trade_date, exchange, symbols_traded)
-                SELECT trade_date, exchange, count(*)
-                FROM bar_raw GROUP BY trade_date, exchange
-                """
-            )
-            cur.execute("SELECT count(*) FROM trading_day")
-            say(f"  {cur.fetchone()[0]:,} exchange-days")
-        conn.commit()
+        say(f"  {db.rebuild_trading_day(conn):,} exchange-days")
 
         # --- symbol master and exchange history -----------------------------
         say("building symbol and symbol_exchange ...")

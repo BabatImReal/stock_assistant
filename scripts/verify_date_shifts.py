@@ -129,6 +129,9 @@ def main() -> None:
                     )
             conn.commit()
             say(f"  deleted {len(rejected)} unverifiable shifted bars")
+            # A deleted bar can be the only one on its date; without this the
+            # calendar keeps a session nothing traded on (the 2025-05-02 bug).
+            db.rebuild_trading_day(conn)
 
         # An unverifiable bar is not a verified one. These stay, flagged, and
         # research excludes date_shifted bars by default anyway

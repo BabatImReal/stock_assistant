@@ -225,6 +225,8 @@ def main() -> None:
                     (build, build),
                 )
             conn.commit()
+            # New bar_raw rows change the calendar's per-exchange counts.
+            db.rebuild_trading_day(conn)
 
     say("")
     say(f"backfilled: {loaded} symbols, skipped: {len(skipped)}")

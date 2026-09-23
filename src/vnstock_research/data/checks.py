@@ -31,6 +31,16 @@ MARKET_RULES = (
 # A trading day with fewer than this many symbols is not a real session.
 MIN_SYMBOLS_PER_DAY = 20
 
+# Exchange-days where trading_day disagrees with its own definition (a count
+# of bar_raw rows). Any script that edits bar_raw without re-deriving the
+# calendar shows up here. Shared with tests/test_data_integrity.py.
+CALENDAR_DRIFT_SQL = """
+SELECT count(*) FROM trading_day t
+FULL JOIN (SELECT trade_date, exchange, count(*) AS n
+           FROM bar_raw GROUP BY 1, 2) r USING (trade_date, exchange)
+WHERE t.symbols_traded IS DISTINCT FROM r.n
+"""
+
 
 @dataclass
 class Check:
@@ -248,6 +258,20 @@ def run_all(conn, build_id: int) -> list[Check]:
                 "fail",
                 f"{n_we} weekend sessions",
                 {"rows": n_we},
+            )
+        )
+
+        # Blocking: a calendar date with no bar behind it is a session every
+        # symbol "missed", so gap_before is wrong market-wide (2025-05-02).
+        (n_drift,) = _one(cur, CALENDAR_DRIFT_SQL)
+        checks.append(
+            Check(
+                "calendar_matches_bar_raw",
+                n_drift == 0,
+                "fail",
+                f"{n_drift:,} exchange-days where trading_day != bar_raw "
+                "(fix: db.rebuild_trading_day)",
+                {"rows": n_drift},
             )
         )
 

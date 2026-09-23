@@ -3,13 +3,10 @@
 Every folder and file in the repo, one line each. Updated at the end of every
 run in which a file was added, repurposed or removed.
 
-**Phase 4 steps 1-3 complete (schema, historical load, checks + reconciliation).
-Build 2 is promoted and holds 2.84M bars from 2000-07-28. The nightly job is
-NOT built yet. The feature/pattern/backtest/report modules are still empty.**
-
-Earlier note kept for context: **Phase 3 (free-source probe) complete. Real code:
-`reconcile.py` and the probe script. The feature/pattern/backtest/report modules
-are still docstrings only.**
+**Phase 5 (features) in progress; 21 measures built. Build 5 is promoted
+(2.89M bars from 2000-07-28). The nightly job exists (not scheduled; G16: it never
+writes `index_bar`). `patterns/` and `report/` are still docstrings only;
+`backtest/` holds `forward_returns.py`.** (Updated 2026-09-23.)
 
 Verified 2026-09-22: `uv sync` on Python 3.12, `uv run pytest` 13 passed,
 `ruff check` and `ruff format --check` clean, `pre-commit run --all-files`
@@ -48,18 +45,17 @@ PostgreSQL 16.15 + timescaledb 2.30.1, healthy, named volume created.
 | `agent-memory/knowledge/decisions.md` | Date, decision, reason, rejected alternatives |
 | `agent-memory/knowledge/open-questions.md` | Open items; 11 marked "must resolve before any measurement" |
 | `agent-memory/logs/INDEX.md` | One line per session |
-| `agent-memory/logs/sessions/2026-09-22-session-01.md` | Session 01 log |
+| `agent-memory/logs/sessions/*.md` | One log per session; listed in `logs/INDEX.md` |
 
 ## Package — `src/vnstock_research/`
-All files are `__init__.py` with a docstring only. No functions yet.
 
 | Path | Purpose (doc section) | Depends on |
 | --- | --- | --- |
 | `__init__.py` | Package overview and the pipeline order | — |
 | `data/__init__.py` | Download, storage, price adjustment (§7.5, §4.3). Owns blockers G1, G2 | pandas |
-| `data/db.py` | Connection from `DATABASE_URL`, `.env` loader, and the migration runner (numbered .sql files recorded in `schema_migration`) | psycopg |
+| `data/db.py` | Connection from `DATABASE_URL`, `.env` loader, the migration runner (numbered .sql files recorded in `schema_migration`), and `rebuild_trading_day()`: the ONE definition of the calendar, called by every script that writes `bar_raw` | psycopg |
 | `data/cafef.py` | Everything format-specific about CafeF's bulk files: BOM, AmiBroker headers that mean nothing in CC_/NN_, 3-letter filter, weekend rejection for the index | pandas |
-| `data/checks.py` | The data-quality gate: 14 checks, `fail` blocks promotion, `warn` is recorded. Includes the traded-value invariant, the key proof that G1 was done right | psycopg |
+| `data/checks.py` | The data-quality gate: 16 checks (incl. `calendar_matches_bar_raw`, fail, via the shared `CALENDAR_DRIFT_SQL`), `fail` blocks promotion, `warn` is recorded. Includes the traded-value invariant, the key proof that G1 was done right | psycopg |
 | `data/reconcile.py` | **Real code.** Two-source reconciliation: `normalise`, `reconcile_column`, `reconcile`, `sample_by_year`, `missing_trading_days`, `write_report`, `ReconResult`. Tolerances `PRICE_TOLERANCE=0.5%`, `VOLUME_TOLERANCE=1%` with the reasoning in comments. Built for both the post-download sample check and the nightly all-stock check | pandas |
 | `features/__init__.py` | Package docstring plus the registry exports; importing it registers the §4.1 measures | `data` |
 | `features/base.py` | **The measure contract.** `Measure`, `REGISTRY`, the `@measure` decorator, `compute()`, `FeatureSet`. Enforces the three guarantees centrally: no look-ahead, no window spans a gap or an excluded row, volume measures NaN on non-adjustable spans. NaN / 0 / no-column are three distinct states | pandas, pyyaml |
@@ -92,6 +88,10 @@ All files are `__init__.py` with a docstring only. No functions yet.
 | `scripts/check_backfill_seams.py` | Measures and rescales the level mismatch where a backfilled span meets CafeF; refuses to rescale across long gaps | pandas, `data.db` |
 | `scripts/measure_fillability.py` | How often the ceiling/floor rules bite, whole market vs liquid | pyyaml, `data.checks` |
 | `migrations/005_job_run.sql` | The `job_run` heartbeat table | — |
+| `migrations/006_index_bar_source.sql` | `index_bar.source` ('cafef'/'vnstock') so backfilled index sessions stay visible | — |
+| `scripts/investigate_index_gaps.py` | READ-ONLY. For each calendar session with no index row: symbols per exchange vs neighbours, shifted/backfilled/zero-volume counts, adjacent index dates, and a PHANTOM / INDEX-GAP / UNCLEAR hint (`classify`) | psycopg, `data.db` |
+| `scripts/backfill_index_gaps.py` | Fills lost VNINDEX sessions from vnstock with `source='vnstock'`, only where vnstock volume > 0 (not a halt) and its close reconciles with CafeF on 5 sessions each side. `--dry-run` | pandas, vnstock, `data.db`, `data.reconcile` |
+| `tests/test_index_gap_diagnostic.py` | 5 tests of the hint logic: stray rows on a holiday → phantom; rows all date-shifted onto the date → phantom; normal session without index → index gap; the middle stays unclear; no neighbours is unclear, not a crash | — |
 | `config/rules/features.yaml` | Which measures are on and with what parameters — switching one off is a config change, never a code change | — |
 | `scripts/report_features.py` | Occurrence rates and distributions per measure, plus the NaN share and why | pandas, `features` |
 | `tests/_helpers.py` | The shared synthetic-symbol frame, so both feature suites test against the same fixture | — |
@@ -101,7 +101,7 @@ All files are `__init__.py` with a docstring only. No functions yet.
 | `config/rules/costs.yaml` | Broker fee (provisional) and the 0.1% sale tax | — |
 | `config/rules/market_rules.yaml` | Price limits **with the date each took effect** and tick sizes by price band; settlement cycle. Used by the price-limit check | — |
 | `scripts/analyse_missed_actions.py` | For beyond-limit moves in the liquid universe, compares our adjusted series against vnstock's to tell "CafeF missed a corporate action" from "the move was real" | pandas, vnstock, `data.checks` |
-| `tests/test_data_integrity.py` | Live-database checks, skipped when no DB: `date_shifted` really is written, no weekend bars survive, the price-limit SQL uses the rule in force | psycopg |
+| `tests/test_data_integrity.py` | Live-database checks, skipped when no DB: `date_shifted` really is written, no weekend bars survive, the price-limit SQL uses the rule in force, and the calendar matches `bar_raw` (failed with 7,352 drifted exchange-days before the 2026-09-23 fix) | psycopg |
 | `config/rules/universe.yaml` | Liquidity floor (defines the "liquid universe"), research start date, and `exclude_date_shifted` | — |
 | `scripts/count_exchange_transfers.py` | Counts symbols affected by exchange transfers (G4): class A from CafeF alone, class B by asking vnstock for the window before CafeF's first date | pandas, vnstock |
 | `tests/test_db.py` | Schema checks that need no server: migrations ordered, 3-letter constraint present, negotiated volume cannot be faked with a zero row | — |

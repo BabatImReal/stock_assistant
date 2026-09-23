@@ -346,6 +346,70 @@ liquid universe** decision at the same time.
   market-wide fake decline on exactly the days most companies pay.
 - The same point-in-time machinery is what the liquid-universe decision needs,
   so building it once, properly, serves both.
+- **PROPOSED 2026-09-23** (session 2026-09-23-03 log, run 1). Awaiting Ben's
+  answers to Q1–Q5. No code yet.
+
+## Index and calendar findings — 2026-09-23 (session 03)
+
+The 5 VNINDEX sessions are resolved (see decisions.md, session 2026-09-23-03):
+2025-05-02 phantom (calendar fixed), 2024-05-17 and 2026-07-02 index gaps
+(backfilled), 2018-01-23/24 real HOSE halt (left, explained). The gate check
+`index_covers_every_trading_session` will keep warning **2**; both are explained.
+
+New, found while resolving them. NOT fixed this run:
+
+### G16 — The nightly job never writes `index_bar`
+`scripts/nightly_update.py`'s docstring says step 4 updates "the index" and it
+has a regex for `CafeF.Index.*.zip`, but no code inserts into `index_bar`. It
+hasn't done damage yet (`job_run` has 1 row, `no_new_data`). But the first
+nightly run that appends a day will leave VNINDEX missing for that day, so the
+regime measures will be NaN on exactly the date the daily scan needs. Same shape
+as G2: a step the job advertises and does not do. Must be fixed before the
+nightly job is scheduled.
+
+### Index value disagreements with vnstock (reconciliation principle)
+- **2026-07-31**: CafeF VNINDEX 1744.66 vs vnstock 1735.78 (0.51%, over the
+  0.5% tolerance); HNX-INDEX 275.05 vs 271.25 (1.40%). Not explained. Per
+  CLAUDE.md it should be flagged and excluded until explained. Needs a third
+  source or Ben's view.
+- **2026-07-03 → 07-15**: CafeF's index closes are rounded to whole points
+  (e.g. 1862.0000 vs 1862.08). Within tolerance, but a sign that CafeF's
+  index file for that span is lower-precision.
+- Everywhere else checked (2024-04 → 06, 2026-06 → 09), close/high/low agree
+  exactly.
+
+### HNX-INDEX has 33 missing sessions since 2012
+Including a run 2024-11-26 → 12-06. Not read by any measure today
+(`features.yaml` market.index_symbol = VNINDEX). Needs the same diagnosis
+before HNX-INDEX is used for anything.
+
+### G17 — The promoted build 5 FAILS a blocking gate check today
+Re-running the gate read-only on 2026-09-23:
+`factor_never_above_one_in_research_window` → **15,670 factors > 1 since 2012**
+(fail). All of them are `source='vnstock'`, on 21 symbols, factor 1.02 → 2.02.
+Build 5 passed this check at its last stored gate run (2026-09-22 09:56, 0
+rows). The rows come from `scripts/check_backfill_seams.py` (session
+2026-09-22-02 run 9), which multiplies a whole backfilled span by the seam ratio
+and stores the product as the factor. The gate was not re-run after that.
+The rescale is by design, and the check's "factor ≤ 1" assumption does not hold
+for it. **Consequence:** the nightly job would now refuse to promote any new
+build. **Decision for Ben:** exclude `source='vnstock'` factors from this
+check (and give seam factors their own bound check), or reconsider storing the
+rescale as a factor. Not changed this run.
+
+### Exchange-day file losses
+- **2025-05-05 HNX**: only 1 HNX symbol (CEO) in bar_raw for a real session
+  (both indices have the day). About 200 HNX symbols lost that session, so
+  their windows are NaN around it. Backfillable from vnstock; not done.
+- The gate's `sessions_have_a_plausible_number_of_symbols` (warn) counts days
+  like this but does not name them.
+
+### `exchange` is the CURRENT exchange, not the one in force on the date
+`bar_raw.exchange` and the backfilled `symbol_exchange` spans use today's
+listing. ACB is recorded as HOSE for 2006–2020, but it was on HNX until 2020-12.
+CafeF's RAW_HSX file carries DPG trading on 2018-01-23 while HOSE was halted.
+So `trading_day`'s per-exchange split is unreliable historically. This matters
+for any per-exchange breadth or universe (Task 2 proposal) and for G4.
 
 ## For the backtest step — recorded 2026-09-22, DO NOT act on these yet
 

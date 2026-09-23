@@ -50,6 +50,30 @@ def connect() -> psycopg.Connection:
     return psycopg.connect(dsn())
 
 
+def rebuild_trading_day(conn) -> int:
+    """Re-derive the trading calendar from bar_raw, and commit.
+
+    The calendar is "any (date, exchange) with at least one stock row"; built
+    from stocks, never from the index (G14). It is derived data, so every
+    script that inserts or deletes bar_raw rows must call this afterwards, or
+    the calendar keeps dates nothing traded on (the 2025-05-02 phantom). The
+    gate check `calendar_matches_bar_raw` catches any script that forgets.
+    """
+    with conn.cursor() as cur:
+        cur.execute("TRUNCATE trading_day")
+        cur.execute(
+            """
+            INSERT INTO trading_day (trade_date, exchange, symbols_traded)
+            SELECT trade_date, exchange, count(*)
+            FROM bar_raw GROUP BY trade_date, exchange
+            """
+        )
+        cur.execute("SELECT count(*) FROM trading_day")
+        (n,) = cur.fetchone()
+    conn.commit()
+    return n
+
+
 def migrate(verbose: bool = True) -> list[str]:
     """Apply every migration that has not been applied yet.
 

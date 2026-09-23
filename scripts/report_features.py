@@ -9,7 +9,7 @@ The NaN share matters as much as the values. A measure that is NaN on a third
 of its rows is not broken; it is telling us how much of the history sits behind
 a trading gap, an excluded window or an unadjustable volume span.
 
-Run:  uv run python scripts/report_volume_features.py [n_symbols]
+Run:  uv run python scripts/report_features.py [n_symbols]
 """
 
 from __future__ import annotations

@@ -76,3 +76,17 @@ def test_price_limit_sql_uses_the_rule_in_force(conn):
         )
         (limit_2012,) = cur.fetchone()
     assert float(limit_2012) == 0.05
+
+
+def test_calendar_matches_bar_raw(conn):
+    """trading_day is DERIVED from bar_raw; it must never drift from it.
+
+    Found 2026-09-23: verify_date_shifts.py deleted bar_raw rows and
+    backfill_transfers.py inserted some, and neither re-derived the calendar.
+    That left 2025-05-02 -- a public holiday -- in trading_day with no bar behind
+    it, inflating gap_before by one for every symbol whose bars straddle it.
+    """
+    with conn.cursor() as cur:
+        cur.execute(checks.CALENDAR_DRIFT_SQL)
+        (drift,) = cur.fetchone()
+    assert drift == 0, f"{drift} exchange-days differ; run db.rebuild_trading_day"
