@@ -4,10 +4,9 @@ Rewritten from scratch. DB and git figures were re-checked at the end of this
 run (vnstock-db reachable; `git log`).
 
 ## Phase
-**Phase 5: features (§4–5) complete, 25 measures, reviewed by Ben.** This run:
-the nightly-hardening / integrity block on `features/nightly-hardening`.
-Next: Ben's review and his decision on historical exchange labels (X1–X4),
-then patterns (doc §3).
+**Phase 5: features (§4–5) complete, 25 measures, reviewed and on main**,
+together with the nightly-hardening block. In progress: dated exchange labels
+on `features/exchange-labels`. Then patterns (doc §3).
 
 ## Git
 - **`main` = `5e81cc5`** (GitHub too). Ben asked to merge on 2026-09-23 (run 7):
@@ -39,12 +38,12 @@ raw stays as filed.
 | `index_bar` | 11,458 rows: VNINDEX 6,360 cafef + 3 vnstock; HNX-INDEX 5,093 cafef + 2 vnstock |
 | `symbol_industry` | 1 snapshot (2026-09-23), 1,722 symbols |
 | `job_run` | 1 row (the nightly has still never appended a session) |
-| migrations | 001–008 |
+| migrations | 001–009 (009 `exchange_membership`: applied, still empty) |
 
 **Gate (run_checks.py, re-run twice this run): 0 blocking failures**, reconciliation
 87.48% (bar 85%), build 5 stays 'good'. 20 checks.
 
-## Done this run (details in decisions.md, run 6)
+## Done in run 6 (now on main; details in decisions.md, run 6)
 1. **G17 FIXED.** Migration 008 gives seam-rescale factors their own source and
    a reason. The gate exempts ONLY those, and only on backfilled vnstock bars.
    Proof: the live test failed with 15,670 rows before and passes after, and a
@@ -76,7 +75,7 @@ raw stays as filed.
 - `uv run ruff check .` → clean.
 
 ## Blockers / open
-- **X1–X4 (exchange labels)**: awaiting Ben.
+- **X4** (re-derive `bar_raw.exchange` / the `trading_day` split): unanswered; raw stays as filed. X1–X3 answered by Ben (run 7).
 - **G18 (new)**: the nightly does not update negotiated volume or the symbol
   master. Its docstring now says so.
 - G2 (restatement detection) is still not implemented. It matters as soon as
@@ -100,6 +99,6 @@ liquid-universe breadth measure; `sector_advance_share_10d`; sector rotation
 as a report view; 14 pre-2012 repeated index rows.
 
 ## Reading order for the next session
-1. This file. 2. `knowledge/00-index.md`. 3. Run 6 of
+1. This file. 2. `knowledge/00-index.md`. 3. Runs 6–7 of
 `logs/sessions/2026-09-23-session-03.md`. 4. Only the knowledge files the task
 needs. 5. Only the code the task touches, via `code-map.md`.
