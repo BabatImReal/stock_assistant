@@ -361,18 +361,23 @@ def compute_sector(
     return pd.concat(parts, ignore_index=True), {n: p for n, _, p in enabled}
 
 
-def quarantine_flagged(values: pd.DataFrame, fs: FeatureSet) -> pd.DataFrame:
+def quarantine_flagged(values: pd.DataFrame, fs) -> pd.DataFrame:
     """THE HARD GATE (decision 2026-09-23).
 
-    Sector values on borrowed labels are EXPLORATORY: the label is look-ahead.
-    Anything reported as a validated result must come through here, which blanks
-    every flagged value and drops the flag columns. A missing flag column
-    raises; it never passes silently.
+    Values resting on a BORROWED label are exploratory: a sector label from
+    before the first dated snapshot, or an exchange from before the first dated
+    membership (backtest.forward_returns.fillability). Anything reported as a
+    validated result must come through here, which blanks every flagged value
+    and drops the flag columns. A missing flag column raises; it never passes
+    silently.
+
+    `fs` is a FeatureSet (its `flagged` measures) or the names directly.
     """
+    names = tuple(fs.flagged) if isinstance(fs, FeatureSet) else tuple(fs)
     out = values.copy()
-    for name in fs.flagged:
+    for name in names:
         out[name] = out[name].where(~out[FLAG + name].astype(bool))
-    return out.drop(columns=[FLAG + n for n in fs.flagged])
+    return out.drop(columns=[FLAG + n for n in names])
 
 
 def compute(

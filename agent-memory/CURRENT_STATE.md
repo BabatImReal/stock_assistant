@@ -1,4 +1,4 @@
-# Current state — 2026-09-23 (end of session 2026-09-23-03, run 6)
+# Current state — 2026-09-23 (end of session 2026-09-23-03, run 7)
 
 Rewritten from scratch. DB and git figures were re-checked at the end of this
 run (vnstock-db reachable; `git log`).
@@ -9,11 +9,26 @@ the nightly-hardening / integrity block on `features/nightly-hardening`.
 Next: Ben's review and his decision on historical exchange labels (X1–X4),
 then patterns (doc §3).
 
-## Git (Ben reviews on the branch and merges; I do not touch main)
-- `main` = `4f36815` (GitHub too).
-- The stack, oldest first: `features/pit-universe-breadth` `f4f52af` →
-  `features/breadth-pit-build` `163546e` → `features/sector-build` `1003b72` →
-  **`features/nightly-hardening`** (this run). Merge in that order.
+## Git
+- **`main` = `5e81cc5`** (GitHub too). Ben asked to merge on 2026-09-23 (run 7):
+  the whole reviewed stack was FAST-FORWARDED into main (no merge commits),
+  and the five merged branches were deleted locally and on GitHub.
+- The only other branch: **`features/exchange-labels`**, off main, work in
+  progress, pushed (run 7), NOT reviewed.
+
+## In progress: exchange labels (branch `features/exchange-labels`)
+Built so far: migration 009 `exchange_membership` (applied, EMPTY);
+`data/exchanges.py` (Python + SQL resolvers); the gate's price-limit check
+resolves the exchange and splits dated vs FLAGGED; G3 `fillability()` flags
+results on an undated exchange; `quarantine_flagged` accepts plain names;
+`scripts/fetch_listing_dates.py` (the KBS cache for all 1,709 symbols is
+fetched, in the git-ignored `data/raw/kbs_listing/`).
+**Next:** `exchanges.rebuild()`, measure the true unknown residual (the script
+is ready), the live tests, the mutation proof, the gate re-run, then memory
+(decisions + residual size). Until the rebuild,
+`test_exchange_membership_dates_the_known_cases` FAILS (expected).
+X4 (re-derive bar_raw.exchange / trading_day split) is still unanswered:
+raw stays as filed.
 
 ## The database: build 5, promoted 'good', gate re-run clean this run
 | | |
@@ -55,8 +70,9 @@ then patterns (doc §3).
 - The nightly is not scheduled (cron/launchd).
 
 ## Verified by running it this run
-- `uv run pytest` → **137 passed, 0 skipped** (DB reachable; 11 live-DB
-  integrity tests + 3 live nightly tests).
+- Run 7 (on `features/exchange-labels`): `uv run pytest` → **148 passed,
+  1 failed** (the expected exchange test, table not built yet), 0 skipped.
+  Run 6 (now on main): 137 passed, 0 skipped.
 - `uv run ruff check .` → clean.
 
 ## Blockers / open
@@ -73,8 +89,8 @@ only a defect when it is a weekday the market was open. Listed holidays are
 in `config/rules/holidays.yaml`.
 
 ## Next steps
-1. Ben reviews `features/nightly-hardening`, decides X1–X4, and says whether
-   to run and schedule the nightly (note G2 and G18 first).
+1. Finish exchange labels (above); Ben reviews `features/exchange-labels`.
+   Ben says whether to run and schedule the nightly (note G2 and G18 first).
 2. Patterns (doc §3), then the backtest (B1, B2, B3; `universe.liquid` per
    date; `quarantine_flagged`).
 

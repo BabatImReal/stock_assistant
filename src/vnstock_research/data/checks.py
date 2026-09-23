@@ -21,6 +21,8 @@ from pathlib import Path
 
 import yaml
 
+from . import exchanges
+
 # Market rules live in config, with the date each value took effect, because a
 # backtest must apply the rule in force on the date it is testing (doc §7.5).
 # Loaded here so the price-limit check uses the real limit rather than today's.
@@ -406,10 +408,18 @@ def run_all(conn, build_id: int) -> list[Check]:
         # The comparison uses the limit IN FORCE on that date plus one tick, so
         # neither the 2013 rule change nor cheap-stock tick granularity produces
         # phantom violations.
+        #
+        # ... and for the exchange IN FORCE on that date (data/exchanges.py),
+        # not the one CafeF filed the row under. Where that exchange is not
+        # dated, the filed one is borrowed and the result is counted apart as
+        # FLAGGED: the limit itself may be the wrong one (decision 2026-09-23).
         cur.execute(
             f"""
             WITH moves AS (
-                SELECT r.symbol, r.trade_date, r.exchange, r.close,
+                SELECT r.symbol, r.trade_date,
+                       coalesce(xm.exchange, r.exchange) AS exchange,
+                       xm.exchange IS NULL AS exchange_unknown,
+                       r.close,
                        lag(r.close) OVER w AS prev_close,
                        r.close / lag(r.close) OVER w - 1 AS move,
                        f.factor,
@@ -420,6 +430,7 @@ def run_all(conn, build_id: int) -> list[Check]:
                 JOIN adjustment_factor f
                   ON f.symbol = r.symbol AND f.trade_date = r.trade_date
                  AND f.build_id = %s
+                {exchanges.RESOLVE_JOIN_SQL}
                 WHERE r.trade_date >= DATE '2012-01-01'
                   -- Backfilled spans are ALREADY adjusted, so this test does
                   -- not apply to them: its premise is "an unadjusted price
@@ -434,7 +445,9 @@ def run_all(conn, build_id: int) -> list[Check]:
                   AND NOT r.is_adjusted_source
                 WINDOW w AS (PARTITION BY r.symbol ORDER BY r.trade_date)
             )
-            SELECT count(*) FROM moves
+            SELECT count(*) FILTER (WHERE NOT exchange_unknown),
+                   count(*) FILTER (WHERE exchange_unknown)
+            FROM moves
             WHERE move IS NOT NULL AND prev_close > 0
               -- A first trading day and a resumption after a long suspension
               -- come under a WIDER band (20/30/40 percent), so they are not
@@ -453,14 +466,16 @@ def run_all(conn, build_id: int) -> list[Check]:
             """,
             (build_id,),
         )
-        (n_limit,) = cur.fetchone()
+        n_limit, n_limit_flagged = cur.fetchone()
         checks.append(
             Check(
                 "moves_beyond_price_limit_without_a_factor_change",
                 n_limit == 0,
                 "warn",
-                f"{n_limit:,} symbol-days since 2012 (limit in force + 1 tick)",
-                {"rows": n_limit},
+                f"{n_limit:,} symbol-days since 2012 on a dated exchange (limit in "
+                f"force + 1 tick); {n_limit_flagged:,} more on days whose exchange "
+                "is not dated (FLAGGED: the limit may be the wrong one)",
+                {"rows": n_limit, "flagged": n_limit_flagged},
             )
         )
 

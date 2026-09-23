@@ -203,3 +203,49 @@ def test_no_index_session_repeats_the_previous_one_since_2012(conn):
     with conn.cursor() as cur:
         cur.execute(checks.INDEX_REPEATED_SQL)
         assert cur.fetchone()[0] == 0
+
+
+def _resolved(cur, symbol, day):
+    from vnstock_research.data import exchanges
+
+    cur.execute(
+        f"SELECT xm.exchange FROM bar_raw r {exchanges.RESOLVE_JOIN_SQL} "
+        "WHERE r.symbol = %s AND r.trade_date = %s",
+        (symbol, day),
+    )
+    row = cur.fetchone()
+    assert row is not None, f"no bar for {symbol} {day}"
+    return row[0]
+
+
+def test_exchange_membership_dates_the_known_cases(conn):
+    """Real cases the dated membership must get right (None = not dated)."""
+    with conn.cursor() as cur:
+        assert _resolved(cur, "DPG", "2017-06-01") is None  # filed HSX, on HNX then
+        assert _resolved(cur, "DPG", "2019-01-02") == "HOSE"  # KBS: from 2018-05-22
+        assert _resolved(cur, "ACB", "2015-06-01") is None  # vnstock backfill, pre-move
+        assert _resolved(cur, "ACB", "2021-06-01") == "HOSE"
+        assert _resolved(cur, "VNM", "2015-06-01") == "HOSE"  # listed 2006, never moved
+        assert _resolved(cur, "ACG", "2021-06-01") == "UPCOM"  # G4 Class A, both spans
+
+
+def test_the_python_and_sql_resolvers_agree(conn):
+    """The gate resolves in SQL, the backtest in pandas: they must never drift."""
+    from vnstock_research.data import exchanges
+
+    spans = exchanges.load(conn)
+    with conn.cursor() as cur:
+        for symbol in ("DPG", "ACB", "ACG", "VNM", "SHB", "VIX"):
+            cur.execute(
+                f"SELECT r.trade_date, r.exchange, xm.exchange FROM bar_raw r "
+                f"{exchanges.RESOLVE_JOIN_SQL} WHERE r.symbol = %s "
+                "AND r.trade_date >= DATE '2012-01-01' ORDER BY 1",
+                (symbol,),
+            )
+            rows = cur.fetchall()
+            py = exchanges.resolve(spans, symbol, [r[0] for r in rows],
+                                   [r[1] for r in rows])
+            sql_known = [r[2] for r in rows]
+            assert py["exchange_unknown"].tolist() == [k is None for k in sql_known]
+            assert [e for e, k in zip(py["exchange"], sql_known, strict=True) if k] \
+                == [k for k in sql_known if k]

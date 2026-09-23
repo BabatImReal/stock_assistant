@@ -31,7 +31,10 @@ return:
 
 Ceiling and floor are judged on the RAW (unadjusted) prices, since that is what
 the exchange applies limits to, while the return itself is computed on the
-adjusted series.
+adjusted series. The limit is the one for the exchange the symbol was on THAT
+DAY (data/exchanges.py). Where that exchange is not dated, the filed one is
+borrowed and every fillability result is FLAGGED; the backtest must pass them
+through `quarantine_flagged` (decision 2026-09-23), exactly like sector values.
 
 Returns are reported gross AND net. Net subtracts a broker fee on both sides
 plus the 0.1 percent sale tax, which is charged on the sale whether or not the
@@ -43,7 +46,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+import pandas as pd
 import yaml
+
+from ..features.base import FLAG
 
 CONFIG = Path(__file__).resolve().parents[3] / "config" / "rules"
 MARKET_RULES = CONFIG / "market_rules.yaml"
@@ -122,6 +128,51 @@ def is_at_floor(raw_price: float, prev_raw_close: float, limit: float) -> bool:
     if prev_raw_close <= 0:
         return False
     return raw_price <= prev_raw_close * (1 - limit) + LIMIT_EPSILON
+
+
+def limit_in_force(exchange: str, day, default: float = 0.07) -> float:
+    """The daily limit for `exchange` on `day` (market_rules.yaml, the same table
+    data/checks.py `limit_sql` reads)."""
+    periods = yaml.safe_load(MARKET_RULES.read_text())["price_limits"].get(exchange, [])
+    for period in sorted(periods, key=lambda r: r["from"], reverse=True):
+        if str(day) >= period["from"]:
+            return float(period["limit"])
+    return default
+
+
+# The per-exchange results of `fillability`; each carries FLAG + name.
+FILLABILITY = ("limit", "entry_at_ceiling", "exit_at_floor")
+
+
+def fillability(bars: pd.DataFrame) -> pd.DataFrame:
+    """G3's two fillability tests, per row of one symbol's RAW bars.
+
+    bars: trade_date, open, close (RAW prices, consecutive sessions), exchange
+    and exchange_unknown (data.exchanges.resolve).
+      limit             the limit for that day's exchange
+      entry_at_ceiling  this row OPENS at the ceiling: a buy here is rejected
+      exit_at_floor     this row CLOSES at the floor: an exit here is deferred
+    NaN on the first row (no previous close). Every result on a row whose
+    exchange is not dated is flagged (FLAG + name): the limit itself may be the
+    wrong one, e.g. +-7% applied to a stock that was really on HNX's +-10%.
+    """
+    prev = bars["close"].astype("float64").shift(1)
+    pairs = zip(bars["exchange"], bars["trade_date"], strict=True)
+    limit = pd.Series([limit_in_force(e, d) for e, d in pairs], index=bars.index)
+    known_prev = prev > 0
+    ceiling = bars["open"] >= prev * (1 + limit) - LIMIT_EPSILON
+    floor = bars["close"] <= prev * (1 - limit) + LIMIT_EPSILON
+    out = pd.DataFrame(
+        {
+            "limit": limit,
+            "entry_at_ceiling": ceiling.astype("float64").where(known_prev),
+            "exit_at_floor": floor.astype("float64").where(known_prev),
+        }
+    )
+    flagged = bars["exchange_unknown"].to_numpy(bool)
+    for name in FILLABILITY:
+        out[FLAG + name] = flagged
+    return out
 
 
 def valid_horizons(entry_date, horizons: tuple[int, ...] = (3, 5)) -> list[int]:
