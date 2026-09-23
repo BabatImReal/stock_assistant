@@ -234,3 +234,9 @@ Implementation choices this run:
 | 2026-09-23 | **Holiday list: `config/rules/holidays.yaml`, 121 dated weekday closures 2012–2026** (statutory days + the compensation day for a weekend holiday + the 2025-05-02 swap), every one verified closed in BOTH CafeF and vnstock (0 conflicts). Two BLOCKING checks: no session and no bar_raw row on a listed date | Tet and Hung Kings are lunar, so dates must be written per year. A MINIMUM list: decree-set extra Tet/bridge days and National Day's second day are not listed. Must be extended each year | computing lunar dates in code; listing unverified decree days |
 | 2026-09-23 | **The 2026-07-31 index disagreement is CafeF stale copies**: the 07-31 row repeats 07-30's OHLC for both indices; HNX-INDEX 2023-05-08 carries 05-09's. Repaired from VCI (`backfill_index_gaps.py --stale`) only where VCI and KBS agree, ours differs from VCI on any of OHLC by > 0.5%, and neighbours reconcile. Warn check `index_has_no_repeated_sessions` added | Two independent feeds agree to 0.000%; which row of a repeated pair is wrong needs outside evidence; a close-only test would miss 2023-05-08 (close 0.49% off, open 1.5%) | trusting CafeF; a close-only comparison |
 | 2026-09-23 | **The full nightly was NOT run end to end** | CafeF has published 2026-09-22; a real run appends a session to the research DB, which is Ben's call. The steps are proven in isolation (rolled-back tests, a no-commit run of `main()`, a real idempotent snapshot) | running it unasked |
+
+## Working practice (Ben, 2026-09-23)
+
+| Date | Decision | Reason | Rejected |
+| --- | --- | --- | --- |
+| 2026-09-23 | **One working branch only: `features/exchange-labels`.** All further work is committed and pushed there; no new or stacked per-slice branches. `main` is merged only when Ben asks | Five stacked branches made the repo "really unorganized"; they were merged into main and deleted | a new branch per slice |
