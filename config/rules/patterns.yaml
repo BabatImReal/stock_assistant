@@ -21,19 +21,13 @@ horizons:
 
 # single_candle: MOVED to config/rules/features.yaml (Ben, 2026-09-23, P2) so
 # the thresholds sit with the measures that use them and inside the FeatureSet
-# fingerprint. The consolidation block below moves the same way at T4.
+# fingerprint.
 
 # two_candle: MOVED to config/rules/features.yaml (T2, 2026-09-23, P2).
 
-consolidation:            # doc §3.4 - probably closest to what the friend watches
-  tight_range:
-    lookback_days: 5
-    range_vs_20d_avg_max: 0.6     # avg range of last N days < 60% of normal
-  higher_lows:
-    lookback_days: 4
-  breakout:
-    lookback_days: 20             # close above the highest high of last N days
-    min_rvol: 1.5
+# consolidation: MOVED to config/rules/features.yaml (T4, 2026-09-23, P2).
+# The breakout's min_rvol was dropped: breakout is price-only (P6), and volume
+# confirmation is a fingerprint combination with rvol.
 
 volume:                   # doc §4.1-4.2
   rvol_lookback_days: 20

@@ -255,6 +255,30 @@ measures:
     long_body_window: 20
     min_prior_body_ticks: 3
 
+  # --- doc §3.4, patterns tranche 4: short consolidations -------------------
+  # patterns/consolidation.py. Dated on the last day; blank if the window
+  # spans a gap. FIXED BEFORE ANY MEASURING (moved from patterns.yaml, P2).
+  # Flag/pause is deferred (P7).
+  tight_range:
+    enabled: true
+    lookback_days: 5                # doc: "average range of last N days"
+    baseline_days: 20               # doc: "... < X% of the 20-day average range"
+    range_vs_baseline_max: 0.6      # X = 60%
+    min_baseline_ticks: 3           # a normal range of 1-2 ticks is noise
+  inside_day_run:
+    enabled: true
+    min_days: 2                     # NEW: at least two inside days in a row
+    min_mother_range_ticks: 3       # the first bar must be a real bar
+  higher_lows:
+    enabled: true
+    lookback_days: 4                # four days of rising lows
+    highs_flat_tolerance: 0.02      # NEW: highs within 2% of the close
+  # PRICE-ONLY (P6): the old min_rvol 1.5 is gone. "Breakout on strong
+  # volume" is breakout AND rvol >= 1.5 as a fingerprint combination.
+  breakout:
+    enabled: true
+    lookback_days: 20               # close above the highest high of 20 sessions
+
 # Which index the regime measures read. VN-Index is the market doc §5.3 means.
 market:
   index_symbol: VNINDEX

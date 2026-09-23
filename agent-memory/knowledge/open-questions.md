@@ -479,6 +479,12 @@ CURRENT-ONLY before the first snapshot (2026-09-23)**. Every historical sector
 value is flagged and quarantined (see B3). Dated membership accrues only as
 snapshots are taken, which needs scheduling (in the nightly-hardening list).
 
+## Patterns tranche 4 — for the broker friend (2026-09-23)
+- Liquid rates: tight_range 8.71%, inside_day_run 2.67%, higher_lows 1.26%,
+  breakout (20-day high close) 5.60%; 64.6% of breakouts have rvol >= 1.5.
+  tight_range at 8.7% is frequent at the doc's 60% threshold; does he mean
+  something tighter? Is two inside days in a row his idea of an inside run?
+
 ## Patterns tranche 3 — rare patterns (2026-09-23)
 - Liquid rates: morning star 0.14% (878 events), evening star 0.22%, three
   white soldiers 0.21%, three black crows 0.43%, three inside up 0.61%,

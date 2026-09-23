@@ -71,6 +71,10 @@ column. Whether a higher timeframe overrides a lower one is a rule to
 **measure**, not assume.
 
 ## Build status
+**T4 BUILT 2026-09-23 (run 13)**: tight_range, inside_day_run, higher_lows,
+breakout (price-only, P6; "on volume" = a combination with rvol). Flag/pause
+deferred (P7). Liquid rates: 8.71 / 2.67 / 1.26 / 5.60%. **The catalogue is
+complete (T1–T4); next is T5, fingerprint assembly.**
 **T3 BUILT 2026-09-23 (run 12)**: morning/evening star (P4: the star opens
 beyond d1's close, no true gap), three white soldiers / black crows, three
 inside up/down (the harami reused). There is a large-body floor on the big
