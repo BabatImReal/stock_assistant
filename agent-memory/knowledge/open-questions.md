@@ -372,8 +372,40 @@ New, found while resolving them. NOT fixed this run:
   NOTE: the nightly itself is still not scheduled (cron/launchd): Ben's call.
 - **2026-07-31**: FIXED. CafeF stale copies, repaired from VCI with KBS
   agreeing (also HNX 2023-05-08).
-- **Historical exchange labels**: PROPOSED only (session log run 6). Awaiting
-  X1–X4.
+- **Historical exchange labels**: BUILT on `features/exchange-labels` (runs 7 +
+  9), awaiting review. X4 unanswered, so raw is left as filed. See below.
+
+### Exchange labels — residual and findings (2026-09-23, run 9)
+- **Residual (flagged, quarantined): 6.43% of liquid stock-days since 2012**
+  (57,738 / 897,588); 8.12% of all research-window stock-days
+  (203,823 / 2,511,101). By cause, in liquid days:
+  - no usable KBS date (delisted / OTC / empty, or contradicted): 29,773
+    (294 symbols);
+  - vnstock backfill, pre-transfer (G4 Class B): 15,492 (46 symbols);
+  - CafeF-filed before the KBS listing date: 12,473 (52 symbols).
+- **G4 gap (the DPG kind)**: 174 symbols have a KBS move inside their research
+  history. 86 are covered by G4 Class A, 36 are G4 Class B backfills, and
+  **52 were never seen by G4**: CafeF re-filed their whole history under
+  the new exchange (DPG, ITA, DAG, SJF…). Their pre-move days are now
+  flagged.
+- **Undetectable case, residual risk**: a transfer CafeF re-filed entirely AND
+  for which KBS reports the original listing date looks like "never moved" to
+  both sources. At the 16/95 rate seen among Class A, roughly a dozen such
+  symbols may exist. **Tripwire**: the gate's price-limit violations on DATED
+  days (4,572), a move beyond the dated exchange's limit.
+- Three stray one-day HOSE filings on 2015-09-01 (PXL, VLF, VNA) inside UPCoM
+  spans are dated UPCoM (the longer span wins).
+- **X4 (for Ben)**: re-derive `bar_raw.exchange` / the `trading_day` split from
+  the resolved exchange, or keep raw as filed (current)?
+
+### G19 — The price-limit check's factor tolerance is below CafeF's rounding jitter (found 2026-09-23)
+The check skips a day as "factor changed" when |Δfactor| ≥ 0.000001. CafeF's
+factor is adjusted/raw close on 2-decimal prices, so it jitters by more than
+that with no corporate action. Of 2.47M day-pairs since 2012 on CafeF bars, only
+63.8% are within 1e-6, while 99.5% are within 0.1% (relative) and only 0.5%
+move ≥ 1% (real actions). So about 36% of day-pairs are never examined, and the
+warning (4,572 + 955) UNDERCOUNTS. A relative tolerance (e.g. 0.1%) would fix
+it. Not changed: it moves a gate number outside the exchange slice; Ben's call.
 
 ### G18 — The nightly does not update negotiated volume or the symbol master (found 2026-09-23)
 Its docstring promised both (step 4), next to the index. Only the index (G16)

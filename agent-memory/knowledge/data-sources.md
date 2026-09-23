@@ -227,6 +227,12 @@ sector-index history source found.
   2020-12-29, VIX 2021-01-08 (known transfers). It gives the LAST move only;
   the exchange before it is not given. One call per symbol (~1,700 at 60/min,
   about 30 min).
+- **Full pull 2026-09-23 (1,709 symbols, cached in `data/raw/kbs_listing/`)**:
+  UPCoM 739, HOSE 389, HNX 268, empty 173, OTC 140. OTC and empty carry no
+  usable date. **CAVEAT: `listing_date` is sometimes the ORIGINAL listing
+  date, not the transfer date**: 16 of the 95 CafeF-documented transfers
+  with a KBS date have it years before the move (HBC, HTP, KSQ, QNC, GEE,
+  MCM…). Never trust it alone (exchanges.py rules A and B).
 - vnstock VCI `events()`: capped at the 50 most recent events (2–3 years) and
   no transfer event type. Not a source.
 - vnstock `Listing.symbols_by_exchange()`: current only.

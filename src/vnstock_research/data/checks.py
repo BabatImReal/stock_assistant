@@ -167,6 +167,67 @@ def first_day_limit_sql() -> str:
     return "CASE " + " ".join(cases) + " ELSE 0.20 END"
 
 
+def price_limit_sql() -> str:
+    """(violations on DATED exchange days, violations on FLAGGED days) since
+    2012: raw moves beyond the limit in force + 1 tick with no factor change.
+
+    Params: build, symbols (NULL = every symbol; a list restricts it, for tests).
+    The exchange is the one IN FORCE on the date (data/exchanges.py); where it
+    is not dated, the filed one is borrowed and the row counts as FLAGGED.
+    """
+    return f"""
+    WITH moves AS (
+        SELECT r.symbol, r.trade_date,
+               coalesce(xm.exchange, r.exchange) AS exchange,
+               xm.exchange IS NULL AS exchange_unknown,
+               r.close,
+               lag(r.close) OVER w AS prev_close,
+               r.close / lag(r.close) OVER w - 1 AS move,
+               f.factor,
+               lag(f.factor) OVER w AS prev_factor,
+               row_number() OVER w AS n,
+               lag(r.trade_date) OVER w AS prev_date
+        FROM bar_raw r
+        JOIN adjustment_factor f
+          ON f.symbol = r.symbol AND f.trade_date = r.trade_date
+         AND f.build_id = %(build)s
+        {exchanges.RESOLVE_JOIN_SQL}
+        WHERE r.trade_date >= DATE '2012-01-01'
+          AND (%(symbols)s::text[] IS NULL OR r.symbol = ANY(%(symbols)s))
+          -- Backfilled spans are ALREADY adjusted, so this test does
+          -- not apply to them: its premise is "an unadjusted price
+          -- gapped and no factor changed". An adjusted series has the
+          -- corporate-action gaps removed by construction, and at the
+          -- low prices a long adjustment produces (ACB's 2006 close
+          -- adjusts to a couple of thousand VND) two-decimal rounding
+          -- alone can push a legal 7 percent move past the limit.
+          -- (No stray per-cent signs in this comment: psycopg reads
+          -- them as parameter placeholders.) Including
+          -- them added 1,916 phantom violations.
+          AND NOT r.is_adjusted_source
+        WINDOW w AS (PARTITION BY r.symbol ORDER BY r.trade_date)
+    )
+    SELECT count(*) FILTER (WHERE NOT exchange_unknown),
+           count(*) FILTER (WHERE exchange_unknown)
+    FROM moves
+    WHERE move IS NOT NULL AND prev_close > 0
+      -- A first trading day and a resumption after a long suspension
+      -- come under a WIDER band (20/30/40 percent), so they are not
+      -- violations at all -- they are a different rule. 35 calendar
+      -- days stands in for the 25-session threshold; the calendar
+      -- table could give the exact count, but the classes either side
+      -- of this boundary are already separated in the investigation.
+      AND abs(move) > CASE
+            WHEN n <= 2
+              OR prev_date < trade_date - INTERVAL '35 days'
+            THEN ({first_day_limit_sql()})
+            ELSE ({limit_sql()})
+          END
+          + ({tick_sql("prev_close")}) / prev_close
+      AND abs(factor - prev_factor) < 0.000001
+    """
+
+
 def resumption_sessions() -> int:
     rules = yaml.safe_load(MARKET_RULES.read_text())["first_day_limits"]
     return int(rules["resumption_after_sessions"])
@@ -413,59 +474,7 @@ def run_all(conn, build_id: int) -> list[Check]:
         # not the one CafeF filed the row under. Where that exchange is not
         # dated, the filed one is borrowed and the result is counted apart as
         # FLAGGED: the limit itself may be the wrong one (decision 2026-09-23).
-        cur.execute(
-            f"""
-            WITH moves AS (
-                SELECT r.symbol, r.trade_date,
-                       coalesce(xm.exchange, r.exchange) AS exchange,
-                       xm.exchange IS NULL AS exchange_unknown,
-                       r.close,
-                       lag(r.close) OVER w AS prev_close,
-                       r.close / lag(r.close) OVER w - 1 AS move,
-                       f.factor,
-                       lag(f.factor) OVER w AS prev_factor,
-                       row_number() OVER w AS n,
-                       lag(r.trade_date) OVER w AS prev_date
-                FROM bar_raw r
-                JOIN adjustment_factor f
-                  ON f.symbol = r.symbol AND f.trade_date = r.trade_date
-                 AND f.build_id = %s
-                {exchanges.RESOLVE_JOIN_SQL}
-                WHERE r.trade_date >= DATE '2012-01-01'
-                  -- Backfilled spans are ALREADY adjusted, so this test does
-                  -- not apply to them: its premise is "an unadjusted price
-                  -- gapped and no factor changed". An adjusted series has the
-                  -- corporate-action gaps removed by construction, and at the
-                  -- low prices a long adjustment produces (ACB's 2006 close
-                  -- adjusts to a couple of thousand VND) two-decimal rounding
-                  -- alone can push a legal 7 percent move past the limit.
-                  -- (No stray per-cent signs in this comment: psycopg reads
-                  -- them as parameter placeholders.) Including
-                  -- them added 1,916 phantom violations.
-                  AND NOT r.is_adjusted_source
-                WINDOW w AS (PARTITION BY r.symbol ORDER BY r.trade_date)
-            )
-            SELECT count(*) FILTER (WHERE NOT exchange_unknown),
-                   count(*) FILTER (WHERE exchange_unknown)
-            FROM moves
-            WHERE move IS NOT NULL AND prev_close > 0
-              -- A first trading day and a resumption after a long suspension
-              -- come under a WIDER band (20/30/40 percent), so they are not
-              -- violations at all -- they are a different rule. 35 calendar
-              -- days stands in for the 25-session threshold; the calendar
-              -- table could give the exact count, but the classes either side
-              -- of this boundary are already separated in the investigation.
-              AND abs(move) > CASE
-                    WHEN n <= 2
-                      OR prev_date < trade_date - INTERVAL '35 days'
-                    THEN ({first_day_limit_sql()})
-                    ELSE ({limit_sql()})
-                  END
-                  + ({tick_sql("prev_close")}) / prev_close
-              AND abs(factor - prev_factor) < 0.000001
-            """,
-            (build_id,),
-        )
+        cur.execute(price_limit_sql(), {"build": build_id, "symbols": None})
         n_limit, n_limit_flagged = cur.fetchone()
         checks.append(
             Check(

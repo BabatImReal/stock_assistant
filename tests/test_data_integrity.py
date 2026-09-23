@@ -208,10 +208,12 @@ def test_no_index_session_repeats_the_previous_one_since_2012(conn):
 def _resolved(cur, symbol, day):
     from vnstock_research.data import exchanges
 
+    # The first bar on or after `day`: thin symbols do not trade every day.
     cur.execute(
         f"SELECT xm.exchange FROM bar_raw r {exchanges.RESOLVE_JOIN_SQL} "
-        "WHERE r.symbol = %s AND r.trade_date = %s",
-        (symbol, day),
+        "WHERE r.symbol = %s AND r.trade_date = (SELECT min(trade_date) FROM "
+        "bar_raw WHERE symbol = %s AND trade_date >= %s)",
+        (symbol, symbol, day),
     )
     row = cur.fetchone()
     assert row is not None, f"no bar for {symbol} {day}"
@@ -226,7 +228,12 @@ def test_exchange_membership_dates_the_known_cases(conn):
         assert _resolved(cur, "ACB", "2015-06-01") is None  # vnstock backfill, pre-move
         assert _resolved(cur, "ACB", "2021-06-01") == "HOSE"
         assert _resolved(cur, "VNM", "2015-06-01") == "HOSE"  # listed 2006, never moved
-        assert _resolved(cur, "ACG", "2021-06-01") == "UPCOM"  # G4 Class A, both spans
+        # G4 Class A: UPCoM 2021-08-04..2022-09-27, then HOSE from 2022-10-10.
+        assert _resolved(cur, "ACG", "2022-06-01") == "UPCOM"
+        assert _resolved(cur, "ACG", "2023-06-01") == "HOSE"
+        assert _resolved(cur, "SHB", "2015-06-01") is None  # backfill; KBS date = move
+        assert _resolved(cur, "SHB", "2022-06-01") == "HOSE"
+        assert _resolved(cur, "MHL", "2015-06-01") is None  # KBS contradicted (rule A)
 
 
 def test_the_python_and_sql_resolvers_agree(conn):
@@ -235,17 +242,194 @@ def test_the_python_and_sql_resolvers_agree(conn):
 
     spans = exchanges.load(conn)
     with conn.cursor() as cur:
-        for symbol in ("DPG", "ACB", "ACG", "VNM", "SHB", "VIX"):
+        for symbol in ("DPG", "ACB", "ACG", "VNM", "SHB", "VIX", "MHL", "HBC",
+                       "PXL", "ITA"):
             cur.execute(
-                f"SELECT r.trade_date, r.exchange, xm.exchange FROM bar_raw r "
+                f"SELECT r.trade_date, r.exchange, xm.exchange, r.source "
+                f"FROM bar_raw r "
                 f"{exchanges.RESOLVE_JOIN_SQL} WHERE r.symbol = %s "
                 "AND r.trade_date >= DATE '2012-01-01' ORDER BY 1",
                 (symbol,),
             )
             rows = cur.fetchall()
             py = exchanges.resolve(spans, symbol, [r[0] for r in rows],
-                                   [r[1] for r in rows])
+                                   [r[1] for r in rows],
+                                   [r[3] == "vnstock" for r in rows])
             sql_known = [r[2] for r in rows]
             assert py["exchange_unknown"].tolist() == [k is None for k in sql_known]
             assert [e for e, k in zip(py["exchange"], sql_known, strict=True) if k] \
                 == [k for k in sql_known if k]
+
+
+
+def test_no_transfer_dates_pre_move_history_with_the_current_exchange(conn):
+    """The load-bearing assumption, over the WHOLE transfer set, not samples.
+
+    1. G4 Class B: every vnstock backfill row is pre-transfer by construction,
+       so none may be dated (KBS sometimes reports the ORIGINAL listing date;
+       3,136 rows on 17 symbols were dated before rule B).
+    2. Every symbol KBS shows moving inside its history: no row before its
+       listing_date is dated, unless a CafeF-documented span dates it.
+    3. G4 Class A: every CafeF-filed row resolves, dated, to the exchange it
+       was filed under, except the three stray one-day HOSE filings on
+       2015-09-01 (PXL, VLF, VNA), which the longer UPCoM span outranks.
+    """
+    from vnstock_research.data import exchanges
+
+    with conn.cursor() as cur:
+        cur.execute(
+            f"SELECT count(*) FROM bar_raw r {exchanges.RESOLVE_JOIN_SQL} "
+            "WHERE r.source = 'vnstock' AND xm.exchange IS NOT NULL"
+        )
+        assert cur.fetchone()[0] == 0
+        cur.execute(
+            f"""
+            SELECT count(*) FROM bar_raw r
+            JOIN exchange_membership k
+              ON k.symbol = r.symbol AND k.source = 'kbs_listing'
+             AND r.trade_date < k.valid_from
+            {exchanges.RESOLVE_JOIN_SQL}
+            WHERE xm.exchange IS NOT NULL AND NOT EXISTS (
+                SELECT 1 FROM exchange_membership t
+                WHERE t.symbol = r.symbol AND t.source = 'cafef_transfer'
+                  AND r.trade_date BETWEEN t.valid_from AND t.valid_to)
+            """
+        )
+        assert cur.fetchone()[0] == 0
+        cur.execute(
+            f"""
+            SELECT r.symbol, r.trade_date FROM bar_raw r
+            {exchanges.RESOLVE_JOIN_SQL}
+            WHERE r.source = 'cafef' AND EXISTS (
+                SELECT 1 FROM exchange_membership t
+                WHERE t.symbol = r.symbol AND t.source = 'cafef_transfer')
+              AND xm.exchange IS DISTINCT FROM r.exchange
+            ORDER BY 1
+            """
+        )
+        odd = {(sym, str(d)) for sym, d in cur.fetchall()}
+    assert odd == {("PXL", "2015-09-01"), ("VLF", "2015-09-01"),
+                   ("VNA", "2015-09-01")}
+
+
+def test_a_flagged_exchange_day_lands_in_the_gates_flagged_count(conn):
+    """The gate's price-limit check keeps undated-exchange violations apart:
+    a big move on a DPG day before its KBS listing (2018-05-22) must raise the
+    FLAGGED count and leave the dated one alone, and vice versa after it."""
+    from vnstock_research.features.bars import current_build
+
+    build = current_build(conn)
+    params = {"build": build, "symbols": ["DPG"]}
+
+    def flat_factor_day(cur, after):
+        # A day whose factor equals its neighbours' exactly: the check skips a
+        # day whose factor "changed", and CafeF's factor jitters with rounding
+        # (open-questions G19), so the injected move must land on a flat one.
+        cur.execute(
+            "SELECT trade_date FROM (SELECT trade_date, factor, lag(factor) "
+            "OVER w pf, lead(factor) OVER w nf FROM adjustment_factor WHERE "
+            "symbol = 'DPG' AND build_id = %s WINDOW w AS (ORDER BY trade_date)) x "
+            "WHERE trade_date > %s AND factor = pf AND factor = nf "
+            "ORDER BY 1 LIMIT 1",
+            (build, after),
+        )
+        return cur.fetchone()[0]
+
+    with conn.transaction(force_rollback=True), conn.cursor() as cur:
+        cur.execute(checks.price_limit_sql(), params)
+        dated0, flagged0 = cur.fetchone()
+        cur.execute(
+            "UPDATE bar_raw SET close = close * 1.4, high = greatest(high, "
+            "close * 1.4) WHERE symbol = 'DPG' AND trade_date = %s",
+            (flat_factor_day(cur, "2017-06-01"),),
+        )
+        cur.execute(checks.price_limit_sql(), params)
+        dated1, flagged1 = cur.fetchone()
+        assert flagged1 > flagged0 and dated1 == dated0
+        cur.execute(
+            "UPDATE bar_raw SET close = close * 1.4, high = greatest(high, "
+            "close * 1.4) WHERE symbol = 'DPG' AND trade_date = %s",
+            (flat_factor_day(cur, "2019-06-01"),),
+        )
+        cur.execute(checks.price_limit_sql(), params)
+        dated2, flagged2 = cur.fetchone()
+        assert dated2 > dated1 and flagged2 == flagged1
+
+
+def test_g3_fillability_on_real_dpg_is_quarantined_before_its_listing(conn):
+    """End to end on real bars: raw DPG, the resolved exchange, G3
+    fillability, then the quarantine gate. Blank exactly before 2018-05-22."""
+    import datetime as dt
+
+    import pandas as pd
+
+    from vnstock_research.backtest import forward_returns as fr
+    from vnstock_research.data import exchanges
+    from vnstock_research.features import quarantine_flagged
+
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT trade_date, open, close, exchange, source FROM bar_raw "
+            "WHERE symbol = 'DPG' AND trade_date BETWEEN '2018-01-01' AND "
+            "'2018-12-31' ORDER BY 1"
+        )
+        bars = pd.DataFrame(cur.fetchall(),
+                            columns=["trade_date", "open", "close", "filed", "source"])
+    bars[["open", "close"]] = bars[["open", "close"]].astype(float)
+    r = exchanges.resolve(exchanges.load(conn), "DPG", bars["trade_date"],
+                          bars["filed"], bars["source"] == "vnstock")
+    bars["exchange"] = r["exchange"].to_numpy()
+    bars["exchange_unknown"] = r["exchange_unknown"].to_numpy()
+    clean = quarantine_flagged(fr.fillability(bars), fr.FILLABILITY)
+    before = (bars["trade_date"] < dt.date(2018, 5, 22)).to_numpy()
+    assert clean["limit"][before].isna().all()
+    assert clean["limit"][~before].notna().all()
+
+
+
+def test_rebuild_drops_a_kbs_span_the_cafef_filing_contradicts(conn):
+    """Rule A, run for real and rolled back: MHL is filed HNX 2009-2023 while
+    KBS says "UPCoM since 2009", so its KBS span must not survive the rebuild."""
+    from vnstock_research.data import exchanges
+
+    with conn.transaction(force_rollback=True), conn.cursor() as cur:
+        counts = exchanges.rebuild(conn, commit=False)
+        cur.execute("SELECT count(*) FROM exchange_membership "
+                    "WHERE symbol = 'MHL' AND source = 'kbs_listing'")
+        assert cur.fetchone()[0] == 0
+    assert counts["kbs_dropped_contradicted"] >= 1
+
+
+def test_the_gate_judges_a_move_by_the_dated_exchange_not_the_filed_one(conn):
+    """A +10% move breaks HOSE's 7% limit but not UPCoM's 15%. DPG is filed
+    HOSE; give one 2019 day a documented UPCoM span (rolled back) and the
+    same move must stop counting as a violation."""
+    from vnstock_research.features.bars import current_build
+
+    build = current_build(conn)
+    params = {"build": build, "symbols": ["DPG"]}
+    with conn.transaction(force_rollback=True), conn.cursor() as cur:
+        cur.execute(
+            "SELECT trade_date FROM (SELECT trade_date, factor, lag(factor) "
+            "OVER w pf, lead(factor) OVER w nf FROM adjustment_factor WHERE "
+            "symbol = 'DPG' AND build_id = %s WINDOW w AS (ORDER BY trade_date)) x "
+            "WHERE trade_date > '2019-06-01' AND factor = pf AND factor = nf "
+            "ORDER BY 1 LIMIT 1",
+            (build,),
+        )
+        day = cur.fetchone()[0]
+        cur.execute(
+            "UPDATE bar_raw SET close = close * 1.10, high = greatest(high, "
+            "close * 1.10) WHERE symbol = 'DPG' AND trade_date = %s",
+            (day,),
+        )
+        cur.execute(checks.price_limit_sql(), params)
+        as_hose, _ = cur.fetchone()
+        cur.execute(
+            "INSERT INTO exchange_membership VALUES "
+            "('DPG', 'UPCOM', %s::date - 10, %s::date + 10, 'cafef_transfer')",
+            (day, day),
+        )
+        cur.execute(checks.price_limit_sql(), params)
+        as_upcom, _ = cur.fetchone()
+    assert as_hose > as_upcom

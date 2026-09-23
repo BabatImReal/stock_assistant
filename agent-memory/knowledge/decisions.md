@@ -240,3 +240,23 @@ Implementation choices this run:
 | Date | Decision | Reason | Rejected |
 | --- | --- | --- | --- |
 | 2026-09-23 | **One working branch only: `features/exchange-labels`.** All further work is committed and pushed there; no new or stacked per-slice branches. `main` is merged only when Ben asks | Five stacked branches made the repo "really unorganized"; they were merged into main and deleted | a new branch per slice |
+
+## Session 2026-09-23-03 runs 7 + 9 — dated exchange labels (branch `features/exchange-labels`)
+
+Locked by Ben (X1–X3):
+
+| Date | Decision | Reason | Rejected |
+| --- | --- | --- | --- |
+| 2026-09-23 | **Date only what evidence dates**: CafeF-documented transfer spans (G4 Class A, 116 symbols) FIRST, then KBS `listing_date` (current exchange from that date). Stored in `exchange_membership` (migration 009), re-derived by `exchanges.rebuild()` | Observed trading filed per exchange outranks a listing date | assuming today's exchange for history |
+| 2026-09-23 | **Everything else is UNKNOWN: flag as a hard gate.** Per-exchange results on such days carry `flag__*`: G3 `fillability()` (limit, entry_at_ceiling, exit_at_floor) goes through `quarantine_flagged` (the SAME gate as sector; now takes plain names). The gate's price-limit check counts dated and flagged violations apart | The limit itself may be wrong (±7% applied to a stock that was really on HNX's ±10%) | guessing HNX; inferring from move sizes |
+| 2026-09-23 | **X4 unanswered, so raw is left as filed**: `bar_raw.exchange` and `trading_day`'s per-exchange split are NOT re-derived; the resolver is the only historical truth | Conservative default; changes nothing Ben has not approved | rewriting raw |
+
+Found and decided while building (run 9):
+
+| Date | Decision | Reason | Rejected |
+| --- | --- | --- | --- |
+| 2026-09-23 | **KBS `listing_date` is not always the date of joining the current exchange; sometimes it is the ORIGINAL listing date.** 16 of the 95 CafeF-documented transfers with a KBS date carry a date years BEFORE the move (HBC: "UPCoM since 2006", moved from HOSE 2024) | Measured against CafeF's two-file evidence | trusting KBS alone |
+| 2026-09-23 | **Rule A**: a KBS span contradicted by CafeF's own filing (a row on/after listing_date under another exchange, not explained by a documented transfer) is DROPPED at rebuild. Catches 1 (MHL) | Two sources disagreeing → the date cannot be trusted → unknown | keeping it |
+| 2026-09-23 | **Rule B**: a vnstock backfill row is NEVER dated by KBS | G4 Class B rows are pre-transfer by construction; 3,136 rows on 17 symbols had been dated with the current exchange through an original-listing KBS date | per-symbol exceptions |
+| 2026-09-23 | Overlapping CafeF spans: the LONGER wins | Three stray one-day HOSE filings on 2015-09-01 (PXL, VLF, VNA) inside long UPCoM spans | the filed exchange |
+| 2026-09-23 | **Residual accepted and flagged: 6.43% of liquid stock-days since 2012** (57,738 of 897,588) have no dated exchange | Small enough not to dent the backtestable sample; quarantined, never silently mis-limited | dropping those stocks |
