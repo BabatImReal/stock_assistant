@@ -71,6 +71,11 @@ column. Whether a higher timeframe overrides a lower one is a rule to
 **measure**, not assume.
 
 ## Build status
+**T2 BUILT 2026-09-23 (run 11)**: bullish/bearish engulfing, bullish/bearish
+harami (LONG = the 20-session mean body before yesterday), piercing line, dark
+cloud cover. There is a prior-body floor (yesterday's RAW body >= 3 ticks) and a
+1e-4 cross-day tolerance. Liquid rates: 2.40 / 2.36 / 4.48 / 3.89 / 0.63 /
+0.84%.
 **T1 BUILT 2026-09-23 (run 10, `features/patterns`)**: 5 anatomy numerics
 (body/upper/lower-to-range, range_rel_20d, open_gap) and 5 shapes
 (hammer_shape, inverted_hammer_shape, doji, marubozu_green/red), with a

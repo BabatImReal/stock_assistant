@@ -29,7 +29,8 @@ def frame(n=60, volume=1000.0, close=10.0, gaps=None, excluded=None,
             "gap_before": 0,
             "excluded": False,
             # Raw = adjusted unless a test needs them apart (candle tick floor).
-            "raw_high": closes, "raw_low": closes, "raw_close": closes,
+            "raw_open": closes, "raw_high": closes,
+            "raw_low": closes, "raw_close": closes,
             "exchange": "HOSE", "exchange_unknown": False,
         }
     )

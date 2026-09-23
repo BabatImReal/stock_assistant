@@ -171,6 +171,45 @@ measures:
     body_to_range_min: 0.90
     min_range_ticks: 3
 
+  # --- doc §3.2, patterns tranche 2: two-candle patterns --------------------
+  # patterns/two_candle.py. Dated on TODAY; read yesterday, so a pair across a
+  # trading gap is blank. Textbook values from doc §3.2, FIXED BEFORE ANY
+  # MEASURING (moved here from patterns.yaml, P2).
+  # min_prior_body_ticks: yesterday's RAW body must be at least this many
+  # ticks (the dated exchange's tick; the largest where undated), so a
+  # 1-2 tick body cannot make "covers", "inside" or "past its midpoint" true
+  # on noise. 3 = the same "more than tick noise" as the tranche-1 floor.
+  bullish_engulfing:
+    enabled: true
+    min_body_cover: 1.0             # doc: today's body covers yesterday's
+    min_prior_body_ticks: 3
+  bearish_engulfing:
+    enabled: true
+    min_body_cover: 1.0
+    min_prior_body_ticks: 3
+  # LONG (P3): yesterday's body >= long_body_vs_avg_min x the mean body of the
+  # long_body_window sessions BEFORE yesterday.
+  bullish_harami:
+    enabled: true
+    max_body_ratio: 0.5             # today's body at most half of yesterday's
+    long_body_vs_avg_min: 1.0
+    long_body_window: 20
+    min_prior_body_ticks: 3
+  bearish_harami:
+    enabled: true
+    max_body_ratio: 0.5
+    long_body_vs_avg_min: 1.0
+    long_body_window: 20
+    min_prior_body_ticks: 3
+  piercing_line:
+    enabled: true
+    min_close_into_prev_body: 0.5   # doc: closes above the midpoint
+    min_prior_body_ticks: 3
+  dark_cloud_cover:
+    enabled: true
+    min_close_into_prev_body: 0.5   # the mirror: below the midpoint
+    min_prior_body_ticks: 3
+
 # Which index the regime measures read. VN-Index is the market doc §5.3 means.
 market:
   index_symbol: VNINDEX

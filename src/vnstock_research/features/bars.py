@@ -34,7 +34,7 @@ from ..data import exchanges
 COLUMNS = [
     "symbol", "trade_date", "open", "high", "low", "close",
     "matched_volume", "volume_is_adjustable", "gap_before", "excluded",
-    "raw_high", "raw_low", "raw_close", "exchange", "exchange_unknown",
+    "raw_open", "raw_high", "raw_low", "raw_close", "exchange", "exchange_unknown",
 ]
 
 
@@ -60,7 +60,8 @@ sessions AS (
 b AS (
     SELECT a.symbol, a.trade_date, a.open, a.high, a.low, a.close,
            a.matched_volume, a.volume_is_adjustable, s.n AS session_no,
-           r.high AS raw_high, r.low AS raw_low, r.close AS raw_close,
+           r.open AS raw_open, r.high AS raw_high, r.low AS raw_low,
+           r.close AS raw_close,
            coalesce(xm.exchange, r.exchange) AS exchange,
            xm.exchange IS NULL AS exchange_unknown
     FROM bar_adjusted a
@@ -86,7 +87,8 @@ SELECT b.symbol, b.trade_date, b.open, b.high, b.low, b.close,
            WHERE w.symbol = b.symbol
              AND b.trade_date BETWEEN w.valid_from AND w.valid_to
        ) AS excluded,
-       b.raw_high, b.raw_low, b.raw_close, b.exchange, b.exchange_unknown
+       b.raw_open, b.raw_high, b.raw_low, b.raw_close, b.exchange,
+       b.exchange_unknown
 FROM b
 ORDER BY b.trade_date
 """
@@ -101,7 +103,7 @@ def load(conn, symbol: str, start: str = "2012-01-01", build: int | None = None)
         rows = cur.fetchall()
     df = pd.DataFrame(rows, columns=COLUMNS)
     for col in ("open", "high", "low", "close", "matched_volume",
-                "raw_high", "raw_low", "raw_close"):
+                "raw_open", "raw_high", "raw_low", "raw_close"):
         df[col] = df[col].astype("float64")
     # The first row has no predecessor, so there is no gap before it -- not an
     # unknown one. Leaving it NaN would make every first window unusable.

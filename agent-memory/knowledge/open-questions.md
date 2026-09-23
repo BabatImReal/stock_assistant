@@ -479,6 +479,12 @@ CURRENT-ONLY before the first snapshot (2026-09-23)**. Every historical sector
 value is flagged and quarantined (see B3). Dated membership accrues only as
 snapshots are taken, which needs scheduling (in the nightly-hardening list).
 
+## Patterns tranche 2 — for the broker friend (2026-09-23)
+- Liquid rates: engulfing 2.40% / 2.36%, harami 4.48% / 3.89%, piercing
+  0.63%, dark cloud 0.84%. Does he treat an engulfing of a tiny prior body
+  as real? (The floor removes half of them.)
+- Harami: the doc requires a LONG first day, but not today's colour; does he?
+
 ## Patterns tranche 1 — for the broker friend (2026-09-23)
 - **`doji` fires on 10.95% of liquid stock-days** (19.07% without the tick
   floor), with the doc's loose-end threshold body <= 10% of range. That is

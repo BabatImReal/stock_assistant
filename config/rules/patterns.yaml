@@ -21,16 +21,9 @@ horizons:
 
 # single_candle: MOVED to config/rules/features.yaml (Ben, 2026-09-23, P2) so
 # the thresholds sit with the measures that use them and inside the FeatureSet
-# fingerprint. The two_candle and consolidation blocks below move the same way
-# when their tranches are built (T2, T4).
+# fingerprint. The consolidation block below moves the same way at T4.
 
-two_candle:               # doc §3.2
-  engulfing:
-    min_body_cover: 1.0           # today's body covers 100% of yesterday's
-  harami:
-    max_body_ratio: 0.5           # today's body at most half of yesterday's
-  piercing_line:
-    min_close_into_prev_body: 0.5 # closes above the midpoint
+# two_candle: MOVED to config/rules/features.yaml (T2, 2026-09-23, P2).
 
 consolidation:            # doc §3.4 - probably closest to what the friend watches
   tight_range:

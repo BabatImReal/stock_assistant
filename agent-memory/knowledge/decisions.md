@@ -283,3 +283,15 @@ Implementation choices (run 10):
 | 2026-09-23 | The bars frame carries raw high/low/close and the resolved `exchange` / `exchange_unknown` | Ticks apply to raw prices on the exchange in force | — |
 | 2026-09-23 | With textbook values, "body in the top third" already IMPLIES "lower wick >= 2x body" (and the mirror for inverted). The explicit clause is kept (it binds if a threshold changes) and is tested at 3x | Found while designing the one-test-per-rule cases | dropping the clause |
 | 2026-09-23 | Measure metadata for the fingerprint schema (`group`, `direction`) NOT added yet | It is only needed at T5 (assembly) | adding it now |
+
+## Session 2026-09-23-03 run 11 — PATTERNS TRANCHE 2 (doc §3.2), branch `features/patterns`
+
+| Date | Decision | Reason | Rejected |
+| --- | --- | --- | --- |
+| 2026-09-23 | Six two-candle patterns per doc §3.2, dated on TODAY, reading yesterday: lookback 1 (harami 21 = the 20-session LONG baseline before yesterday + 1), so a pair across a trading gap or an excluded row is BLANK | The yesterday-adjacent rule, as in breadth and sector | computing across the gap |
+| 2026-09-23 | **Prior-body floor: yesterday's RAW body >= `min_prior_body_ticks: 3` ticks** (the same `floor_tick` as T1: the dated exchange's tick, the largest where undated), on all six | A 1-2 tick body makes "covers", "inside" and "past the midpoint" true on noise. MEASURED: it removes 53-55% of engulfings, 23-26% of haramis, ~2% of piercing/dark cloud | no floor; a floor on today's body too (an engulfing body covers yesterday's anyway; a harami's small body is the point) |
+| 2026-09-23 | Piercing line / dark cloud cover also require today's close SHORT of yesterday's open (textbook); the doc's wording gives only the midpoint | Keeps them distinct from engulfing: measured 0 days with both | the midpoint-only rule |
+| 2026-09-23 | "Opens lower/higher" = beyond yesterday's CLOSE (the doc's wording; P4 is for stars) | Match doc §3.2 | below the prior low |
+| 2026-09-23 | **Cross-day comparisons use REL_TOL = 1e-4** on the adjusted prices | 43.5% of raw ties (open2 == close1) come out unequal after adjustment rounding (median 0, p99 2.6e-5); 1e-4 is 4x that and >= 5x smaller than any real tick | exact comparison; comparing raw prices across a possible ex-date |
+| 2026-09-23 | IMPLIED colour clauses removed and documented (engulfing: today's colour; harami: yesterday's; piercing/dark cloud: both) | A clause that cannot change the answer cannot be tested | keeping untestable clauses |
+| 2026-09-23 | **Mutation proofs purge `__pycache__` and disable bytecode writing on every run** | Found this run: Python's .pyc check is size + whole-second mtime, so a same-size mutation written in the same second reused the PREVIOUS mutation's bytecode. That gave 3 false survivors here. Every earlier proof (T1, exchange labels, sector, universe/breadth) was re-run with the purge: all genuine | trusting the cache |

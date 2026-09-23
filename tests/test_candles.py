@@ -44,6 +44,7 @@ def bars(
             "volume_is_adjustable": True,
             "gap_before": 0,
             "excluded": False,
+            "raw_open": o,
             "raw_high": rh,
             "raw_low": rl,
             "raw_close": c,
