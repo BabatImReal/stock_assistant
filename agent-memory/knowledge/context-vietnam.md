@@ -45,3 +45,19 @@ differed from today's, so backtests apply the rules in force at each date and
 report those years separately (doc §7.5).
 
 Related: [[patterns]] [[validation]] [[funnel-and-scale]]
+
+## Trading days (Ben, 2026-09-23)
+The market is **closed on Saturday, Sunday and public holidays**, so a date
+without data on one of those days is NOT missing data. Holidays include 1/1,
+Tet (lunar, about a week, and the dates move every year), Hung Kings (10/3
+lunar), 30/4, 1/5 and National Day 2/9. The government sometimes extends a
+break by swapping in a working Saturday; for example, 2025-05-02 was closed.
+- Missing data only means a **weekday session the market was open** and our data
+  lacks. Never count weekends or holidays as gaps or as `gap_before`.
+- The calendar (`trading_day`) is derived from stock rows, so closed days are
+  absent by construction. The danger runs the other way: a stray row ON a
+  closed day creates a phantom session (2025-05-02; see decisions.md
+  2026-09-23). Weekends are rejected by a gate check. **Holidays have no check
+  yet**, because there is no holiday list in config.
+- Checked 2026-09-23: 0 weekend dates in the calendar, and none on 1/1, 30/4,
+  1/5 or 2/9.

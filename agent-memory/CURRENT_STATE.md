@@ -1,4 +1,4 @@
-# Current state — 2026-09-23 (end of session 2026-09-23-03, run 1)
+# Current state — 2026-09-23 (end of session 2026-09-23-03, run 2)
 
 Rewritten from scratch. **Every DB figure below was re-read from the live
 database this run** (vnstock-db, PostgreSQL 16.15, reachable).
@@ -12,7 +12,7 @@ Sector (§5.4) comes after that.
 
 ## Git
 Work happens on branch `features/pit-universe-breadth`, cut from `main` at
-`4f36815`. `main` is untouched. This run's commit is on the branch and pushed.
+`4f36815`. `main` is untouched. Run 1 is committed and pushed (`a6d79d2`). Run 2 (memory notes only) is NOT committed yet.
 
 ## The database: build 5, promoted 'good'
 | | |
@@ -87,6 +87,13 @@ Open:
   in `knowledge/open-questions.md`.
 - Backtest-step items **B1** (two price-limit definitions) and **B2** (return
   generator not written).
+
+## Rule to remember when judging missing data
+The market is closed on Saturday, Sunday and public holidays (Ben, 2026-09-23;
+`knowledge/context-vietnam.md`). A missing day is only a defect when it is a
+weekday the market was open. Weekends are gate-checked; **holidays are not yet**
+(there is no holiday list). Calendar checked in run 2: no weekend dates, and
+none on 1/1, 30/4, 1/5 or 2/9.
 
 ## Next steps
 1. **Ben approves or amends the PIT universe + breadth proposal** (questions Q1–Q5
