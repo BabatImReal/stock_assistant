@@ -24,6 +24,7 @@ Everything here is a rule that can be switched on or off and measured, so that
 its contribution can be tested rather than assumed.
 """
 
+from ..patterns import candles as _candles  # noqa: E402,F401  (§3.1 anatomy + shapes)
 from . import breadth as _breadth  # noqa: E402,F401  (registers §5.3 breadth)
 from . import market as _market  # noqa: E402,F401  (registers the §5.3 measures)
 from . import sector as _sector  # noqa: E402,F401  (registers the §5.4 measures)

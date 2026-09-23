@@ -132,6 +132,45 @@ measures:
     enabled: true
     window_days: 20
 
+  # --- doc §3.1, patterns tranche 1: candle anatomy + single-candle shapes --
+  # patterns/candles.py. Textbook values from doc §3.1, FIXED BEFORE ANY
+  # MEASURING (doc §3.5, §8.1); moved here from patterns.yaml (Ben, P2) so the
+  # FeatureSet fingerprint covers them. Shapes are ONE flag each (P1): the
+  # trend before the candle comes from the trend measures, never from the flag.
+  body_to_range:         {enabled: true}
+  upper_wick_to_range:   {enabled: true}
+  lower_wick_to_range:   {enabled: true}
+  range_rel_20d:         {enabled: true, window_days: 20}
+  open_gap:              {enabled: true}
+  # min_range_ticks (P5): the RAW range must be at least this many ticks (the
+  # largest tick of any exchange at that price and date), so a 1-2 tick
+  # candle can never be a shape by accident. 3 = "more than tick noise"; a
+  # choice, fixed now, not tuned.
+  hammer_shape:
+    enabled: true
+    lower_wick_to_body_min: 2.0     # doc: lower wick >= 2 x body
+    upper_wick_to_body_max: 0.5     # doc: small upper wick
+    body_min_position: 0.6667       # body in the top third of the range
+    min_range_ticks: 3
+  inverted_hammer_shape:
+    enabled: true
+    upper_wick_to_body_min: 2.0     # doc: upper wick >= 2 x body
+    lower_wick_to_body_max: 0.5     # the mirror of the hammer's small wick
+    body_max_position: 0.3333       # body in the bottom third of the range
+    min_range_ticks: 3
+  doji:
+    enabled: true
+    body_to_range_max: 0.10         # doc: body <= ~5-10% of range (the loose end)
+    min_range_ticks: 3
+  marubozu_green:
+    enabled: true
+    body_to_range_min: 0.90         # doc: body >= ~90% of range
+    min_range_ticks: 3
+  marubozu_red:
+    enabled: true
+    body_to_range_min: 0.90
+    min_range_ticks: 3
+
 # Which index the regime measures read. VN-Index is the market doc §5.3 means.
 market:
   index_symbol: VNINDEX

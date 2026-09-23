@@ -19,6 +19,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+import numpy as np
+import pandas as pd
 import yaml
 
 from . import exchanges
@@ -149,6 +151,55 @@ def tick_sql(price_col: str) -> str:
                     cond += f" AND {price_col} < {band['under']}"
                 cases.append(f"WHEN {cond} THEN {band['tick']}")
     return "CASE " + " ".join(cases) + " ELSE 0.1 END"
+
+
+def _ticks(dates, prices) -> dict[str, np.ndarray]:
+    """Each exchange's tick at each (date, RAW price), in thousands of VND; NaN
+    before the exchange opened. The Python twin of `tick_sql`, reading the same
+    table."""
+    regimes = yaml.safe_load(MARKET_RULES.read_text())["tick_size"]
+    d = pd.to_datetime(pd.Series(dates)).dt.strftime("%Y-%m-%d").to_numpy()
+    p = np.asarray(prices, dtype="float64")
+    out = {}
+    for exchange, periods in regimes.items():
+        tick = np.full(len(p), np.nan)
+        # Oldest regime first, so a later one overwrites from its start date.
+        for regime in sorted(periods, key=lambda r: r["from"]):
+            conds = [
+                p < b["under"] if b["under"] is not None else np.ones(len(p), bool)
+                for b in regime["bands"]
+            ]
+            band = np.select(conds, [b["tick"] for b in regime["bands"]])
+            tick = np.where(d >= regime["from"], band, tick)
+        out[exchange] = tick
+    return out
+
+
+def max_tick(dates, prices) -> np.ndarray:
+    """The LARGEST tick any exchange had at each (date, RAW price). Needs no
+    exchange, and a floor built on it can only be stricter than the real one."""
+    out = np.zeros(len(np.asarray(prices)))
+    for tick in _ticks(dates, prices).values():
+        out = np.fmax(out, tick)  # an exchange not yet open contributes nothing
+    return out
+
+
+def floor_tick(dates, prices, exchange, exchange_unknown) -> np.ndarray:
+    """The tick a "range of at least N ticks" floor should use, per row.
+
+    Where the exchange is DATED (data/exchanges.py), its own tick. Where it is
+    not, the largest tick of any exchange, which can only make the floor
+    stricter, so an undated day needs no flag. Using the largest tick
+    everywhere overshoots HOSE's real tick 2-10x on 64% of dated liquid HOSE
+    days (measured 2026-09-23) and would drop real candles on HOSE only.
+    """
+    ticks = _ticks(dates, prices)
+    ex = np.asarray(exchange, dtype=object)
+    own = np.full(len(ex), np.nan)
+    for name, tick in ticks.items():
+        own = np.where(ex == name, tick, own)
+    unknown = np.asarray(exchange_unknown, dtype=bool) | np.isnan(own)
+    return np.where(unknown, max_tick(dates, prices), own)
 
 
 def first_day_limit_sql() -> str:

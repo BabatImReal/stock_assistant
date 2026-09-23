@@ -479,6 +479,14 @@ CURRENT-ONLY before the first snapshot (2026-09-23)**. Every historical sector
 value is flagged and quarantined (see B3). Dated membership accrues only as
 snapshots are taken, which needs scheduling (in the nightly-hardening list).
 
+## Patterns tranche 1 — for the broker friend (2026-09-23)
+- **`doji` fires on 10.95% of liquid stock-days** (19.07% without the tick
+  floor), with the doc's loose-end threshold body <= 10% of range. That is
+  high for a signal. Not tuned (fixed before measuring); ask whether he
+  means 5%.
+- hammer_shape 5.03%, inverted_hammer_shape 3.59%, marubozu green 5.15% and
+  red 5.59% of liquid stock-days. Ask which of these he actually watches.
+
 ## For the backtest step — recorded 2026-09-22, DO NOT act on these yet
 
 These are review findings about work already done. They belong to the backtest

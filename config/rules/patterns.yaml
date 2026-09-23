@@ -19,18 +19,10 @@ horizons:
   forward_days: [3, 5]
   entry_offset_days: 1   # signal at day t close -> entry at t+1 (no look-ahead)
 
-single_candle:            # doc §3.1
-  hammer:
-    lower_wick_to_body_min: 2.0
-    body_position: top_third      # body sits in the top third of the range
-    upper_wick_to_body_max: 0.5
-  inverted_hammer:
-    upper_wick_to_body_min: 2.0
-    body_position: bottom_third
-  doji:
-    body_to_range_max: 0.10       # doc says ~5-10% of range
-  marubozu:
-    body_to_range_min: 0.90
+# single_candle: MOVED to config/rules/features.yaml (Ben, 2026-09-23, P2) so
+# the thresholds sit with the measures that use them and inside the FeatureSet
+# fingerprint. The two_candle and consolidation blocks below move the same way
+# when their tranches are built (T2, T4).
 
 two_candle:               # doc §3.2
   engulfing:

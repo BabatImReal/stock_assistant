@@ -260,3 +260,26 @@ Found and decided while building (run 9):
 | 2026-09-23 | **Rule B**: a vnstock backfill row is NEVER dated by KBS | G4 Class B rows are pre-transfer by construction; 3,136 rows on 17 symbols had been dated with the current exchange through an original-listing KBS date | per-symbol exceptions |
 | 2026-09-23 | Overlapping CafeF spans: the LONGER wins | Three stray one-day HOSE filings on 2015-09-01 (PXL, VLF, VNA) inside long UPCoM spans | the filed exchange |
 | 2026-09-23 | **Residual accepted and flagged: 6.43% of liquid stock-days since 2012** (57,738 of 897,588) have no dated exchange | Small enough not to dent the backtestable sample; quarantined, never silently mis-limited | dropping those stocks |
+
+## Session 2026-09-23-03 run 10 — PATTERNS TRANCHE 1 (doc §3.1), branch `features/patterns`
+
+Locked by Ben (P1–P9):
+
+| Date | Decision | Reason | Rejected |
+| --- | --- | --- | --- |
+| 2026-09-23 | **P1**: ONE shape flag each (`hammer_shape`, `inverted_hammer_shape`); the trend before the candle comes from the trend measures, never baked into the flag | Hammer = hanging man and inverted hammer = shooting star as SHAPES (doc §3.1); one source for "trend" | separate named flags with a trend condition |
+| 2026-09-23 | **P2**: pattern thresholds live in `features.yaml` `measures:`, fixed before any measuring; the `single_candle` block moved out of `patterns.yaml` | Same enable switch and FeatureSet fingerprint as every measure | a second config home |
+| 2026-09-23 | **P3**: "long body" = at least the stock's 20-day average body (applies from T2) | Relative to the stock | an absolute body/range cut |
+| 2026-09-23 | **P4** (applies at T3): gaps relaxed to "opens below/above the prior close", documented as a VN deviation | Price limits make textbook gaps rare | strict textbook gaps |
+| 2026-09-23 | **P5**: `range_rel_20d` kept AND a minimum-range floor inside the shape flags, so a flag is meaningful on its own | Tick noise | relying on consumers to check range_rel_20d |
+| 2026-09-23 | P6/P7/P9: breakout later and price-only; flag/pause deferred; no pattern-specific strength numbers yet | — | — |
+
+Implementation choices (run 10):
+
+| Date | Decision | Reason | Rejected |
+| --- | --- | --- | --- |
+| 2026-09-23 | **The floor is in TICKS on the RAW range: `min_range_ticks: 3`**, applied to ALL FOUR shapes (not only doji and marubozu) | A 1-tick candle with open = close = high passes every hammer ratio (body 0), so the hammer shapes have the same noise problem; tested | a percent-of-price floor (wrong unit: a tick is 0.2–10% of price depending on price and exchange) |
+| 2026-09-23 | **The tick is the DATED exchange's own tick; the LARGEST tick of any exchange only where the exchange is undated** (`checks.floor_tick`) | "Largest everywhere" was built first and MEASURED: it overshot HOSE's real tick 2–10x on 64% of dated liquid HOSE days and dropped about 1 real candle in 10 (72.0% vs 82.6% passing), on HOSE only, an exchange bias. On undated days the largest tick is never looser, so no flag is needed | largest tick everywhere; flagging undated days |
+| 2026-09-23 | The bars frame carries raw high/low/close and the resolved `exchange` / `exchange_unknown` | Ticks apply to raw prices on the exchange in force | — |
+| 2026-09-23 | With textbook values, "body in the top third" already IMPLIES "lower wick >= 2x body" (and the mirror for inverted). The explicit clause is kept (it binds if a threshold changes) and is tested at 3x | Found while designing the one-test-per-rule cases | dropping the clause |
+| 2026-09-23 | Measure metadata for the fingerprint schema (`group`, `direction`) NOT added yet | It is only needed at T5 (assembly) | adding it now |

@@ -29,9 +29,12 @@ from __future__ import annotations
 
 import pandas as pd
 
+from ..data import exchanges
+
 COLUMNS = [
     "symbol", "trade_date", "open", "high", "low", "close",
     "matched_volume", "volume_is_adjustable", "gap_before", "excluded",
+    "raw_high", "raw_low", "raw_close", "exchange", "exchange_unknown",
 ]
 
 
@@ -56,9 +59,18 @@ sessions AS (
 ),
 b AS (
     SELECT a.symbol, a.trade_date, a.open, a.high, a.low, a.close,
-           a.matched_volume, a.volume_is_adjustable, s.n AS session_no
+           a.matched_volume, a.volume_is_adjustable, s.n AS session_no,
+           r.high AS raw_high, r.low AS raw_low, r.close AS raw_close,
+           coalesce(xm.exchange, r.exchange) AS exchange,
+           xm.exchange IS NULL AS exchange_unknown
     FROM bar_adjusted a
     JOIN sessions s ON s.trade_date = a.trade_date
+    -- RAW prices too: exchange ticks apply to the price that traded, so a
+    -- range measured in ticks (patterns/candles.py) needs them.
+    JOIN bar_raw r ON r.symbol = a.symbol AND r.trade_date = a.trade_date
+    -- The exchange IN FORCE that day where dated (data/exchanges.py); the
+    -- filed one, marked exchange_unknown, where not.
+    {resolve}
     WHERE a.build_id = %(build)s
       AND a.symbol = %(symbol)s
       AND a.trade_date >= %(start)s
@@ -73,7 +85,8 @@ SELECT b.symbol, b.trade_date, b.open, b.high, b.low, b.close,
            SELECT 1 FROM excluded_window w
            WHERE w.symbol = b.symbol
              AND b.trade_date BETWEEN w.valid_from AND w.valid_to
-       ) AS excluded
+       ) AS excluded,
+       b.raw_high, b.raw_low, b.raw_close, b.exchange, b.exchange_unknown
 FROM b
 ORDER BY b.trade_date
 """
@@ -83,10 +96,12 @@ def load(conn, symbol: str, start: str = "2012-01-01", build: int | None = None)
     """One symbol's bars, ready for measures. Oldest first."""
     build_id = build if build is not None else current_build(conn)
     with conn.cursor() as cur:
-        cur.execute(_SQL, {"build": build_id, "symbol": symbol.upper(), "start": start})
+        cur.execute(_SQL.replace("{resolve}", exchanges.RESOLVE_JOIN_SQL),
+                    {"build": build_id, "symbol": symbol.upper(), "start": start})
         rows = cur.fetchall()
     df = pd.DataFrame(rows, columns=COLUMNS)
-    for col in ("open", "high", "low", "close", "matched_volume"):
+    for col in ("open", "high", "low", "close", "matched_volume",
+                "raw_high", "raw_low", "raw_close"):
         df[col] = df[col].astype("float64")
     # The first row has no predecessor, so there is no gap before it -- not an
     # unknown one. Leaving it NaN would make every first window unusable.

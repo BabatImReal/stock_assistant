@@ -71,7 +71,14 @@ column. Whether a higher timeframe overrides a lower one is a rule to
 **measure**, not assume.
 
 ## Build status
-PROPOSED 2026-09-23 (session 2026-09-23-03, run 8): catalogue with rules and
+**T1 BUILT 2026-09-23 (run 10, `features/patterns`)**: 5 anatomy numerics
+(body/upper/lower-to-range, range_rel_20d, open_gap) and 5 shapes
+(hammer_shape, inverted_hammer_shape, doji, marubozu_green/red), with a
+3-tick floor on the RAW range using the dated exchange's tick. Liquid firing
+rates: hammer 5.0%, inverted 3.6%, doji 11.0%, marubozu 5.2% / 5.6%. T2–T6
+not started. P1–P9 answered (decisions.md run 10).
+
+Earlier: PROPOSED 2026-09-23 (session 2026-09-23-03, run 8): catalogue with rules and
 config, fingerprint = `compute()` output stacked per stock-day (Parquet +
 manifest, schema from the registries), the G5 interface (`query` now;
 `encode`/`neighbours` after G5), and tranches T1–T6. Awaiting P1–P9. No code.
