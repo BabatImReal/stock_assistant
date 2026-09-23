@@ -94,8 +94,9 @@ def _pair(bars: pd.DataFrame):
     return o, c, o1, c1, (c - o).abs(), (c1 - o1).abs()
 
 
-def _prior_body_ok(bars: pd.DataFrame, p: dict) -> pd.Series:
-    """Yesterday's RAW body is at least min_prior_body_ticks ticks."""
+def raw_body_ok(bars: pd.DataFrame, min_ticks: float) -> pd.Series:
+    """Each row's RAW body is at least `min_ticks` ticks (`floor_tick`). Shared
+    with the three-candle patterns, which shift it onto their large candles."""
     raw_body = (
         bars["raw_close"].astype("float64") - bars["raw_open"].astype("float64")
     ).abs()
@@ -105,7 +106,12 @@ def _prior_body_ok(bars: pd.DataFrame, p: dict) -> pd.Series:
         bars["exchange"],
         bars["exchange_unknown"],
     )
-    ok = raw_body >= float(p["min_prior_body_ticks"]) * tick - EPS
+    return raw_body >= float(min_ticks) * tick - EPS
+
+
+def _prior_body_ok(bars: pd.DataFrame, p: dict) -> pd.Series:
+    """Yesterday's RAW body is at least min_prior_body_ticks ticks."""
+    ok = raw_body_ok(bars, p["min_prior_body_ticks"])
     return ok.shift(1, fill_value=False)
 
 

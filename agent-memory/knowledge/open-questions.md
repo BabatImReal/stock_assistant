@@ -479,6 +479,17 @@ CURRENT-ONLY before the first snapshot (2026-09-23)**. Every historical sector
 value is flagged and quarantined (see B3). Dated membership accrues only as
 snapshots are taken, which needs scheduling (in the nightly-hardening list).
 
+## Patterns tranche 3 — rare patterns (2026-09-23)
+- Liquid rates: morning star 0.14% (878 events), evening star 0.22%, three
+  white soldiers 0.21%, three black crows 0.43%, three inside up 0.61%,
+  three inside down 0.45%. **A morning star fires about 3 times per stock in
+  14 years**, far below `reliability.min_occurrences_per_stock` (30). So
+  three-candle statistics will almost always fall back to the sector (current
+  labels, noted) or the whole market. The backtest must SAY which level each
+  number came from.
+- For the broker friend: star_body_max 0.3 and max_wick_to_range 0.25 are
+  our choices (doc §3.3 gives no numbers).
+
 ## Patterns tranche 2 — for the broker friend (2026-09-23)
 - Liquid rates: engulfing 2.40% / 2.36%, harami 4.48% / 3.89%, piercing
   0.63%, dark cloud 0.84%. Does he treat an engulfing of a tiny prior body

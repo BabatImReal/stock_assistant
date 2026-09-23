@@ -25,6 +25,7 @@ its contribution can be tested rather than assumed.
 """
 
 from ..patterns import candles as _candles  # noqa: E402,F401  (§3.1 anatomy + shapes)
+from ..patterns import three_candle as _three_candle  # noqa: E402,F401  (§3.3)
 from ..patterns import two_candle as _two_candle  # noqa: E402,F401  (§3.2 pairs)
 from . import breadth as _breadth  # noqa: E402,F401  (registers §5.3 breadth)
 from . import market as _market  # noqa: E402,F401  (registers the §5.3 measures)

@@ -210,6 +210,51 @@ measures:
     min_close_into_prev_body: 0.5   # the mirror: below the midpoint
     min_prior_body_ticks: 3
 
+  # --- doc §3.3, patterns tranche 3: three-candle patterns ------------------
+  # patterns/three_candle.py. Dated on day 3; a gap or excluded row ANYWHERE
+  # in the window blanks it. FIXED BEFORE ANY MEASURING. star_body_max,
+  # min_close_into_first_body and max_wick_to_range are NEW values (doc §3.3
+  # gives words, not numbers): textbook-typical choices, fixed now, not tuned.
+  # min_large_body_ticks: the LARGE candles' RAW body must be at least this
+  # many ticks (a star's middle candle is not floored; its small body is the
+  # point). P4: the star opens beyond d1's close instead of a true gap.
+  morning_star:
+    enabled: true
+    star_body_max: 0.3              # the star's body <= 30% of d1's
+    min_close_into_first_body: 0.5  # doc: d3 closes "well into" d1's body
+    long_body_vs_avg_min: 1.0       # P3: d1 and d3 LONG vs the pre-pattern mean
+    long_body_window: 20
+    min_large_body_ticks: 3
+  evening_star:
+    enabled: true
+    star_body_max: 0.3
+    min_close_into_first_body: 0.5
+    long_body_vs_avg_min: 1.0
+    long_body_window: 20
+    min_large_body_ticks: 3
+  three_white_soldiers:
+    enabled: true
+    max_wick_to_range: 0.25         # each closes near its high
+    min_large_body_ticks: 3
+  three_black_crows:
+    enabled: true
+    max_wick_to_range: 0.25         # each closes near its low
+    min_large_body_ticks: 3
+  # three-inside = the tranche-2 harami on d1-d2 (its own parameters, repeated
+  # here so each measure is self-contained) + d3 closing beyond d1's open.
+  three_inside_up:
+    enabled: true
+    max_body_ratio: 0.5
+    long_body_vs_avg_min: 1.0
+    long_body_window: 20
+    min_prior_body_ticks: 3
+  three_inside_down:
+    enabled: true
+    max_body_ratio: 0.5
+    long_body_vs_avg_min: 1.0
+    long_body_window: 20
+    min_prior_body_ticks: 3
+
 # Which index the regime measures read. VN-Index is the market doc §5.3 means.
 market:
   index_symbol: VNINDEX

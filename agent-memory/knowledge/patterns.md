@@ -71,6 +71,11 @@ column. Whether a higher timeframe overrides a lower one is a rule to
 **measure**, not assume.
 
 ## Build status
+**T3 BUILT 2026-09-23 (run 12)**: morning/evening star (P4: the star opens
+beyond d1's close, no true gap), three white soldiers / black crows, three
+inside up/down (the harami reused). There is a large-body floor on the big
+candles, not on the star. Liquid rates: 0.14 / 0.22 / 0.21 / 0.43 / 0.61 /
+0.45%: rare, so they rely on the group/market fallback.
 **T2 BUILT 2026-09-23 (run 11)**: bullish/bearish engulfing, bullish/bearish
 harami (LONG = the 20-session mean body before yesterday), piercing line, dark
 cloud cover. There is a prior-body floor (yesterday's RAW body >= 3 ticks) and a
