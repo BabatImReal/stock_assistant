@@ -56,7 +56,8 @@ The 2026-09-22 run on 40 liquid symbols (118,743 stock-days) found
 `near_support` / `near_resistance` firing on ~40% of scored days. That is too
 unselective. **Not tuned**: parameters stay fixed until measured (doc §3.5 /
 §8.1). This is a question for the broker-friend session. The full per-measure
-table is in `logs/sessions/2026-09-22-session-03.md`.
+table (scored / NaN / fires / median / p95) is in the previous version of this
+file: `git show 0b2ac91:agent-memory/CURRENT_STATE.md`.
 
 Nothing is materialised; measures compute on demand. **Base rates are NOT
 computed yet.** That needs the return generator (B2).
