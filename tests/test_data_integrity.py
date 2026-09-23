@@ -108,3 +108,23 @@ def test_the_liquid_set_on_the_latest_session_all_traded_that_session(conn):
         )
         traded = {r[0] for r in cur.fetchall()}
     assert set(liquid) <= traded
+
+
+def test_the_latest_industry_snapshot_labels_the_traded_market(conn):
+    """Sector measures are only as good as the membership behind them. Nearly
+    every symbol that traded on the latest session must have a label in the
+    latest snapshot; a new listing between snapshots may briefly lack one."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT count(*), count(i.symbol) FROM (
+                SELECT DISTINCT symbol FROM bar_raw
+                WHERE matched_volume > 0
+                  AND trade_date = (SELECT max(trade_date) FROM trading_day)
+            ) t
+            LEFT JOIN symbol_industry i ON i.symbol = t.symbol
+             AND i.snapshot_date = (SELECT max(snapshot_date) FROM symbol_industry)
+            """
+        )
+        traded, labelled = cur.fetchone()
+    assert traded and labelled / traded >= 0.99

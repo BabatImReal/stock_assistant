@@ -68,6 +68,16 @@ REGISTRY: dict[str, Measure] = {}
 # to say which kind it was holding.
 MARKET_REGISTRY: dict[str, Measure] = {}
 
+# Sector measures read the SECTOR frame: one row per (trade_date, sector), not
+# one per date. They run once per sector and are joined onto a symbol through
+# its sector on each date (`compute`). A third registry because the join key
+# differs, and a measure must not be able to land on the wrong frame silently.
+SECTOR_REGISTRY: dict[str, Measure] = {}
+
+# Values built on BORROWED (pre-snapshot, current) sector labels carry a
+# companion column FLAG + name, True where flagged (decision 2026-09-23).
+FLAG = "flag__"
+
 
 def measure(
     *,
@@ -122,6 +132,31 @@ def market_measure(
     return wrap
 
 
+def sector_measure(
+    *,
+    name: str,
+    doc_ref: str,
+    kind: str,
+    needs: tuple[str, ...],
+    lookback: Callable[[dict], int],
+) -> Callable:
+    """Register a sector measure (doc §5.4).
+
+    The function receives ONE sector's rows of the sector frame, oldest first,
+    one row per calendar session. Same contract otherwise: declared lookback,
+    trailing windows, NaN meaning "no signal".
+    """
+
+    def wrap(fn: Callable[[pd.DataFrame, dict], pd.Series]) -> Callable:
+        SECTOR_REGISTRY[name] = Measure(
+            name=name, doc_ref=doc_ref, kind=kind, needs=needs,
+            lookback=lookback, fn=fn, frame="sector",
+        )
+        return fn
+
+    return wrap
+
+
 def load_config(path: Path | None = None) -> dict[str, dict]:
     """The measure block only. Other top-level keys (e.g. which index the
     regime measures read) are configuration for the loaders, not measures."""
@@ -138,6 +173,10 @@ class FeatureSet:
 
     measures: tuple[str, ...]
     params: dict[str, dict] = field(default_factory=dict)
+    # Measures whose values can rest on borrowed (current) sector labels. Each
+    # has a FLAG + name column in the output. The backtest must pass results
+    # through `quarantine_flagged` before calling anything validated.
+    flagged: tuple[str, ...] = ()
 
     @property
     def fingerprint(self) -> str:
@@ -291,10 +330,56 @@ def compute_market(
     return joined, params
 
 
+def compute_sector(
+    frame: pd.DataFrame, config: dict[str, dict]
+) -> tuple[pd.DataFrame, dict[str, dict]]:
+    """Run the enabled sector measures once per sector.
+
+    Returns one row per (trade_date, sector) with each measure and its flag.
+    A value is flagged if ANY row it read (its declared lookback plus today)
+    had a borrowed label: a 20-session change that straddles the first
+    snapshot still rests partly on current labels.
+    """
+    enabled = [
+        (name, SECTOR_REGISTRY[name], {k: v for k, v in st.items() if k != "enabled"})
+        for name, st in config.items()
+        if st.get("enabled", False)
+    ]
+    parts = []
+    for _, s in frame.groupby("sector", sort=True):
+        s = s.sort_values("trade_date").reset_index(drop=True)
+        part = s[["trade_date", "sector"]].copy()
+        for name, m, p in enabled:
+            lb = m.lookback(p)
+            values = pd.Series(m.fn(s, p), index=s.index).astype("float64")
+            part[name] = values.where(_market_window_ok(s, lb))
+            part[FLAG + name] = (
+                s["labels_current"].astype("float64")
+                .rolling(lb + 1, min_periods=1).max().astype(bool)
+            )
+        parts.append(part)
+    return pd.concat(parts, ignore_index=True), {n: p for n, _, p in enabled}
+
+
+def quarantine_flagged(values: pd.DataFrame, fs: FeatureSet) -> pd.DataFrame:
+    """THE HARD GATE (decision 2026-09-23).
+
+    Sector values on borrowed labels are EXPLORATORY: the label is look-ahead.
+    Anything reported as a validated result must come through here, which blanks
+    every flagged value and drops the flag columns. A missing flag column
+    raises; it never passes silently.
+    """
+    out = values.copy()
+    for name in fs.flagged:
+        out[name] = out[name].where(~out[FLAG + name].astype(bool))
+    return out.drop(columns=[FLAG + n for n in fs.flagged])
+
+
 def compute(
     bars: pd.DataFrame,
     config: dict[str, dict] | None = None,
-    market: pd.DataFrame | None = None,
+    market: pd.DataFrame | dict[str, pd.DataFrame] | None = None,
+    sector=None,
 ) -> tuple[pd.DataFrame, FeatureSet]:
     """Run every ENABLED measure over one symbol's bars.
 
@@ -317,8 +402,48 @@ def compute(
             "leave a hole where the regime context should be."
         )
 
+    sector_cfg = {k: v for k, v in cfg.items() if k in SECTOR_REGISTRY}
+    enabled_sector = [k for k, v in sector_cfg.items() if v.get("enabled", False)]
+    if enabled_sector and sector is None:
+        raise ValueError(
+            f"sector measures are enabled ({', '.join(sorted(enabled_sector))}) "
+            "but no sector input was supplied"
+        )
+
+    # --- THE SECTOR JOIN ----------------------------------------------------
+    #   symbol --(its label on each date)--> sector --(trade_date, sector)--> value
+    # Done BEFORE the per-symbol measures so one of them (stock_vs_sector_20d)
+    # can read the joined value as a column of `work`.
+    work = bars
+    flags: dict[str, np.ndarray] = {}
+    sector_params: dict[str, dict] = {}
+    if enabled_sector:
+        from ..data import sectors
+
+        per_sector, sector_params = compute_sector(sector.frame, sector_cfg)
+        symbol = str(bars["symbol"].iloc[0]) if len(bars) else ""
+        member = sectors.assign(symbol, bars["trade_date"], sector.labels)
+        key = pd.DataFrame(
+            {"trade_date": bars["trade_date"].to_numpy(),
+             "sector": member["sector"].to_numpy()}
+        )
+        joined = key.merge(per_sector, on=["trade_date", "sector"], how="left")
+        work = bars.copy()
+        for name in sector_params:
+            work[name] = joined[name].to_numpy()
+            # Flagged if the sector value read a borrowed label, or THIS
+            # symbol's own label is borrowed. No match (no sector) is not
+            # known to be dated, so it is flagged too.
+            flags[name] = (
+                joined[FLAG + name].astype("boolean").fillna(True).to_numpy(bool)
+                | member["labels_current"].to_numpy(bool)
+            )
+            out[name] = work[name].to_numpy()
+            ran.append(name)
+            params[name] = {**sector_params[name], "labels": sector.basis}
+
     for name, settings in cfg.items():
-        if name in MARKET_REGISTRY:
+        if name in MARKET_REGISTRY or name in SECTOR_REGISTRY:
             continue
         if not settings.get("enabled", False):
             continue
@@ -327,7 +452,16 @@ def compute(
             raise KeyError(f"measure '{name}' is enabled in config but not registered")
 
         p = {k: v for k, v in settings.items() if k != "enabled"}
-        values = m.fn(bars, p)
+        reads = [n for n in m.needs if n in SECTOR_REGISTRY]
+        for n in reads:
+            if n not in sector_params:
+                raise ValueError(f"'{name}' reads '{n}', which is not enabled")
+            if p.get("window_days") != sector_params[n].get("window_days"):
+                raise ValueError(
+                    f"'{name}' and '{n}' must use the same window_days, or the "
+                    "stock and its sector are compared over different sessions"
+                )
+        values = m.fn(work, p)
 
         # Numeric so NaN is representable: a boolean measure that cannot be
         # evaluated must not collapse to False, which would read as "no signal
@@ -338,6 +472,10 @@ def compute(
         out[name] = values
         ran.append(name)
         params[name] = p
+        if reads:
+            # Built on a flagged sector value, so flagged the same way.
+            flags[name] = np.logical_or.reduce([flags[n] for n in reads])
+            params[name] = {**p, "labels": sector.basis}
 
     if enabled_market:
         market_values, market_params = compute_market(market, market_cfg)
@@ -353,4 +491,6 @@ def compute(
         ran.extend(market_params)
         params.update(market_params)
 
-    return out, FeatureSet(measures=tuple(ran), params=params)
+    for name, f in flags.items():
+        out[FLAG + name] = f
+    return out, FeatureSet(measures=tuple(ran), params=params, flagged=tuple(flags))

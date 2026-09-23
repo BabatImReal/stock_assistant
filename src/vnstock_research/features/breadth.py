@@ -79,27 +79,35 @@ def load(conn, start: str = "2012-01-01", build: int | None = None) -> pd.DataFr
     return counts(rows, calendar)
 
 
+def count_ok(counted: pd.Series, p: dict) -> pd.Series:
+    """False on a THIN day. Shared by breadth and sector (features/sector.py).
+
+    Thin = counted < min_count_share x the median count of the PREVIOUS
+    count_median_sessions sessions. Trailing, so today's count is judged
+    against what was known before today. No baseline means no judgement
+    (False). An optional absolute floor, min_members, is used by sector, where
+    a median of two or three stocks is one company's news, not a sector.
+    """
+    counted = counted.astype("float64")
+    k = int(p["count_median_sessions"])
+    baseline = counted.shift(1).rolling(k, min_periods=k).median()
+    ok = counted >= float(p["min_count_share"]) * baseline
+    return ok & (counted >= int(p.get("min_members", 0)))
+
+
 def _advance_share(b: pd.DataFrame, p: dict) -> pd.Series:
-    """adv / (adv + dec), NaN on a thin day.
+    """adv / (adv + dec), NaN on a thin day (`count_ok`).
 
     Unchanged stays out of the denominator: thin names print unchanged all the
     time, and counting them would drag every day toward 0.5 without saying
     anything about direction.
-
-    Thin = counted < min_count_share x the median count of the PREVIOUS
-    count_median_sessions sessions. Trailing, so today's count is judged
-    against what was known before today. No baseline means no judgement: NaN.
     """
-    counted = b["counted"].astype("float64")
-    k = int(p["count_median_sessions"])
-    baseline = counted.shift(1).rolling(k, min_periods=k).median()
-    ok = counted >= float(p["min_count_share"]) * baseline
     moved = (b["advancers"] + b["decliners"]).astype("float64")
     share = b["advancers"].astype("float64") / moved.replace(0.0, np.nan)
-    return share.where(ok)
+    return share.where(count_ok(b["counted"], p))
 
 
-def _guard_lookback(p: dict) -> int:
+def guard_lookback(p: dict) -> int:
     # The baseline reads count_median_sessions counts before today, and each
     # count reads the session before it: + 1.
     return int(p["count_median_sessions"]) + 1
@@ -110,7 +118,7 @@ def _guard_lookback(p: dict) -> int:
     doc_ref="doc §5.3",
     kind="numeric",
     needs=("advancers", "decliners", "counted"),
-    lookback=_guard_lookback,
+    lookback=guard_lookback,
     frame="breadth",
 )
 def breadth_advance_share(b: pd.DataFrame, p: dict) -> pd.Series:
@@ -123,7 +131,7 @@ def breadth_advance_share(b: pd.DataFrame, p: dict) -> pd.Series:
     doc_ref="doc §5.3",
     kind="numeric",
     needs=("advancers", "decliners", "counted"),
-    lookback=lambda p: int(p["window_days"]) - 1 + _guard_lookback(p),
+    lookback=lambda p: int(p["window_days"]) - 1 + guard_lookback(p),
     frame="breadth",
 )
 def breadth_advance_share_10d(b: pd.DataFrame, p: dict) -> pd.Series:

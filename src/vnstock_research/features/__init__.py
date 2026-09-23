@@ -26,28 +26,35 @@ its contribution can be tested rather than assumed.
 
 from . import breadth as _breadth  # noqa: E402,F401  (registers §5.3 breadth)
 from . import market as _market  # noqa: E402,F401  (registers the §5.3 measures)
+from . import sector as _sector  # noqa: E402,F401  (registers the §5.4 measures)
 from . import trend as _trend  # noqa: E402,F401  (registers the §5.1-5.2 measures)
 from . import volume as _volume  # noqa: E402,F401  (registers the §4.1 measures)
 from .base import (  # noqa: E402
     MARKET_REGISTRY,
     REGISTRY,
+    SECTOR_REGISTRY,
     FeatureSet,
     Measure,
     compute,
     compute_market,
+    compute_sector,
     load_config,
     market_measure,
     measure,
+    quarantine_flagged,
 )
 
 __all__ = [
     "MARKET_REGISTRY",
     "REGISTRY",
+    "SECTOR_REGISTRY",
     "FeatureSet",
     "Measure",
     "compute",
     "compute_market",
+    "compute_sector",
     "load_config",
+    "quarantine_flagged",
     "market_measure",
     "measure",
 ]

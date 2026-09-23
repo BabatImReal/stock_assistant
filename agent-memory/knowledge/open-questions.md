@@ -371,6 +371,9 @@ Grouped so it is done as one piece of work:
 - **Historical exchange labels**: `bar_raw.exchange` / `symbol_exchange` carry
   the current exchange (below).
 - **2026-07-31 index disagreement** with vnstock (below).
+- **Schedule `scripts/snapshot_industry.py`** (e.g. monthly) so dated ICB
+  membership accrues. Until it runs again, every sector value keeps borrowing
+  the 2026-09-23 labels. Added 2026-09-23 (sector slice); not scheduled.
 
 ### G16 — The nightly job never writes `index_bar`
 `scripts/nightly_update.py`'s docstring says step 4 updates "the index" and it
@@ -425,12 +428,12 @@ CafeF's RAW_HSX file carries DPG trading on 2018-01-23 while HOSE was halted.
 So `trading_day`'s per-exchange split is unreliable historically. This matters
 for any per-exchange breadth or universe (Task 2 proposal) and for G4.
 
-## Sector (doc §5.4) — PROPOSED 2026-09-23, awaiting Ben (S1–S6)
-The proposal is in session 2026-09-23-03, run 4. The source facts are in
-[[data-sources]] ("SECTOR / INDUSTRY membership"). Nothing is built. The key
-limitation: **membership is CURRENT-ONLY**. Applied to history, it is a label
-look-ahead and a small survivor bias. It must be treated like the exchange-label
-problem: flagged, never silently applied.
+## Sector (doc §5.4) — S1–S6 decided, BUILT 2026-09-23 on `features/sector-build`
+The proposal is in session 2026-09-23-03, run 4; Ben's decisions are in
+decisions.md (run 5). The key limitation stands: **ICB membership is
+CURRENT-ONLY before the first snapshot (2026-09-23)**. Every historical sector
+value is flagged and quarantined (see B3). Dated membership accrues only as
+snapshots are taken, which needs scheduling (in the nightly-hardening list).
 
 ## For the backtest step — recorded 2026-09-22, DO NOT act on these yet
 
@@ -456,6 +459,14 @@ they are still usable as an order-of-magnitude answer.
 **When the backtest applies fillability per trade it must reuse `checks.py`'s
 tick- and first-day-aware logic, not the simplified helper.** Consider
 consolidating both onto one shared limit function so the two cannot drift again.
+
+### B3 — Sector features are EXPLORATORY: quarantine them (decided 2026-09-23)
+Every sector value resting on a borrowed (pre-snapshot) label carries a
+`flag__<measure>` column, and `FeatureSet.flagged` lists the measures. The
+backtest MUST run results through `features.base.quarantine_flagged` before
+reporting anything as validated; flagged sector features are exploratory only.
+The §7.1 fallback may pool on current labels (`data.sectors.current_groups`),
+but it must SAY it pooled on current labels.
 
 ### B2 — The return generator is not written
 `backtest/forward_returns.py` is **primitives only**: `earliest_sell_offset`,

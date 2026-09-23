@@ -1,4 +1,4 @@
-"""Occurrence rates and distributions for the feature measures (§4.1, §5.1-5.3).
+"""Occurrence rates and distributions for the feature measures (§4.1, §5.1-5.4).
 
 Not a statistic about the market yet -- hit-rate-against-base-rate needs the
 return generator, which is the backtest step (open-questions B2). This answers
@@ -29,6 +29,7 @@ from vnstock_research.features import (  # noqa: E402
     compute,
     load_config,
     market,
+    sector,
 )
 
 REPO = Path(__file__).resolve().parent.parent
@@ -45,7 +46,7 @@ def say(line: str = "") -> None:
 def main() -> None:
     n = int(sys.argv[1]) if len(sys.argv) > 1 else 40
     cfg = load_config()
-    say(f"Feature measures (doc §4.1, §5.1-5.3)   {datetime.now():%Y-%m-%d %H:%M}")
+    say(f"Feature measures (doc §4.1, §5.1-5.4)   {datetime.now():%Y-%m-%d %H:%M}")
     say(f"enabled measures: {', '.join(k for k, v in cfg.items() if v['enabled'])}")
     say("")
 
@@ -63,12 +64,15 @@ def main() -> None:
             f"counted per session: median {wide['counted'].median():.0f}, "
             f"min {wide['counted'].min()}, max {wide['counted'].max()}")
         frames_by_name = {"index": index, "breadth": wide}
+        sec = sector.load(conn, build=build)
+        say(f"sector frame: {len(sec.frame):,} (date, sector) rows, "
+            f"{sec.frame['sector'].nunique()} sectors; labels: {sec.basis}")
 
         frames, fs = [], None
         for symbol, frame in bars.load_many(conn, symbols):
             if frame.empty:
                 continue
-            values, fs = compute(frame, market=frames_by_name)
+            values, fs = compute(frame, market=frames_by_name, sector=sec)
             values["symbol"] = symbol
             frames.append(values)
 
@@ -95,6 +99,12 @@ def main() -> None:
         else:
             say(f"{name:<26}{scored:>10,}{nan_share:>7.1%}{'-':>9}{'-':>8}"
                 f"{col.median():>12,.3f}{col.quantile(0.95):>12,.3f}")
+
+    for name in fs.flagged:
+        flagged = df.loc[df[name].notna(), "flag__" + name]
+        say(f"{name}: {flagged.mean():.1%} of scored values are FLAGGED "
+            "(borrowed current labels: exploratory, quarantined from "
+            "validated results)")
 
     say("")
     say("why rows are unscored (the NaN share above):")

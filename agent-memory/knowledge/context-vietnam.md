@@ -24,6 +24,11 @@ Each context item is itself a rule that can be switched on/off and measured.
   the days the cap-weighted index hides.
 - **Sector (§5.4):** banks, real estate, securities firms, steel move as
   groups. A signal with its sector is more credible than one against it.
+  Built 2026-09-23: ICB level 2 (steel split out), median member return;
+  `sector_change_20d` and `stock_vs_sector_20d`. A stock's 20-session change
+  correlates 0.63 with its sector's (VCB 0.72, HPG 0.69, SSI 0.78, VHM 0.45).
+  **Labels are current-only before 2026-09-23, so all history is flagged and
+  exploratory** (decisions.md).
 
 ## News (§5.5) — veto, not signal
 VN investors react fast and hard; one bad headline can dump a strong stock.
