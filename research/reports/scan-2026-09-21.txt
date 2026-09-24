@@ -1,0 +1,8 @@
+DAILY SCAN 2026-09-21 | it PROPOSES, Ben decides: this is not a prediction
+  NET PROVISIONAL: all-in 0.40% a round trip, broker fee NOT confirmed
+  scan 914a3afc4d05fea0 | paper 45ed221c5145016a | build 5 | fingerprint d51a9d818b0a54de code d0db3c6fcc40ffa2
+  BEFORE THE FREEZE (2026-09-24): shown for information, NOT part of the forward record
+ACCEPTED SIGNALS (the holdout's 6 ACCEPTs, as-is): k3:marubozu_red+breadth_positive+rvol_high, k3:three_black_crows+breadth_positive+rvol_high, k3:higher_lows+breadth_positive+ma_50_rising, k3:breakout+volume_dry, k3:breakout+above_ma_50+volume_dry, k5:marubozu_red+ma_50_rising+rvol_high
+REGIME on T (doc §5.3): index above its 50-day average yes | 50-day slope -0.52% | index 20-day change +4.23% | below its high -3.86% | advancers today 36%, 10-day 45%
+FUNNEL: 280 stocks liquid on T -> 0 (signal, stock) pairs of the 6 accepted signals fired -> 0 eligible
+NOTHING STRONG TODAY: no accepted signal fired on an eligible stock. Waiting is part of the method (doc §7.3).

@@ -741,3 +741,24 @@ Related: [[decisions]] [[data-sources]] [[architecture]]
   `features/analog-backtest` (fast-forward). Deleting it locally and on
   origin was blocked by the permission guard. Ben can delete it:
   `git branch -d claude/great-bell-6wr1jq && git push origin --delete claude/great-bell-6wr1jq`.
+
+## After the daily scan (session 2026-09-23-03, run 22) — for Ben
+- **G9 ANSWERED** by Ben's registered tie-breaker (`daily_scan` in
+  protocol.yaml). **The unit question is ANSWERED too**: paper trading is per
+  signal day (`paper_trading`).
+- **Tier numbering.** data.universe: tier 1 = LEAST liquid, 3 = most. Your
+  instruction said "tier 1 = most liquid"; the block prefers the more liquid
+  tier. Confirm that is what you meant.
+- **Eligibility at T:** UPCoM and undated-exchange stocks are not proposed,
+  because the holdout's gate never measured an accepted signal on one.
+  Confirm.
+- **Running it daily.** The forward record needs, after every session:
+  1. `nightly_update`;
+  2. `fingerprint.build` (~20 min);
+  3. `forward_returns.build`;
+  4. `report.scan`.
+
+  Then `report.paper score`. Nothing is scheduled.
+- **STUCK proposals** (a placed stake with no return) withhold the verdict
+  until you rule on them.
+- The fee: while it is PROVISIONAL, no PASS/FAIL is declared.

@@ -1,72 +1,76 @@
-# Current state — 2026-09-24 (end of session 2026-09-23-03, run 21)
+# Current state — 2026-09-24 (end of session 2026-09-23-03, run 22)
 
-Rewritten from scratch. Checked this run: `git fetch` + `git log`, the
-hypothesis log (holdout rows unchanged), the regenerated describe report, raw
-prices and factors of 4 extreme trades (DB up), and pytest.
+Rewritten from scratch. Checked this run: `git log` / `rev-parse` (main
+untouched), the hypothesis log (the 6 holdout ACCEPTs), the stored
+fingerprint and returns (build 5, to 2026-09-21), the ledger, and pytest.
 
 ## Phase
 - **On main (`f53b72a`):** features, nightly hardening, exchange labels, the
   pattern catalogue (T1–T4), the fingerprint (T5). Untouched; only Ben merges.
-- **On `features/analog-backtest` (the ONE working branch):**
-  - the analysis engine E1–E4;
-  - THE HOLDOUT (run once 2026-09-24; spent);
-  - the holdout description (`describe-holdout`, info only);
-  - the fee research.
-  - Awaiting Ben's review.
-- `claude/great-bell-6wr1jq` (the cloud session's branch) is fully merged
-  into it by fast-forward. **Deleting it was blocked by the permission guard,
-  so Ben deletes it** (the command is in open-questions.md).
+- **`features/analog-backtest` (`dc4dff9`):** the analysis engine E1–E4, THE
+  HOLDOUT (spent), the holdout description, the fee research. Awaiting Ben's
+  review; not merged.
+- **`features/daily-scan` (the working branch, cut from analog-backtest):**
+  the product layer, the daily scan + the paper-trading ledger. Awaiting
+  review.
+- `claude/great-bell-6wr1jq` still exists (fully merged into analog-backtest).
+  Ben deletes it; the permission guard blocks me.
 
-## Git (features/analog-backtest)
-Holdout commits, in order:
-1. `4b01bc9`: the freeze + runner.
-2. `2ed5bef`: THE HOLDOUT run.
-3. `51b5aa9`: describe + fees.
-4. `ae8845c`: the unknown-command error.
-5. `674a2ce`: Ben's describe report + the finding.
-6. The run-21 commit: a clearer report, regenerated.
+## Git (features/daily-scan)
+1. `eaebcd2`: THE FREEZE. The code, the tests and two frozen blocks in
+   `config/rules/protocol.yaml`, committed before any day was recorded.
+2. The run-22 commit: the first ledger rows, the smoke-test report, memory.
 
-## The research result
-- **Holdout** (registered, avg per trade, all-in 0.40%): **6 ACCEPTED, 9
-  REJECTED, 1 NOT TESTABLE.** Only 2 accepts are significant (the two
-  marubozu_red + rvol variants).
-- **Per signal day** (one stake a day, how the daily pick trades), at 0.40%.
-  "Stakes" is the most open at once.
+## The daily scan (report/scan.py) and paper trading (report/paper.py)
+- **Trades exactly the 6 holdout ACCEPTs, as-is.** "Strong" = one fired; no
+  performance filter. Otherwise NOTHING STRONG TODAY.
+- **`daily_scan` block (hash `914a3afc4d05fea0`).**
+  - Eligible = fired (unknown never fires) + liquid on T + a dated, non-UPCoM
+    exchange (mirrors the holdout's gate).
+  - ONE pick by: validate net expectancy (per trade, frozen; ranks only) → the
+    20-session mean traded value → the more liquid tier (tier 3 = most liquid
+    in the code; Ben wrote "tier 1", see open questions) → symbol.
+- **`paper_trading` block (hash `45ed221c5145016a`, Ben's numbers).**
+  - Per signal day, net at the all-in cost.
+  - No verdict before ≥ 30 scored days spanning ≥ 3 months.
+  - PASS = cum > 0 AND drawdown ≥ −1.0 stake AND a majority of months
+    positive.
+  - FAIL = cum ≤ 0 OR drawdown < −1.5.
+  - Otherwise PROVISIONAL.
+  - No PASS/FAIL while the fee is PROVISIONAL.
+  - VOID (no trade at entry) is not scored; STUCK (a stake, no return)
+    withholds the verdict.
+- **Forward record = days after 2026-09-24.** The ledger
+  `research/paper_ledger.csv` is append-only and idempotent per day.
+- **Smoke test, 2026-09-21: NOTHING STRONG TODAY** (280 liquid, 0 fired).
+  - Seven days before the freeze are recorded (09-11 … 09-21), with one
+    proposal: FPT 09-18, k5 marubozu_red + ma_50_rising + rvol_high, pending.
+  - Forward record: 0 days, NO VERDICT YET.
 
-| accepted | avg per trade | avg per signal day | signal days | stakes |
-| --- | --- | --- | --- | --- |
-| k3 breakout + volume_dry | +0.67% | +0.74% | 41 | 3 |
-| k3 breakout + above_ma_50 + volume_dry | +0.44% | +0.38% | 33 | 2 |
-| k3 three_black_crows + breadth + rvol | +0.81% | +0.12% | 38 | 4 |
-| k3 higher_lows + breadth + ma_50_rising | +0.17% | +0.11% | 180 | 5 |
-| k3 marubozu_red + breadth + rvol | +0.77% | −0.02% | 160 | 5 |
-| k5 marubozu_red + ma_50_rising + rvol | +0.27% | −0.43% | 275 | 6 |
-
-- The two significant marubozu accepts earn their edge on crowded days. Per
-  day, one is flat and the other loses. Every REJECT loses per day.
-  "Crowded days are sell-off rebounds" is a guess, NOT checked.
-- **Extreme trades are real** (raw prices + factors): GKM −57.7% (ten −10%
-  floor days, HNX), HVN −30.7%, NTP +36.8%, MCO. They are not data errors.
-- Report: `research/reports/holdout-2026-09-10-describe.txt`. Units are
-  stakes; it is regenerated by
-  `python -m vnstock_research.backtest.protocol describe-holdout`, which
-  writes no log row and changes no verdict.
+## The research result (unchanged)
+Holdout: 6 ACCEPTED, 9 REJECTED, 1 NOT TESTABLE. Per signal day at 0.40%,
+the ACCEPTs run from breakout+volume_dry +0.74% down to k5 marubozu+ma50
+−0.43%. That is why the forward test is per signal day. Report:
+`research/reports/holdout-2026-09-10-describe.txt`.
 
 ## Verified by running it this run
-- pytest **561 passed, 0 failed, 0 skipped** (DB up); `ruff check .` clean.
-- Strict proofs:
-  - describe (new rules) **14/14**;
-  - holdout 33/33, E3 33/33, E4 23/23 (re-run; 7 mutants retargeted);
+- pytest **597 passed, 0 failed, 0 skipped** (DB up); `ruff check .` clean.
+- Strict proofs (no exemptions):
+  - new rules **38/38**;
+  - re-run: holdout 33/33, E3 33/33, E4 23/23, describe 14/14;
   - earlier and unchanged: E2 46, E1 50, fingerprint 27, universe/breadth 17,
     sector 23, exchange 15, guards 5, T1 23, T2 36, T3 55, T4 20.
 
 ## Blockers / open (open-questions.md)
-- **Ben, architectural:** measure G9 and paper trading PER SIGNAL DAY (one
-  stake a day)? The holdout is spent; this can only be tested on new data or
-  paper trading.
-- Ben deletes `claude/great-bell-6wr1jq`.
-- Ben's real broker fee. NET is provisional (0.15% a side); the fee decides
-  several verdicts.
+- **Data must flow for the forward test.** After each session:
+  1. `nightly_update`;
+  2. `fingerprint.build` (~20 min);
+  3. `forward_returns.build`;
+  4. `report.scan`.
+
+  Then `report.paper score`. Nothing is scheduled.
+- Ben: confirm the tier direction and the UPCoM/undated exclusion; the real
+  broker fee (no verdict until then); delete `claude/great-bell-6wr1jq`.
 - G20 repair; X4, G19, G18, G2, G10, G11; the limit rounding / UPCoM
   reference.
 
@@ -76,18 +80,18 @@ The market is closed on Saturday, Sunday and public holidays
 weekday the market was open.
 
 ## Next steps
-1. Ben reviews and answers the unit question.
-2. Design paper trading, with its pass bar fixed in advance and per signal
-   day as the unit. Then G9 and the daily scan.
+1. Ben reviews `features/daily-scan` (and analog-backtest under it).
+2. Decide how the daily pipeline runs (manual or scheduled), then scan each
+   new session and score as outcomes mature.
 
 ## Parked
 TypeSafe / Jev; SSI FastConnect; flag/pause (P7); pattern strength numbers
 (P9); precomputing market/sector per fingerprint build; target-before-stop;
-the "crowded day" idea (a NEW hypothesis, testable only on unused data).
+the "crowded day" idea; moving `pool_before` past 2024 (needs a new neighbours
+version).
 
 ## Reading order for the next session
-1. This file. 2. `knowledge/00-index.md`. 3. Run 21 of
-`logs/sessions/2026-09-23-session-03.md` and
-`logs/sessions/2026-09-24-session-01.md`. 4. `knowledge/validation.md` (the
-last sections), `research/reports/holdout-2026-09-10-describe.txt`. 5. Only
-the code the task touches, via `code-map.md`.
+1. This file. 2. `knowledge/00-index.md`. 3. Run 22 of
+`logs/sessions/2026-09-23-session-03.md`. 4. `config/rules/protocol.yaml`
+(the `daily_scan` and `paper_trading` blocks). 5. Only the code the task
+touches, via `code-map.md`.
