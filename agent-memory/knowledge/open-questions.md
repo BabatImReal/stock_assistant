@@ -529,6 +529,23 @@ snapshots are taken, which needs scheduling (in the nightly-hardening list).
 - For the broker friend: star_body_max 0.3 and max_wick_to_range 0.25 are
   our choices (doc §3.3 gives no numbers).
 
+## E3 results — questions for Ben (2026-09-24, run 18)
+- **Negative-edge survivors:** 8 discover survivors did WORSE than the base
+  ("avoid" signals). The validate rule as written (edge ≥ +3 pts, net > 0)
+  can never pass them. Should avoid-signals get their own validate rule
+  (same sign, |edge| ≥ 3 pts)? It would be registered as an ADDITION and could
+  only be tested on unused data.
+- **Nested survivors:** the 16 held hypotheses overlap heavily (e.g. five
+  marubozu_red + rvol_high variants). They are about 5 families, not 16
+  independent edges.
+- **The p-value floor:** 2,000 resamples give a minimum p of 0.001, so BH can
+  reject only once ≥ 16 hypotheses reach it. This is conservative; it was
+  pre-registered and was not changed.
+- **Validate has no significance test:** the rule is sign + size + expectancy
+  only (the top held one has validate p 0.11). As registered.
+- **"Bearish" labels behave bullishly:** three_black_crows / marubozu_red +
+  high rvol lead the held list (doc §6.3 lesson 5). A broker-friend question.
+
 ## Analysis engine — A1–A12 ANSWERED 2026-09-24 (approved as proposed + five additions; decisions.md run 16). E1 built.
 - **Environment (FIXED run 17):** `shm_size: 1gb` in docker-compose.yml; the container was recreated. Originally: the recreated DB container had Docker's default 64 MB /dev/shm. A
   whole-market parallel hash join failed with "could not resize shared

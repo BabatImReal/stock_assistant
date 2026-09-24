@@ -59,5 +59,11 @@ Design approved by Ben (A1–A12 + five additions; decisions.md run 16):
   stock → PIT liquidity tier → market, ≥ 30 de-clustered.
 - **Quarantine:** flagged features AND flagged fillability (undated exchange,
   UPCoM) never enter a validated number. UPCoM is 11.8% of liquid outcomes.
-- **Built:** E1 (limits + returns + storage).
-- **Next:** E2 (the gate + base rates), E3 (hypotheses + protocol), E4 (kNN).
+- **Built:** E1 (limits + returns + storage), E2 (the gate + base rates +
+  fallback, G20 factor defects blanked like gaps), E3 (the protocol).
+- **E3 results** (holdout NOT run): N = 1,554 → 1,454 testable → **82 passed
+  discovery** (BH q = 0.10, date-block bootstrap) → **16 held on validate**.
+  The held list is led by "bearish" patterns behaving bullishly
+  (three_black_crows / marubozu_red + high rvol), and it forms ~5 nested
+  families.
+- **Next:** E4 (kNN), then the holdout, once, with Ben.
