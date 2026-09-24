@@ -1,0 +1,32 @@
+N = 1554 | passed discovery 82 | held on validate 16, in 6 families (display grouping only)
+  family 1: k3:breakout+volume_dry (3 members)
+    [N=1554] k3:breakout+volume_dry: validate edge +5.0% exp +1.50% | discover edge +16.6%
+    [N=1554] k3:breakout+above_ma_50+volume_dry: validate edge +3.4% exp +0.62% | discover edge +16.3%
+    [N=1554] k3:breakout+ma_50_rising+volume_dry: validate edge +8.2% exp +1.38% | discover edge +20.0%
+  family 2: k3:higher_lows+breadth_positive+ma_50_rising (1 member)
+    [N=1554] k3:higher_lows+breadth_positive+ma_50_rising: validate edge +3.8% exp +0.59% | discover edge +7.5%
+  family 3: k3:inside_day_run+above_ma_50+ma_50_rising (1 member)
+    [N=1554] k3:inside_day_run+above_ma_50+ma_50_rising: validate edge +3.5% exp +0.70% | discover edge +4.1%
+  family 4: k3:marubozu_red+ma_50_rising (7 members)
+    [N=1554] k3:marubozu_red+ma_50_rising: validate edge +3.7% exp +0.28% | discover edge +3.2%
+    [N=1554] k5:marubozu_red+rvol_high: validate edge +3.1% exp +0.20% | discover edge +4.5%
+    [N=1554] k3:marubozu_red+breadth_positive+rvol_high: validate edge +5.7% exp +0.96% | discover edge +7.0%
+    [N=1554] k3:marubozu_red+market_up+rvol_high: validate edge +6.1% exp +0.71% | discover edge +5.8%
+    [N=1554] k5:marubozu_red+above_ma_50+rvol_high: validate edge +6.4% exp +1.36% | discover edge +6.4%
+    [N=1554] k5:marubozu_red+ma_50_rising+rvol_high: validate edge +6.4% exp +1.03% | discover edge +6.5%
+    [N=1554] k5:marubozu_red+market_up+rvol_high: validate edge +5.4% exp +0.91% | discover edge +5.7%
+  family 5: k3:three_black_crows+rvol_high (3 members)
+    [N=1554] k3:three_black_crows+rvol_high: validate edge +10.7% exp +1.52% | discover edge +15.0%
+    [N=1554] k3:three_black_crows+breadth_positive+rvol_high: validate edge +14.2% exp +1.93% | discover edge +23.4%
+    [N=1554] k3:three_black_crows+market_up+rvol_high: validate edge +8.6% exp +0.80% | discover edge +15.1%
+  family 6: k3:tight_range+breadth_positive+volume_dry (1 member)
+    [N=1554] k3:tight_range+breadth_positive+volume_dry: validate edge +3.3% exp +0.42% | discover edge +5.2%
+EXPLORATORY 'avoid' candidates: 8 discover survivors with a NEGATIVE edge. No validated claim; no avoid rule registered.
+    [N=1554] k3:evening_star+at_support+breadth_positive: discover edge -23.3% p 0.0040 | validate edge +2.3% (exploratory)
+    [N=1554] k3:evening_star+at_resistance+breadth_positive: discover edge -18.8% p 0.0030 | validate edge +6.6% (exploratory)
+    [N=1554] k5:evening_star+at_resistance+breadth_positive: discover edge -17.8% p 0.0020 | validate edge +12.0% (exploratory)
+    [N=1554] k5:dark_cloud_cover+at_support+rvol_high: discover edge -16.4% p 0.0050 | validate edge -1.5% (exploratory)
+    [N=1554] k5:inside_day_run+at_support: discover edge -3.3% p 0.0030 | validate edge -1.5% (exploratory)
+    [N=1554] k5:breakout+rvol_high: discover edge -3.0% p 0.0040 | validate edge -3.8% (exploratory)
+    [N=1554] k5:hammer_shape+at_support: discover edge -2.8% p 0.0030 | validate edge -2.1% (exploratory)
+    [N=1554] k5:breakout: discover edge -2.7% p 0.0050 | validate edge -4.2% (exploratory)

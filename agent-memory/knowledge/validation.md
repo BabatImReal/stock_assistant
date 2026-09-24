@@ -66,4 +66,9 @@ Design approved by Ben (A1–A12 + five additions; decisions.md run 16):
   The held list is led by "bearish" patterns behaving bullishly
   (three_black_crows / marubozu_red + high rvol), and it forms ~5 nested
   families.
-- **Next:** E4 (kNN), then the holdout, once, with Ben.
+- **E4 built:** a look-alike search, ILLUSTRATIVE only. Its own registered,
+  frozen block; the pool goes through the gate, is resolved before the query
+  day, and until the holdout is run stops before 2024. The 16 held survivors
+  are displayed as 6 families; the 8 negative-edge survivors are shown as
+  exploratory avoid candidates.
+- **Next:** the holdout, once, with Ben, under the pre-registered rule.

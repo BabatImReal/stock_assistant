@@ -529,6 +529,16 @@ snapshots are taken, which needs scheduling (in the nightly-hardening list).
 - For the broker friend: star_body_max 0.3 and max_wick_to_range 0.25 are
   our choices (doc §3.3 gives no numbers).
 
+## E4 (2026-09-24, run 19) — notes for Ben
+- The look-alike pool stops before 2024 until the holdout is run
+  (`pool_before`). After the holdout, should `pool_before` move to the query
+  day? That would be a change to the neighbours block, so it would need a new
+  version.
+- The avoid candidates on validate: 5 of 8 kept a negative sign (dark cloud
+  cover + support + rvol, inside-day run + support, breakout + rvol k5,
+  hammer + support k5, breakout k5). The 3 evening-star variants flipped
+  positive. Exploratory only.
+
 ## E3 results — questions for Ben (2026-09-24, run 18)
 - **Negative-edge survivors:** 8 discover survivors did WORSE than the base
   ("avoid" signals). The validate rule as written (edge ≥ +3 pts, net > 0)

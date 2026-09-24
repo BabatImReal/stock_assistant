@@ -1,0 +1,41 @@
+LOOK-ALIKES (ILLUSTRATIVE, not a statistical claim) TNH 2026-09-21 | method fbc042f4080bf942 | pool resolved before 2024-01-01 | NET PROVISIONAL (fee not confirmed)
+  fired: marubozu_red + three_black_crows
+  50 neighbours (same stock 0); 3d: 58% net > 0, mean +1.42%; 5d: 56% net > 0, mean +2.25%
+    HAR 2017-12-19 d 0.061 known 100% | 3d -9.1% 5d -7.0%
+    DNM 2020-09-09 d 0.061 known 100% | 3d +21.1% 5d +42.2%
+    CSC 2023-07-03 d 0.066 known 100% | 3d +3.5% 5d +3.9%
+    TMT 2016-07-21 d 0.067 known 100% | 3d -0.4% 5d -1.1%
+    DLG 2015-07-24 d 0.070 known 100% | 3d -0.4% 5d -5.9%
+    ITQ 2015-10-27 d 0.074 known 100% | 3d -4.8% 5d -6.3%
+    NBB 2021-12-03 d 0.075 known 100% | 3d -6.3% 5d +2.8%
+    BVH 2012-05-11 d 0.075 known 100% | 3d -17.4% 5d -13.5%
+    BVH 2023-04-18 d 0.075 known 100% | 3d -1.9% 5d -3.0%
+    HSG 2015-02-04 d 0.076 known 100% | 3d -2.7% 5d -0.4%
+
+LOOK-ALIKES (ILLUSTRATIVE, not a statistical claim) FPT 2026-09-18 | method fbc042f4080bf942 | pool resolved before 2024-01-01 | NET PROVISIONAL (fee not confirmed)
+  fired: marubozu_red + bearish_engulfing
+  50 neighbours (same stock 1); 3d: 28% net > 0, mean -1.46%; 5d: 36% net > 0, mean -0.99%
+    HCM 2020-10-21 d 0.060 known 100% | 3d -1.5% 5d -5.0%
+    LDG 2023-04-12 d 0.074 known 82% | 3d -2.3% 5d -4.8%
+    TDH 2021-08-17 d 0.078 known 100% | 3d -10.2% 5d -7.7%
+    GMD 2014-08-01 d 0.085 known 100% | 3d +2.5% 5d +0.8%
+    FPT 2018-04-13 d 0.092 known 82% | 3d -2.5% 5d -6.8%
+    SLS 2023-04-10 d 0.092 known 82% | 3d +1.5% 5d +6.7%
+    VPB 2018-04-13 d 0.094 known 82% | 3d -5.5% 5d -11.4%
+    HDC 2023-09-11 d 0.094 known 100% | 3d -0.8% 5d -6.5%
+    LGL 2021-11-03 d 0.094 known 82% | 3d +3.1% 5d +12.7%
+    VHM 2021-04-26 d 0.098 known 100% | 3d -0.8% 5d -1.3%
+
+LOOK-ALIKES (ILLUSTRATIVE, not a statistical claim) ACB 2026-09-21 | method fbc042f4080bf942 | pool resolved before 2024-01-01 | NET PROVISIONAL (fee not confirmed)
+  fired: hammer_shape + bullish_harami
+  50 neighbours (same stock 0); 3d: 50% net > 0, mean +0.49%; 5d: 50% net > 0, mean +1.36%
+    SCS 2018-12-11 d 0.063 known 100% | 3d -2.9% 5d -4.8%
+    TPB 2020-10-22 d 0.063 known 100% | 3d -10.1% 5d -9.9%
+    DRH 2023-04-07 d 0.066 known 82% | 3d -5.9% 5d -10.1%
+    IMP 2017-03-27 d 0.074 known 82% | 3d +6.5% 5d +4.5%
+    KOS 2022-09-16 d 0.076 known 100% | 3d +1.3% 5d +1.0%
+    HDB 2023-09-19 d 0.083 known 100% | 3d -2.1% 5d -2.1%
+    SRC 2016-04-20 d 0.088 known 100% | 3d +2.1% 5d -3.5%
+    FID 2016-06-17 d 0.089 known 82% | 3d +9.4% 5d +23.8%
+    HDB 2021-02-25 d 0.093 known 88% | 3d +7.4% 5d +3.0%
+    HII 2017-09-01 d 0.094 known 82% | 3d -1.4% 5d +6.2%
