@@ -95,9 +95,17 @@ def assign(symbol: str, dates, labels: pd.DataFrame) -> pd.DataFrame:
     """One symbol's sector and labels_current on each of `dates`."""
     own = labels[labels["symbol"] == symbol]
     if own.empty:
+        # No label in any snapshot (e.g. a stock delisted before the first
+        # one): no sector, and not known to be dated, so flagged. The missing
+        # sector keeps the labels' dtype: an all-NaN FLOAT column cannot be
+        # joined to the string sector keys, and compute() would crash.
+        index = pd.Index(dates, name="trade_date")
         return pd.DataFrame(
-            {"sector": np.nan, "labels_current": True},
-            index=pd.Index(dates, name="trade_date"),
+            {
+                "sector": pd.Series(np.nan, index=index, dtype=labels["sector"].dtype),
+                "labels_current": True,
+            },
+            index=index,
         )
     sector, current = panel(own, dates)
     return pd.DataFrame({"sector": sector[symbol], "labels_current": current[symbol]})
@@ -132,8 +140,15 @@ def write_snapshot(conn, snap: pd.DataFrame, day, source: str = SOURCE) -> int:
             "icb_l2, icb_l2_name, icb_l4, icb_l4_name) "
             "VALUES (%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING",
             [
-                (r.symbol, day, source, r.icb_l2, r.icb_l2_name, r.icb_l4,
-                 r.icb_l4_name)
+                (
+                    r.symbol,
+                    day,
+                    source,
+                    r.icb_l2,
+                    r.icb_l2_name,
+                    r.icb_l4,
+                    r.icb_l4_name,
+                )
                 for r in snap.itertuples()
             ],
         )

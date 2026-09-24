@@ -5,6 +5,8 @@ trend suites use the SAME frame. If they drifted apart, a guard could pass in
 one suite and be silently untested in the other.
 """
 
+import re
+
 import numpy as np
 import pandas as pd
 
@@ -43,3 +45,25 @@ def frame(n=60, volume=1000.0, close=10.0, gaps=None, excluded=None,
     return df
 
 
+
+
+def fails_with(exc, match, fn, *args, **kwargs):
+    """Assert `fn` fails with the guard's OWN error: type `exc`, message
+    matching `match`.
+
+    Not `pytest.raises(exc)`: that lets any OTHER exception escape as a crash.
+    With the guard removed, the code usually breaks a line later on an obscure
+    AttributeError, and a crash is not a catch. Here every outcome is judged
+    by an assert: no error, the wrong type, or the wrong message all fail it.
+    """
+    try:
+        fn(*args, **kwargs)
+        err = None
+    except Exception as e:  # noqa: BLE001 - judging the type is the point
+        err = e
+    # Asserted OUTSIDE the except block, so the traceback is this assert, not
+    # a chained "during handling of ..." showing the other error as a crash.
+    assert err is not None, f"did not raise {exc.__name__}"
+    assert type(err) is exc and re.search(match, str(err)), (
+        f"wrong failure: {type(err).__name__}: {err}"
+    )

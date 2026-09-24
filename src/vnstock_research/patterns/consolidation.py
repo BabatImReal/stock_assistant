@@ -118,6 +118,7 @@ def inside_day_run(bars: pd.DataFrame, p: dict) -> pd.Series:
 
 @measure(
     name="higher_lows",
+    direction="bullish",
     doc_ref="doc §3.4",
     kind="boolean",
     needs=NEEDS,
@@ -138,6 +139,7 @@ def higher_lows(bars: pd.DataFrame, p: dict) -> pd.Series:
 
 @measure(
     name="breakout",
+    direction="bullish",
     doc_ref="doc §3.4",
     kind="boolean",
     needs=NEEDS,

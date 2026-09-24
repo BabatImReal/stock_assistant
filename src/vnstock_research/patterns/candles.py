@@ -86,6 +86,7 @@ def _floor_ok(bars: pd.DataFrame, p: dict) -> pd.Series:
     lookback=lambda p: 0,
 )
 def body_to_range(bars: pd.DataFrame, p: dict) -> pd.Series:
+    """The body's share of the day's range: 0 = all wick, 1 = all body."""
     *_, body, rng, _, _ = _parts(bars)
     return body / rng  # 0/0 on a flat bar is NaN: undefined, as it should be
 
@@ -98,6 +99,7 @@ def body_to_range(bars: pd.DataFrame, p: dict) -> pd.Series:
     lookback=lambda p: 0,
 )
 def upper_wick_to_range(bars: pd.DataFrame, p: dict) -> pd.Series:
+    """The upper wick's share of the day's range: selling from the high."""
     *_, rng, upper, _ = _parts(bars)
     return upper / rng  # 0/0 on a flat bar is NaN: undefined, as it should be
 
@@ -110,6 +112,7 @@ def upper_wick_to_range(bars: pd.DataFrame, p: dict) -> pd.Series:
     lookback=lambda p: 0,
 )
 def lower_wick_to_range(bars: pd.DataFrame, p: dict) -> pd.Series:
+    """The lower wick's share of the day's range: buying from the low."""
     *_, rng, _, lower = _parts(bars)
     return lower / rng  # 0/0 on a flat bar is NaN: undefined, as it should be
 
@@ -215,6 +218,7 @@ def _marubozu(bars: pd.DataFrame, p: dict, green: bool) -> pd.Series:
 
 @measure(
     name="marubozu_green",
+    direction="bullish",
     doc_ref="doc §3.1",
     kind="boolean",
     needs=OHLC + RAW,
@@ -227,6 +231,7 @@ def marubozu_green(bars: pd.DataFrame, p: dict) -> pd.Series:
 
 @measure(
     name="marubozu_red",
+    direction="bearish",
     doc_ref="doc §3.1",
     kind="boolean",
     needs=OHLC + RAW,

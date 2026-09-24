@@ -111,12 +111,18 @@ def load(conn, start: str = "2012-01-01", build: int | None = None) -> SectorInp
     build_id = build if build is not None else current_build(conn)
     labels = sectors.load_labels(conn)
     rows, calendar = universe.load_rows(conn, start, warmup=WARMUP, build=build_id)
+    return SectorInput(build_frame(rows, calendar, labels), labels, basis(labels))
+
+
+def basis(labels: pd.DataFrame) -> str:
+    """Where the labels came from and which dates borrow current ones. Its own
+    function so the stored fingerprint's staleness check can name the label
+    basis without building the whole sector frame."""
     first, last = labels["snapshot_date"].min(), labels["snapshot_date"].max()
-    basis = (
+    return (
         f"{sectors.SOURCE} ICB L2, steel split out at L4; snapshots {first}..{last}; "
         f"dates before {first} borrow current labels (flagged)"
     )
-    return SectorInput(build_frame(rows, calendar, labels), labels, basis)
 
 
 def _lookback(p: dict) -> int:

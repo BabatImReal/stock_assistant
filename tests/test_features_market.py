@@ -9,11 +9,10 @@ defect in our data rather than a fact about the market.
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from vnstock_research.features import MARKET_REGISTRY, compute, compute_market
 
-from ._helpers import frame
+from ._helpers import fails_with, frame
 
 REGIME = {"index_above_ma_50": {"enabled": True, "window_days": 50}}
 
@@ -82,8 +81,7 @@ def test_a_symbol_date_the_market_lacks_is_nan_not_forward_filled():
 def test_enabling_a_market_measure_without_a_market_frame_fails_loudly():
     # Silently dropping it would leave a hole exactly where the regime context
     # should be, and nothing downstream could tell.
-    with pytest.raises(ValueError, match="no market frame"):
-        compute(frame(n=60), REGIME)
+    fails_with(ValueError, "no market frame", compute, frame(n=60), REGIME)
 
 
 def test_market_measures_are_absent_from_the_per_symbol_registry():

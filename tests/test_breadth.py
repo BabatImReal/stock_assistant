@@ -9,7 +9,7 @@ import pytest
 
 from vnstock_research.features import MARKET_REGISTRY, breadth, compute, compute_market
 
-from ._helpers import frame
+from ._helpers import fails_with, frame
 from .test_features_market import market_frame
 from .test_universe import calendar, rows
 
@@ -190,8 +190,10 @@ def test_an_index_gap_does_not_blank_breadth():
 
 
 def test_enabling_breadth_without_a_breadth_frame_fails_loudly():
-    with pytest.raises(ValueError, match="breadth frame"):
-        compute_market({"index": market_frame(n=60)}, DAILY)
+    fails_with(
+        ValueError, "no breadth frame", compute_market,
+        {"index": market_frame(n=60)}, DAILY,
+    )
 
 
 def test_breadth_joins_onto_a_symbol_by_trade_date():

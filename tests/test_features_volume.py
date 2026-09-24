@@ -13,7 +13,7 @@ import pytest
 
 from vnstock_research.features import REGISTRY, base, compute
 
-from ._helpers import frame
+from ._helpers import fails_with, frame
 
 ONLY_RVOL = {"rvol": {"enabled": True, "lookback_days": 20}}
 
@@ -192,8 +192,10 @@ def test_changing_a_parameter_changes_the_fingerprint():
 
 
 def test_enabling_an_unregistered_measure_fails_loudly():
-    with pytest.raises(KeyError):
-        compute(frame(n=5), {"not_a_measure": {"enabled": True}})
+    fails_with(
+        KeyError, "not registered", compute,
+        frame(n=5), {"not_a_measure": {"enabled": True}},
+    )
 
 
 def test_every_configured_measure_is_registered():

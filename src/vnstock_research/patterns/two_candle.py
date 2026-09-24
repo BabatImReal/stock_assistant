@@ -128,6 +128,7 @@ def _harami_lookback(p: dict) -> int:
 
 @measure(
     name="bullish_engulfing",
+    direction="bullish",
     doc_ref="doc §3.2",
     kind="boolean",
     needs=NEEDS,
@@ -148,6 +149,7 @@ def bullish_engulfing(bars: pd.DataFrame, p: dict) -> pd.Series:
 
 @measure(
     name="bearish_engulfing",
+    direction="bearish",
     doc_ref="doc §3.2",
     kind="boolean",
     needs=NEEDS,
@@ -168,6 +170,7 @@ def bearish_engulfing(bars: pd.DataFrame, p: dict) -> pd.Series:
 
 @measure(
     name="bullish_harami",
+    direction="bullish",
     doc_ref="doc §3.2",
     kind="boolean",
     needs=NEEDS,
@@ -188,6 +191,7 @@ def bullish_harami(bars: pd.DataFrame, p: dict) -> pd.Series:
 
 @measure(
     name="bearish_harami",
+    direction="bearish",
     doc_ref="doc §3.2",
     kind="boolean",
     needs=NEEDS,
@@ -208,6 +212,7 @@ def bearish_harami(bars: pd.DataFrame, p: dict) -> pd.Series:
 
 @measure(
     name="piercing_line",
+    direction="bullish",
     doc_ref="doc §3.2",
     kind="boolean",
     needs=NEEDS,
@@ -228,6 +233,7 @@ def piercing_line(bars: pd.DataFrame, p: dict) -> pd.Series:
 
 @measure(
     name="dark_cloud_cover",
+    direction="bearish",
     doc_ref="doc §3.2",
     kind="boolean",
     needs=NEEDS,

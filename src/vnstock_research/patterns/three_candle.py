@@ -93,6 +93,7 @@ def _star_lookback(p: dict) -> int:
 
 @measure(
     name="morning_star",
+    direction="bullish",
     doc_ref="doc §3.3",
     kind="boolean",
     needs=NEEDS,
@@ -118,6 +119,7 @@ def morning_star(bars: pd.DataFrame, p: dict) -> pd.Series:
 
 @measure(
     name="evening_star",
+    direction="bearish",
     doc_ref="doc §3.3",
     kind="boolean",
     needs=NEEDS,
@@ -154,6 +156,7 @@ def _wick_ok(bars: pd.DataFrame, p: dict, k: int, upper: bool) -> pd.Series:
 
 @measure(
     name="three_white_soldiers",
+    direction="bullish",
     doc_ref="doc §3.3",
     kind="boolean",
     needs=NEEDS,
@@ -182,6 +185,7 @@ def three_white_soldiers(bars: pd.DataFrame, p: dict) -> pd.Series:
 
 @measure(
     name="three_black_crows",
+    direction="bearish",
     doc_ref="doc §3.3",
     kind="boolean",
     needs=NEEDS,
@@ -218,6 +222,7 @@ def _inside_lookback(p: dict) -> int:
 
 @measure(
     name="three_inside_up",
+    direction="bullish",
     doc_ref="doc §3.3",
     kind="boolean",
     needs=NEEDS,
@@ -235,6 +240,7 @@ def three_inside_up(bars: pd.DataFrame, p: dict) -> pd.Series:
 
 @measure(
     name="three_inside_down",
+    direction="bearish",
     doc_ref="doc §3.3",
     kind="boolean",
     needs=NEEDS,

@@ -53,6 +53,11 @@ class Measure:
     # and breadth are separate frames, so a missing index day (a data defect)
     # cannot blank breadth, and a thin breadth day cannot blank the index.
     frame: str = "index"
+    # Patterns only: the TRADITIONAL reading, 'bullish' or 'bearish' (None =
+    # neither, e.g. a hammer shape whose meaning depends on the trend, P1). For
+    # the REPORT only, to show bullish and bearish evidence side by side (doc
+    # §3.6). Never an input to matching: the label is a hypothesis (doc §3).
+    direction: str | None = None
 
     @property
     def reads_volume(self) -> bool:
@@ -86,6 +91,7 @@ def measure(
     kind: str,
     needs: tuple[str, ...],
     lookback: Callable[[dict], int],
+    direction: str | None = None,
 ) -> Callable:
     """Register a measure.
 
@@ -98,7 +104,7 @@ def measure(
     def wrap(fn: Callable[[pd.DataFrame, dict], pd.Series]) -> Callable:
         REGISTRY[name] = Measure(
             name=name, doc_ref=doc_ref, kind=kind, needs=needs,
-            lookback=lookback, fn=fn,
+            lookback=lookback, fn=fn, direction=direction,
         )
         return fn
 
@@ -188,6 +194,35 @@ class FeatureSet:
             sort_keys=True, default=str,
         )
         return hashlib.sha256(blob.encode()).hexdigest()[:16]
+
+
+def featureset(config: dict[str, dict], basis: str | None = None) -> FeatureSet:
+    """The FeatureSet `compute` returns for this config, WITHOUT computing.
+
+    `compute` builds its own FeatureSet here, and so does the stored
+    fingerprint's staleness check (patterns/fingerprint.py): one definition,
+    so the two can never disagree about what a feature set is.
+
+    `basis` is the sector label basis (SectorInput.basis). It is recorded in
+    the params of every sector measure and of every measure that reads one, so
+    a change of labels is a change of fingerprint. Those are also the FLAGGED
+    measures: their values can rest on a borrowed label.
+    """
+    names: list[str] = []
+    params: dict[str, dict] = {}
+    flagged: list[str] = []
+    for name, settings in config.items():
+        if not settings.get("enabled", False):
+            continue
+        p = {k: v for k, v in settings.items() if k != "enabled"}
+        m = REGISTRY.get(name)
+        reads_sector = m is not None and any(n in SECTOR_REGISTRY for n in m.needs)
+        if name in SECTOR_REGISTRY or reads_sector:
+            p = {**p, "labels": basis}
+            flagged.append(name)
+        names.append(name)
+        params[name] = p
+    return FeatureSet(measures=tuple(names), params=params, flagged=tuple(flagged))
 
 
 def boolean_from(condition: pd.Series, *inputs: pd.Series) -> pd.Series:
@@ -395,8 +430,6 @@ def compute(
     """
     cfg = config if config is not None else load_config()
     out = pd.DataFrame(index=bars.index)
-    ran: list[str] = []
-    params: dict[str, dict] = {}
 
     market_cfg = {k: v for k, v in cfg.items() if k in MARKET_REGISTRY}
     enabled_market = [k for k, v in market_cfg.items() if v.get("enabled", False)]
@@ -444,8 +477,6 @@ def compute(
                 | member["labels_current"].to_numpy(bool)
             )
             out[name] = work[name].to_numpy()
-            ran.append(name)
-            params[name] = {**sector_params[name], "labels": sector.basis}
 
     for name, settings in cfg.items():
         if name in MARKET_REGISTRY or name in SECTOR_REGISTRY:
@@ -475,12 +506,9 @@ def compute(
         values = values.where(_window_ok(bars, m.lookback(p), m.reads_volume))
 
         out[name] = values
-        ran.append(name)
-        params[name] = p
         if reads:
             # Built on a flagged sector value, so flagged the same way.
             flags[name] = np.logical_or.reduce([flags[n] for n in reads])
-            params[name] = {**p, "labels": sector.basis}
 
     if enabled_market:
         market_values, market_params = compute_market(market, market_cfg)
@@ -493,9 +521,7 @@ def compute(
         )
         for name in market_params:
             out[name] = joined[name].to_numpy()
-        ran.extend(market_params)
-        params.update(market_params)
 
     for name, f in flags.items():
         out[FLAG + name] = f
-    return out, FeatureSet(measures=tuple(ran), params=params, flagged=tuple(flags))
+    return out, featureset(cfg, sector.basis if enabled_sector else None)

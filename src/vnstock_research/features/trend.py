@@ -51,6 +51,7 @@ def ma_20(bars: pd.DataFrame, p: dict) -> pd.Series:
     lookback=lambda p: int(p["window_days"]) - 1,
 )
 def ma_50(bars: pd.DataFrame, p: dict) -> pd.Series:
+    """The 50-session average of the adjusted close."""
     return _ma(bars, int(p["window_days"]))
 
 
@@ -78,6 +79,7 @@ def ma_20_slope(bars: pd.DataFrame, p: dict) -> pd.Series:
     lookback=lambda p: int(p["window_days"]) - 1 + int(p["slope_days"]),
 )
 def ma_50_slope(bars: pd.DataFrame, p: dict) -> pd.Series:
+    """Is the 50-session average rising or falling, and how fast."""
     return _slope(_ma(bars, int(p["window_days"])), int(p["slope_days"]))
 
 
@@ -96,6 +98,7 @@ def price_vs_ma_20(bars: pd.DataFrame, p: dict) -> pd.Series:
     lookback=lambda p: int(p["window_days"]) - 1,
 )
 def price_vs_ma_50(bars: pd.DataFrame, p: dict) -> pd.Series:
+    """How far above or below its 50-session average the close sits."""
     ma = _ma(bars, int(p["window_days"]))
     return bars["close"].astype("float64") / ma.replace(0.0, np.nan) - 1.0
 
@@ -115,6 +118,7 @@ def price_change_10d(bars: pd.DataFrame, p: dict) -> pd.Series:
     lookback=lambda p: int(p["window_days"]),
 )
 def price_change_20d(bars: pd.DataFrame, p: dict) -> pd.Series:
+    """Percentage change over the window: the medium-term trend."""
     close = bars["close"].astype("float64")
     return close / close.shift(int(p["window_days"])) - 1.0
 

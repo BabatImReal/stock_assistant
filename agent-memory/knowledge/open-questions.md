@@ -496,6 +496,20 @@ snapshots are taken, which needs scheduling (in the nightly-hardening list).
 - For the broker friend: star_body_max 0.3 and max_wick_to_range 0.25 are
   our choices (doc §3.3 gives no numbers).
 
+## Patterns tranche 5 (fingerprint) — for Ben (2026-09-24)
+- **Code hash in the manifest** (my addition): any edit under `data/`,
+  `features/` or `patterns/`, even a comment, makes the stored fingerprint
+  refuse to load until it is rebuilt (~20 min). Safe but strict. Keep it, or
+  narrow it to the measure functions?
+- **Every stock, not only liquid**: the table holds all 1,705 symbols since
+  2012; the point-in-time liquid filter is applied at research time. OK?
+- **Traditional direction labels** (report only): marubozu green/red,
+  higher_lows and breakout are labelled bullish/bearish; the hammer shapes,
+  doji, tight_range and inside_day_run have none. A broker-friend question too.
+- **Rebuild speed**: ~20 min single-threaded; market/sector values are still
+  recomputed per symbol (0.12 s of 0.68 s). Only worth changing if the
+  fingerprint becomes a nightly step.
+
 ## Patterns tranche 2 — for the broker friend (2026-09-23)
 - Liquid rates: engulfing 2.40% / 2.36%, harami 4.48% / 3.89%, piercing
   0.63%, dark cloud 0.84%. Does he treat an engulfing of a tiny prior body

@@ -71,6 +71,13 @@ column. Whether a higher timeframe overrides a lower one is a rule to
 **measure**, not assume.
 
 ## Build status
+**T5 BUILT 2026-09-23 (run 14)**: the fingerprint (`patterns/fingerprint.py`).
+It is `compute()` stacked per stock-day over EVERY stock since 2012, plus the
+flag columns. The schema is generated from the registries; `direction` is
+report-only. Stored as Parquet by year + a manifest (build, feature set, code
+hash, file hashes); `load` refuses anything stale; `validated()` is the only path
+to validated values; `query` gives exact combinations with counts, unknown kept
+unknown. encode/neighbours stay T6 (after G5).
 **T4 BUILT 2026-09-23 (run 13)**: tight_range, inside_day_run, higher_lows,
 breakout (price-only, P6; "on volume" = a combination with rvol). Flag/pause
 deferred (P7). Liquid rates: 8.71 / 2.67 / 1.26 / 5.60%. **The catalogue is

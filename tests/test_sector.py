@@ -18,7 +18,7 @@ from vnstock_research.features import (
 from vnstock_research.features.base import FLAG
 from vnstock_research.features.sector import SectorInput, build_frame
 
-from ._helpers import frame
+from ._helpers import fails_with, frame
 from .test_universe import calendar, rows
 
 SECT = {
@@ -244,19 +244,37 @@ def test_stock_vs_sector_needs_the_stocks_own_window_clean():
     assert np.isnan(out["stock_vs_sector_20d"].iloc[115])
 
 
+def test_a_symbol_with_no_label_at_all_is_blank_and_flagged():
+    """A delisted stock missing from every snapshot (125 of 1,705 in build 5):
+    no sector, so no sector value, and flagged, not a crash."""
+    cal = calendar(120)
+    try:
+        out, _ = compute(
+            frame(n=120),
+            {**SECT, **VS},
+            sector=sector_input(sector_frame(), labels([("OTH", "8300", cal[0])])),
+        )
+    except Exception as e:  # noqa: BLE001 - not crashing IS the rule under test
+        raise AssertionError(f"compute crashed, no label: {e!r}") from None
+    for name in ("sector_change_20d", "stock_vs_sector_20d"):
+        assert out[name].isna().all()
+        assert out[FLAG + name].all()
+
+
 def test_stock_vs_sector_must_use_the_sectors_window():
     cal = calendar(120)
-    with pytest.raises(ValueError, match="same window_days"):
-        compute(
-            frame(n=120),
-            {**SECT, "stock_vs_sector_20d": {"enabled": True, "window_days": 10}},
-            sector=sector_input(sector_frame(), labels([("TST", "8300", cal[0])])),
-        )
+    fails_with(
+        ValueError,
+        "same window_days",
+        compute,
+        frame(n=120),
+        {**SECT, "stock_vs_sector_20d": {"enabled": True, "window_days": 10}},
+        sector=sector_input(sector_frame(), labels([("TST", "8300", cal[0])])),
+    )
 
 
 def test_enabling_sector_measures_without_sector_input_fails_loudly():
-    with pytest.raises(ValueError, match="no sector input"):
-        compute(frame(n=60), SECT)
+    fails_with(ValueError, "no sector input", compute, frame(n=60), SECT)
 
 
 # --- the current-label HARD GATE -----------------------------------------
@@ -273,6 +291,10 @@ def flagged_run():
 def test_each_sector_measure_is_individually_flagged():
     out, fs = flagged_run()
     assert set(fs.flagged) == {"sector_change_20d", "stock_vs_sector_20d"}
+    # Every flagged measure carries its flag column: judged here, so a missing
+    # one fails this assert rather than crashing on the lookup below.
+    flags = {c for c in out.columns if c.startswith(FLAG)}
+    assert flags == {FLAG + n for n in fs.flagged}
     for name in fs.flagged:
         assert out[FLAG + name].iloc[45]  # pre-snapshot: flagged
         assert not out[FLAG + name].iloc[100]  # whole window after it: dated
