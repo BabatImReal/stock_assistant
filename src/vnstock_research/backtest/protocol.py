@@ -496,11 +496,89 @@ def report(
     return lines
 
 
+# --- display only: families and exploratory avoid candidates (no claim) -------
+
+
+def _parts(hypothesis_id: str) -> tuple[str, frozenset]:
+    trigger, *conditions = hypothesis_id.split(":", 1)[1].split("+")
+    return trigger, frozenset(conditions)
+
+
+def families(ids) -> list[list[str]]:
+    """Nested hypotheses grouped FOR DISPLAY: the same trigger, one's
+    conditions containing the other's (any horizon), joined transitively.
+    Five marubozu variants are one idea seen five ways, not five edges. Each
+    family is listed most general first."""
+    ids = list(ids)
+    parent = {h: h for h in ids}
+
+    def root(h):
+        while parent[h] != h:
+            h = parent[h]
+        return h
+
+    for a, b in combinations(ids, 2):
+        (ta, ca), (tb, cb) = _parts(a), _parts(b)
+        if ta == tb and (ca <= cb or cb <= ca):
+            parent[root(a)] = root(b)
+    groups: dict = {}
+    for h in ids:
+        groups.setdefault(root(h), []).append(h)
+    order = [sorted(g, key=lambda h: (len(_parts(h)[1]), h)) for g in groups.values()]
+    return sorted(order, key=lambda g: g[0])
+
+
+def summary(log: pd.DataFrame) -> list[str]:
+    """The latest discover and validate runs from the log (in git), for
+    display: the held survivors collapsed into families, and the negative-edge
+    discover survivors as EXPLORATORY avoid candidates. Nothing here changes a
+    verdict; no avoid rule is registered (there is no unused data to test one
+    on without spending the holdout)."""
+
+    def latest(name):
+        d = log[log["slice"] == name]
+        return d[d["run_id"] == d["run_id"].iloc[-1]].set_index("hypothesis")
+
+    disc, val = latest("discover"), latest("validate")
+    n = log["hypothesis"].nunique()
+    held = val[val["survived"].astype(bool)]
+    fams = families(held.index)
+    lines = [
+        f"N = {n} | passed discovery {int(disc['survived'].astype(bool).sum())} | "
+        f"held on validate {len(held)}, in {len(fams)} families (display grouping only)"
+    ]
+    for i, fam in enumerate(fams, 1):
+        lines.append(
+            f"  family {i}: {fam[0]} ({len(fam)} member{'s' * (len(fam) > 1)})"
+        )
+        for h in fam:
+            r = held.loc[h]
+            lines.append(
+                f"    [N={n}] {h}: validate edge {r['edge']:+.1%} exp "
+                f"{r['expectancy']:+.2%} | discover edge {disc.loc[h, 'edge']:+.1%}"
+            )
+    avoid = disc[disc["survived"].astype(bool) & (disc["edge"] < 0)]
+    lines.append(
+        f"EXPLORATORY 'avoid' candidates: {len(avoid)} discover survivors with a "
+        "NEGATIVE edge. No validated claim; no avoid rule registered."
+    )
+    for h, r in avoid.sort_values("edge").iterrows():
+        later = f"{val.loc[h, 'edge']:+.1%}" if h in val.index else "not run"
+        lines.append(
+            f"    [N={n}] {h}: discover edge {r['edge']:+.1%} p {r['p']:.4f} | "
+            f"validate edge {later} (exploratory)"
+        )
+    return lines
+
+
 if __name__ == "__main__":
     import sys
 
     from ..data import db
 
-    with db.connect() as conn:
-        path = run(conn, sys.argv[1])
-    print((path / "report.txt").read_text())
+    if sys.argv[1] == "summary":
+        print("\n".join(summary(read_log())))
+    else:
+        with db.connect() as conn:
+            path = run(conn, sys.argv[1])
+        print((path / "report.txt").read_text())
