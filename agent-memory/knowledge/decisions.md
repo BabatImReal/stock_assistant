@@ -343,3 +343,26 @@ Implementation choices (run 10):
 | --- | --- | --- | --- |
 | 2026-09-24 | main fast-forwarded to `f53b72a` (T1–T5) by me at Ben's choice; `features/patterns` deleted locally and on GitHub; `features/analog-backtest` cut from the new main | Ben said "merged", but origin/main was still 168c2e9 with no PR; verified first, then asked | cutting from the unmerged main |
 | 2026-09-24 | PROPOSED (not decided): outcomes in their own table, joined to features only through one gate; exact combinations = evidence, kNN = one pre-registered look-alike method; purge by `known_on`; BH-FDR over a logged hypothesis count; a base rate on the identical population; a level-labelled fallback. Awaiting A1–A12 | Doc §8, G5 | — |
+
+## Session 2026-09-23-03 run 16 — ANALYSIS ENGINE E1 (limit function + forward returns + storage), branch `features/analog-backtest`
+
+Ben APPROVED the engine design with rulings on A1–A12 (as proposed: k = 3 and 5 both; hit = net > 0; liquidity tier validated + sector exploratory; 30 de-clustered; split 2012–2019 / 2020–2023 / 2024→freeze; BH-FDR q = 0.10 then same sign + min edge + net > 0; 21 triggers × up to 2 of ~8 conditions; hybrid kNN k = 50 after exact combos; adjusted ex-date reference + UPCoM flagged approximate; shared storage; MFE/MAE now; accept the ceiling rejection and report it) plus FIVE ADDITIONS:
+1. the holdout rule is PRE-REGISTERED (written down before any discover run);
+2. `known_on` = the ACTUAL resolution date, including any deferral;
+3. every NET result is stamped PROVISIONAL on the 0.15% fee;
+4. measure and report the liquid UPCoM share;
+5. report the discover → validate SURVIVAL count.
+
+| Date | Decision | Reason | Rejected |
+| --- | --- | --- | --- |
+| 2026-09-24 | **`checks.limit_prices(ref, exchange, dates, first_day)` is THE ceiling/floor** (rate, ceiling, floor, ticks). The dated limit (`limit_rate`) or the first-day band; ceiling rounded DOWN and floor UP to the tick of the limit price ITSELF; one tick from the reference when rounding lands on it; `at_ceiling`/`at_floor` = within HALF a tick. `limits_sql` is its SQL twin. The gate's price-limit SQL and `scripts/measure_fillability.py` now use it; the flat-epsilon helpers are deleted | B1 (Ben's ruling). A live test asserts Python == gate SQL row for row on real stocks covering resumption, sub-tick cheap stocks, UPCoM and pre-2013 | a second definition per caller |
+| 2026-09-24 | **The gate's resumption is counted in SESSIONS** (skipped ≥ 25, from `trading_day`), no longer 35 calendar days; the `n <= 2` leniency was dropped; a violation = a raw close more than ONE TICK beyond the exact ceiling/floor. Gate count (warn only) 4,572 → 4,521 dated, 955 → 913 flagged | One definition with the backtest; the tick of slack absorbs UPCoM's average-price reference and cash-dividend ex-dates | the old move-vs-rate+tick test |
+| 2026-09-24 | **B1 was a ~7x undercount, not "slight"**: the flat 0.0015 tolerance only caught ceilings that needed no rounding. Liquid entries at the ceiling 0.133% → **0.929%**, exits at the floor 0.342% → **2.272%** (whole market 0.741 → 3.427%, 0.799 → 3.802%). Checked on a sample: detected opens sit 0–2.4% below the unrounded limit, exactly the rounding gap | Measured | — |
+| 2026-09-24 | Rounding rules (ceiling down / floor up, the tick of the limit price, one tick from the reference) are in code, marked TO CONFIRM against the exchange rulebooks | Not in market_rules.yaml's verified facts | — |
+| 2026-09-24 | **Forward returns** (`forward_returns.outcomes`): per row t and k ∈ {3, 5}: ret (adjusted), net, mfe, mae, exit_offset, deferred, known_on (actual resolution), reason, upcom, flag__fill. Reasons in walking order: pending, data_ends (G11), no_next_session, window_gap (incl. deferral sessions), window_excluded (t .. exit), not_tradeable (zero matched volume or date-shifted, entry or exit), not_sellable, entry_at_ceiling, exit_floor_unresolved | G3 + the approved proposal | — |
+| 2026-09-24 | "pending" (the MARKET calendar ends first) is kept apart from "data_ends" (the stock's rows end while the market goes on: delisted or still suspended) | G11: never mix "not known yet" with a stock that disappeared | one "no data" reason |
+| 2026-09-24 | The reference price = adj(t-1) / factor(t) (= the raw previous close on an ordinary day); fillability is FLAGGED on UPCoM and on undated exchanges, and where no limits exist; an outcome is flagged if ANY judged row (entry + every exit attempt) is | A9 | flagging the entry only |
+| 2026-09-24 | **`store.py`**: the shared Parquet-by-year + manifest code (write / load / code_hash / files_hash). The fingerprint and the returns both use it; a column's flag always comes with it via the manifest's `flag_for` | Ben: reuse the fingerprint's storage | two copies |
+| 2026-09-24 | Returns stored at `data/processed/returns/<build>_<rules-hash>/`; the manifest records build_id, a rules hash (market_rules, costs, patterns.yaml), a code hash (backtest, data, features, store.py), the file hashes, and `net_provisional`. `join(fp, returns)` refuses two builds | Ben's E1 spec | — |
+| 2026-09-24 | `features.bars.load` now carries `date_shifted` | A shifted bar is never an entry or exit day (universe.yaml) | a second query |
+| 2026-09-24 | The fingerprint's code hash now also covers `store.py` | Its writing and reading code | — |

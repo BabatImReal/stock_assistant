@@ -5,8 +5,10 @@ exit when the exit day closes at the floor. Both are obviously right in
 principle; what matters is whether they remove a rounding error or a meaningful
 slice of the sample. This measures it before any statistic is built on top.
 
-Ceiling and floor are judged on RAW prices against the limit in force that day,
-which is what the exchange actually applies.
+Ceiling and floor are judged on RAW prices by `checks.limits_sql`, the same
+definition as the gate and the backtest (B1): the limit in force for the
+exchange in force that day, rounded to the tick, the first-day band on a
+resumption counted in sessions; "at the ceiling" = within half a tick.
 
 Run:  uv run python scripts/measure_fillability.py
 """
@@ -22,7 +24,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from vnstock_research.backtest import forward_returns as fr  # noqa: E402
-from vnstock_research.data import checks, db  # noqa: E402
+from vnstock_research.data import checks, db, exchanges  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 REPORTS = REPO / "data" / "reports"
@@ -39,11 +41,13 @@ def say(line: str = "") -> None:
 def main() -> None:
     cfg = yaml.safe_load(UNIVERSE.read_text())["liquidity"]
     say(f"G3 fillability measurement   {datetime.now():%Y-%m-%d %H:%M}")
-    eps = fr.LIMIT_EPSILON
-    say(f"ceiling/floor tolerance: {eps} thousand VND")
+    say("ceiling/floor: checks.limits_sql (tick-rounded; within half a tick)")
     say("")
 
     with db.connect() as conn, conn.cursor() as cur:
+        # The recreated container's /dev/shm is small; a parallel hash join
+        # over the whole market can exhaust it.
+        cur.execute("SET max_parallel_workers_per_gather = 0")
         cur.execute(
             """
             CREATE TEMP TABLE liquid AS
@@ -64,21 +68,28 @@ def main() -> None:
         cur.execute(
             f"""
             CREATE TEMP TABLE flagged AS
-            WITH b AS (
-                SELECT r.symbol, r.trade_date, r.exchange, r.open, r.close,
-                       lag(r.close) OVER w AS prev_close
+            WITH sessions AS (
+                SELECT trade_date, row_number() OVER (ORDER BY trade_date) AS s
+                FROM (SELECT DISTINCT trade_date FROM trading_day) cal
+            ),
+            b AS (
+                SELECT r.symbol, r.trade_date,
+                       coalesce(xm.exchange, r.exchange) AS exchange,
+                       r.open, r.close,
+                       lag(r.close) OVER w AS prev_close,
+                       s.s - lag(s.s) OVER w - 1 AS skipped
                 FROM bar_raw r
+                LEFT JOIN sessions s ON s.trade_date = r.trade_date
+                {exchanges.RESOLVE_JOIN_SQL}
                 WHERE r.trade_date >= DATE '2012-01-01'
                   AND NOT r.is_adjusted_source AND NOT r.date_shifted
                 WINDOW w AS (PARTITION BY r.symbol ORDER BY r.trade_date)
             )
-            SELECT symbol, trade_date, prev_close,
-                   ({checks.limit_sql()}) AS lim,
-                   open >= prev_close * (1 + ({checks.limit_sql()})) - {eps}
-                       AS opens_at_ceiling,
-                   close <= prev_close * (1 - ({checks.limit_sql()})) + {eps}
-                       AS closes_at_floor
-            FROM b WHERE prev_close > 0
+            SELECT symbol, trade_date, prev_close, rate AS lim,
+                   -- checks.at_ceiling / at_floor: within half a tick
+                   open >= ceiling - ceiling_tick / 2 AS opens_at_ceiling,
+                   close <= floor + floor_tick / 2 AS closes_at_floor
+            FROM ({checks.limits_sql("SELECT * FROM b WHERE prev_close > 0")}) m
             """
         )
 

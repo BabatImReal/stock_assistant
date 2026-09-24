@@ -1,91 +1,72 @@
-# Current state — 2026-09-24 (end of session 2026-09-23-03, run 15)
+# Current state — 2026-09-24 (end of session 2026-09-23-03, run 16)
 
-Rewritten for run 15 (a proposal run; nothing built). The git figures were
-checked with `git ls-remote` this run. The DB figures are from run 14 (build 5
-'good'; 2,511,070 bar_adjusted rows since 2012; 1,705 symbols).
+Rewritten from scratch. The figures were checked this run against the DB
+(build 5 'good'; 2,511,070 bar_adjusted rows since 2012; 1,705 symbols), the
+stored returns and fingerprint, and `git log`.
 
 ## Phase
 **On main (`f53b72a`):** features (25), the nightly hardening, dated exchange
-labels, the pattern catalogue (T1–T4) and the fingerprint (T5). **Now: the
-ANALYSIS ENGINE, PROPOSED on `features/analog-backtest` (run 15), no code;
-waiting for Ben's answers to A1–A12** (session log run 15). This covers the
-return generator (B2 + B1), exact-combination evidence plus kNN look-alikes
-(G5 / T6) with the §8 defences, base rates with a labelled fallback, and one
-quarantine gate.
+labels, the pattern catalogue (T1–T4) and the fingerprint (T5).
+**Now: the ANALYSIS ENGINE on `features/analog-backtest`.** The design was
+approved (A1–A12 + five additions; decisions.md run 16). **E1 is built and
+awaiting Ben's review:** the shared limit function, the forward-return
+generator and storage. Next: E2.
 
-## Git: ONE working branch (Ben, 2026-09-23)
-- `main` = `f53b72a` (GitHub too). I fast-forwarded it on 2026-09-24 at Ben's
-  choice (he had said "merged" but it was not). Only on Ben's say-so.
-- **`features/analog-backtest`** is the only other branch (the proposal
-  commit). `features/patterns` is deleted.
+## Git: ONE working branch
+- `main` = `f53b72a`. Only on Ben's say-so.
+- **`features/analog-backtest`**: the proposal (`d6512e3`), then E1.
 
-## Measures: 51 (REGISTRY 44 per-symbol + 6 market + 1 sector)
-- Features (25): volume 7, trend/levels 10, index regime 4, breadth 2,
-  sector 2.
-- Patterns (26): 5 anatomy numerics, 5 single-candle shapes, 6 two-candle,
-  6 three-candle, 4 consolidations.
-- 16 patterns carry a traditional `direction` (bullish/bearish), which is
-  report-only and never a value.
-- Liquid firing rates are in `knowledge/patterns.md` and run 10–13 of the
-  session log. For example: doji 10.95%, tight_range 8.71%, breakout 5.60%,
-  morning star 0.14%.
-
-## The fingerprint (T5, `patterns/fingerprint.py`)
-- It is `compute()` per symbol, stacked: one row per stock-day, EVERY stock
-  since 2012, plus `flag__` columns. The schema is generated from the
-  registries.
-- Stored at `data/processed/fingerprint/<build>_<featureset>/<year>.parquet`
-  with `manifest.json` (build, feature set, code hash, per-file sha256).
-  `load(*expected(conn))` refuses anything stale.
-- `validated()` is the ONLY path to validated values (quarantine by the
-  manifest's list). `query()` gives exact combinations (1/0/NaN) with
-  occurrences, judged and per-symbol counts.
-- **Real build `5_d51a9d818b0a54de`:**
-  - 2,511,070 rows (= the DB, per year too), 1,705 symbols, 55 columns, 0
-    duplicate keys, 213 MB;
-  - 14 min to build.
-- The sector measures are 100% flagged: every history date is before the
-  first ICB snapshot (2026-09-23). So validated() blanks them all, which is
-  correct.
-- Rebuild with `uv run python -m vnstock_research.patterns.fingerprint`. Any
-  edit under `data/`, `features/` or `patterns/` requires a rebuild.
+## E1: what exists
+- **`checks.limit_prices`**: the ONE ceiling/floor.
+  - The dated limit, or the first-day band (resumption ≥ 25 sessions skipped).
+  - Ceiling rounded DOWN and floor UP to the tick of the limit price; one tick
+    from the reference when rounding lands on it.
+  - "At" = within half a tick.
+  - `limits_sql` is its twin, used by the gate. A live test shows Python ==
+    gate SQL row for row.
+  - The rounding rules are to confirm with the exchange rulebooks.
+- **B1 was a ~7x undercount:** liquid entries at the ceiling 0.929% (was
+  0.133%), exits at the floor 2.272% (was 0.342%). Gate (warn): 4,521 dated /
+  913 flagged (was 4,572 / 955).
+- **`forward_returns.outcomes`**: per signal day t and k ∈ {3, 5}:
+  - ret (adjusted), net (PROVISIONAL fee), mfe, mae, exit_offset, deferred,
+    known_on (actual resolution), reason, upcom, flag__fill;
+  - the reference price = adj prev close / today's factor (ex-dates);
+  - flagged on undated exchanges, UPCoM, or no limits.
+- **`store.py`**: the shared Parquet-by-year + manifest code (fingerprint +
+  returns). `forward_returns.join` refuses two builds.
+- **Real returns** `data/processed/returns/5_de0d00cf56ae1553/`: 2,511,070
+  rows. k=3, liquid on t (897,588):
+  - 97.42% resolved;
+  - no outcome: window_gap 1.16%, entry_at_ceiling 0.78%, no_next_session
+    0.44%, pending 0.12%, exit_floor_unresolved 0.04%, window_excluded
+    0.02%, not_tradeable 0.01%, data_ends (G11) 97 rows, not_sellable 0;
+  - 17.12% of liquid resolved outcomes are flagged, **11.80% on UPCoM**;
+  - k=5: 96.63% resolved, UPCoM 11.64%.
+- The fingerprint was rebuilt for the new code hash
+  (`fingerprint/5_d51a9d818b0a54de`).
 
 ## Verified by running it this run
-- `uv run pytest` → **387 passed, 0 failed, 0 skipped** (DB up). That includes
-  the live spot check: the stored rows equal a fresh compute of the top liquid
-  stock.
-- `uv run ruff check .` → clean. `ruff format --check` flags 20+ older
-  files (mostly scripts); they are untouched.
-- **Strict mutation proofs** (only the test's own assert counts; no
-  exemptions; compile-checked; cache purged):
-  - T5 28/28;
-  - universe/breadth 17/17, sector 23/23, exchange 15/15, guards 5/5;
+- `uv run pytest` → **424 passed, 0 failed, 0 skipped** (DB up).
+- `uv run ruff check .` → clean. `ruff format --check` still flags older
+  scripts (untouched; measure_fillability.py was already unformatted).
+- **Strict proofs** (no exemptions; compile-checked; cache purged):
+  - E1 50/50;
+  - fingerprint 30/30, exchange 15/15, sector 23/23, universe/breadth 17/17,
+    guards 5/5;
   - T1 23/23, T2 36/36, T3 55/55, T4 20/20.
-- **Fixed this run:**
-  - guard tests now judge the error (`fails_with`);
-  - `compute()` crashed on the 125 symbols with no sector label (found by the
-    real build; fixed in `sectors.assign`; proven).
-
-## Environment note
-On 2026-09-24 the `vnstock-db` container had disappeared while Docker was
-running. The named volume `stock_assistant_vnstock-db-data` was intact, and
-`docker compose up -d` recreated the container with all data present. If the
-DB refuses connections, check `docker ps -a` first.
 
 ## Blockers / open
-- X4, G19, G18, G2, G5, G9, G10, G11; backtest B1, B2, B3.
-- **For Ben (T5):**
-  - keep the code hash in the manifest (strict: any edit forces a rebuild)?
-  - every stock rather than only liquid ones?
-  - the direction labels;
-  - the rebuild speed.
-- Broker-friend questions:
-  - doji at 11% and tight_range at 8.7%;
-  - engulfings of tiny prior bodies;
-  - the harami colour;
-  - the NEW values for T3/T4;
-  - the direction labels;
-  - `near_support` at 40%.
+- **G20 (NEW, not fixed):** the adjusted series jumps on factor-change days:
+  1,818 stock-days, 525 symbols (BNA 2021-10-07: +111%). No gate check covers
+  it. Needs Ben before any build change.
+- X4, G19, G18, G2, G5 (the design is approved, not built), G9, G10, G11; B3
+  (E2).
+- **Environment:** the DB container was recreated 2026-09-24. Its 64 MB
+  /dev/shm breaks big parallel joins, so heavy queries set
+  `max_parallel_workers_per_gather = 0`. A `shm_size` fix needs Ben's OK.
+- **To confirm:** the limit rounding rules; UPCoM's average-price reference.
+- **Broker-friend questions:** in open-questions.md.
 
 ## Rule to remember when judging missing data
 The market is closed on Saturday, Sunday and public holidays
@@ -93,20 +74,22 @@ The market is closed on Saturday, Sunday and public holidays
 weekday the market was open.
 
 ## Next steps
-1. Ben answers A1–A12 (the engine proposal). No engine code before that.
-2. E1: the shared B1 limit function + the return generator + returns storage.
-3. E2: the gate + base rates + fallback. E3: the hypothesis registry, exact
-   combinations, discover/validate, FDR. E4 (= T6): encode/neighbours.
-   The holdout runs once, at the end.
+1. Ben reviews E1 and merges.
+2. **E2:** the validated gate (Validated features + returns, blank flagged
+   fillability rows, purge by known_on, refuse mismatched builds), base rates
+   on the identical population, the stock → liquidity tier → market fallback
+   (≥ 30 de-clustered), a level on every number.
+3. **E3:** the pre-registered holdout rule + hypothesis registry, exact
+   combinations, discover/validate, BH-FDR, the survival count.
+4. **E4:** kNN (T6). The holdout runs once, with Ben.
 
 ## Parked
 TypeSafe / Jev; SSI FastConnect; the broker fee is provisional at 0.15%/side;
-flag/pause (P7); pattern strength numbers (P9); a liquid-universe breadth
-measure; `sector_advance_share_10d`; sector rotation; precomputing
-market/sector values once per build (a `ponytail:` note in `build`).
+flag/pause (P7); pattern strength numbers (P9); precomputing market/sector
+per fingerprint build; target-before-stop (waits for Ben's stop/target).
 
 ## Reading order for the next session
-1. This file. 2. `knowledge/00-index.md`. 3. Runs 14–15 of
-`logs/sessions/2026-09-23-session-03.md` (run 8 = the patterns and fingerprint
-proposal). 4. `knowledge/patterns.md`. 5. Only the code the task touches, via
+1. This file. 2. `knowledge/00-index.md`. 3. Runs 15–16 of
+`logs/sessions/2026-09-23-session-03.md` (run 15 = the engine proposal).
+4. `knowledge/validation.md`. 5. Only the code the task touches, via
 `code-map.md`.

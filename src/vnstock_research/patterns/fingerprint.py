@@ -36,16 +36,14 @@ Encode / neighbours (the G5 analog search) are T6, not here.
 
 from __future__ import annotations
 
-import hashlib
-import json
 import operator
 import re
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from pathlib import Path
 
 import pandas as pd
 
+from .. import store
 from ..features.base import (
     FLAG,
     MARKET_REGISTRY,
@@ -60,28 +58,20 @@ from ..features.base import (
 )
 
 PKG = Path(__file__).resolve().parents[1]
-ROOT = PKG.parents[1] / "data" / "processed" / "fingerprint"
-MANIFEST = "manifest.json"
-KEYS = ["symbol", "trade_date"]
+ROOT = store.PROCESSED / "fingerprint"
+MANIFEST = store.MANIFEST
+KEYS = store.KEYS
 
 # The code a stored value depends on: the measures, their helpers (tick
-# floors, universe, sector labels, exchanges) and the bars loader. A change to
-# a rule that leaves its parameters alone does not change the FeatureSet
-# fingerprint, so without this a fixed bug would keep serving the old values.
-CODE_DIRS = ("data", "features", "patterns")
+# floors, universe, sector labels, exchanges), the bars loader and the storage
+# code. A change to a rule that leaves its parameters alone does not change the
+# FeatureSet fingerprint, so without this a fixed bug would keep serving the
+# old values.
+CODE_DIRS = ("data", "features", "patterns", "store.py")
 
 
 def code_hash() -> str:
-    h = hashlib.sha256()
-    for d in CODE_DIRS:
-        for f in sorted((PKG / d).rglob("*.py")):
-            h.update(str(f.relative_to(PKG)).encode())
-            h.update(f.read_bytes())
-    return h.hexdigest()[:16]
-
-
-def _sha(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    return store.code_hash(CODE_DIRS, PKG)
 
 
 # --- schema: generated from the registries ----------------------------------
@@ -160,18 +150,7 @@ def assemble(frames, config: dict, market=None, sector=None):
 def write(
     values: pd.DataFrame, fs: FeatureSet, build_id: int, root: Path = ROOT
 ) -> Path:
-    """One Parquet file per year, then the manifest LAST."""
-    d = root / f"{build_id}_{fs.fingerprint}"
-    d.mkdir(parents=True, exist_ok=True)
-    # Removed FIRST: a rewrite that dies half-way leaves no manifest, so the
-    # half-written files cannot be loaded as if they were complete.
-    (d / MANIFEST).unlink(missing_ok=True)
-    files = {}
-    years = pd.to_datetime(values["trade_date"]).dt.year
-    for year, part in values.groupby(years, sort=True):
-        path = d / f"{year}.parquet"
-        part.to_parquet(path, index=False)
-        files[str(year)] = {"rows": len(part), "sha256": _sha(path)}
+    """One Parquet file per year, then the manifest LAST (store.write)."""
     manifest = {
         "build_id": build_id,
         "featureset": fs.fingerprint,
@@ -179,15 +158,10 @@ def write(
         "measures": list(fs.measures),
         "params": fs.params,
         "flagged": list(fs.flagged),
-        "columns": list(values.columns),
+        "flag_for": {n: FLAG + n for n in fs.flagged},
         "schema": schema(fs).to_dict("records"),
-        "rows": len(values),
-        "symbols": int(values["symbol"].nunique()),
-        "files": files,
-        "created_at": datetime.now(UTC).isoformat(timespec="seconds"),
     }
-    (d / MANIFEST).write_text(json.dumps(manifest, indent=1, default=str))
-    return d
+    return store.write(values, root / f"{build_id}_{fs.fingerprint}", manifest)
 
 
 def build(conn, root: Path = ROOT, start: str = "2012-01-01") -> Path:
@@ -263,61 +237,15 @@ def load(
     asked for is ALWAYS read with it, so `validated()` can never be handed a
     flagged value without its flag.
     """
-    d = root / f"{build_id}_{fs.fingerprint}"
-    if not (d / MANIFEST).exists():
-        stored = sorted(p.parent.name for p in root.glob(f"*/{MANIFEST}"))
-        raise FileNotFoundError(
-            f"no fingerprint for build {build_id}, feature set {fs.fingerprint} "
-            f"(stored: {', '.join(stored) or 'none'}); run fingerprint.build"
-        )
-    man = json.loads((d / MANIFEST).read_text())
-    stale = [
-        f"{key} stored {man[key]} != current {now}"
-        for key, now in (
-            ("build_id", build_id),
-            ("featureset", fs.fingerprint),
-            ("code", code_hash()),
-        )
-        if man[key] != now
-    ]
-    if stale:
-        raise ValueError(
-            f"stale fingerprint in {d.name}: {'; '.join(stale)}. Rebuild it."
-        )
-
-    cols = None
-    if columns is not None:
-        want = [c for c in columns if c not in KEYS]
-        want += [FLAG + c for c in want if c in man["flagged"] and FLAG + c not in want]
-        cols = KEYS + want
-
-    lo = pd.Timestamp(start) if start is not None else None
-    hi = pd.Timestamp(end) if end is not None else None
-    parts = []
-    for year, meta in man["files"].items():
-        if (lo is not None and int(year) < lo.year) or (
-            hi is not None and int(year) > hi.year
-        ):
-            continue
-        path = d / f"{year}.parquet"
-        if _sha(path) != meta["sha256"]:
-            raise ValueError(
-                f"{d.name}/{path.name} changed since it was written. Rebuild it."
-            )
-        parts.append(pd.read_parquet(path, columns=cols))
-    values = (
-        pd.concat(parts, ignore_index=True)
-        if parts
-        else pd.DataFrame(columns=cols or man["columns"])
+    values, man = store.load(
+        root / f"{build_id}_{fs.fingerprint}",
+        "fingerprint",
+        f"build {build_id}, feature set {fs.fingerprint}",
+        {"build_id": build_id, "featureset": fs.fingerprint, "code": code_hash()},
+        columns,
+        start,
+        end,
     )
-    dates = pd.to_datetime(values["trade_date"])
-    keep = pd.Series(True, index=values.index)
-    if lo is not None:
-        keep &= dates >= lo
-    if hi is not None:
-        keep &= dates <= hi
-    # Files are split by year; hand the rows back one stock's history at a time.
-    values = values[keep].sort_values(KEYS, kind="stable").reset_index(drop=True)
     return Fingerprint(values, pd.DataFrame(man["schema"]), man)
 
 

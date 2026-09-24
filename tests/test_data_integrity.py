@@ -433,3 +433,56 @@ def test_the_gate_judges_a_move_by_the_dated_exchange_not_the_filed_one(conn):
         cur.execute(checks.price_limit_sql(), params)
         as_upcom, _ = cur.fetchone()
     assert as_hose > as_upcom
+
+
+def test_the_limit_function_and_the_gate_sql_agree_row_for_row(conn):
+    """B1: one definition. The gate's SQL (checks.price_limit_sql) and the
+    backtest's Python (checks.limit_prices) give the same rate, ceiling, floor
+    and ticks on every real row of stocks chosen to cover each case: a
+    resumption after a long suspension, a stock cheap enough that its limit is
+    under a tick, UPCoM, and the pre-2013 limits."""
+    import numpy as np
+    import pandas as pd
+
+    from vnstock_research.features.bars import current_build
+
+    with conn.cursor() as cur:
+        cur.execute("SET max_parallel_workers_per_gather = 0")
+        cur.execute(
+            """
+            (SELECT symbol FROM bar_raw WHERE exchange = 'HNX' AND close > 0
+               AND close < 0.9 AND trade_date > '2013-02-01'
+             GROUP BY symbol ORDER BY count(*) DESC LIMIT 3)
+            UNION
+            (SELECT symbol FROM (
+                SELECT symbol, trade_date - lag(trade_date)
+                       OVER (PARTITION BY symbol ORDER BY trade_date) AS d
+                FROM bar_raw WHERE trade_date >= '2012-01-01'
+                  AND NOT is_adjusted_source) x
+             WHERE d > 60 GROUP BY symbol ORDER BY symbol LIMIT 3)
+            UNION
+            (SELECT symbol FROM bar_raw WHERE exchange = 'UPCOM'
+             GROUP BY symbol ORDER BY count(*) DESC LIMIT 3)
+            UNION (SELECT 'FPT') UNION (SELECT 'HPG')
+            """
+        )
+        symbols = [r[0] for r in cur.fetchall()]
+        cur.execute(
+            checks.price_limit_sql(rows=True),
+            {"build": current_build(conn), "symbols": symbols},
+        )
+        cols = [d.name for d in cur.description]
+        sql = pd.DataFrame(cur.fetchall(), columns=cols)
+    n = checks.resumption_sessions()
+    first = sql["skipped"].fillna(0).to_numpy() >= n
+    py = checks.limit_prices(
+        sql["prev_close"].astype(float), sql["exchange"], sql["trade_date"], first
+    )
+    for col in ("rate", "ceiling", "floor", "ceiling_tick", "floor_tick"):
+        assert np.allclose(py[col], sql[col].astype(float), atol=1e-9), col
+    # Not vacuous: every case the definition distinguishes is present.
+    assert first.any()
+    assert (np.isclose(py["ceiling"], sql["prev_close"].astype(float)
+                       + py["ceiling_tick"])).any()
+    assert (pd.to_datetime(sql["trade_date"]) < "2013-01-15").any()
+    assert set(sql["exchange"]) >= {"HOSE", "HNX", "UPCOM"}

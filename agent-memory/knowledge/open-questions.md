@@ -398,6 +398,28 @@ New, found while resolving them. NOT fixed this run:
 - **X4 (for Ben)**: re-derive `bar_raw.exchange` / the `trading_day` split from
   the resolved exchange, or keep raw as filed (current)?
 
+### G20 — Adjusted-series jumps on factor-change days (found 2026-09-24, run 16) — NOT FIXED
+The first real returns build showed BNA +114% to +136% over 3 sessions on HNX.
+The cause is build 5's factor: on 2021-10-07 the raw close fell 67.9 → 38.7
+(a corporate action), but the factor jumped 0.1668 → 0.6189. That is a +111%
+step in the ADJUSTED series, which should be continuous.
+
+Whole market since 2012 (excluding backfilled rows): **1,818 stock-days on
+525 symbols** where the adjusted close moves more than 2x the daily limit on
+a day the factor changed. Some are legitimate: a resumption band can reach
+20/30/40%. The rest are candidate factor defects.
+
+No gate check looks at this. The price-limit check excuses every
+factor-change day.
+
+Effect: a return window crossing such a day is wrong. 292 k=3 returns exceed
+±60%: 265 are UPCoM (quarantined), and 27 are not (penny-stock ticks like ACM
+are legitimate).
+
+**Resolve:** a gate check on adjusted moves beyond the band in force; then
+exclude or repair (excluded_window / a new build). Ask Ben before any build
+change.
+
 ### G19 — The price-limit check's factor tolerance is below CafeF's rounding jitter (found 2026-09-23)
 The check skips a day as "factor changed" when |Δfactor| ≥ 0.000001. CafeF's
 factor is adjusted/raw close on 2-decimal prices, so it jitters by more than
@@ -496,7 +518,13 @@ snapshots are taken, which needs scheduling (in the nightly-hardening list).
 - For the broker friend: star_body_max 0.3 and max_wick_to_range 0.25 are
   our choices (doc §3.3 gives no numbers).
 
-## Analysis engine — A1–A12 for Ben (2026-09-24, proposal in session 03 run 15)
+## Analysis engine — A1–A12 ANSWERED 2026-09-24 (approved as proposed + five additions; decisions.md run 16). E1 built.
+- **Environment:** the recreated DB container has Docker's default 64 MB /dev/shm. A
+  whole-market parallel hash join failed with "could not resize shared
+  memory segment". Workaround: `SET max_parallel_workers_per_gather = 0` in the
+  heavy queries. A fix would be `shm_size` in docker-compose.yml (an
+  environment change; ask Ben first).
+
 Horizons (G10), the hit definition, the middle fallback level (liquidity tier vs
 sector), min occurrences de-clustered, the split years, FDR + validate
 thresholds, the hypothesis vocabulary, the kNN spec, the reference price (the
@@ -551,10 +579,19 @@ and no first-day band**.
 
 The exchange rounds the ceiling *down* to the tick, and 1.5 VND is smaller than
 one tick on every exchange, so genuine ceiling and floor bars on higher-priced
-stocks are **under-detected**. The measured fillability rates (0.133% of liquid
-bars rejected at entry, 0.342% deferred at exit) are therefore **approximate
-and slight undercounts** — the direction of the error is known, which is why
-they are still usable as an order-of-magnitude answer.
+stocks are **under-detected**. ~~The measured fillability rates (0.133% of
+liquid bars rejected at entry, 0.342% deferred at exit) are approximate and
+slight undercounts.~~ **CORRECTED 2026-09-24 (run 16): not slight. With the
+tick-rounded limit, liquid entries at the ceiling are 0.929% and exits at the
+floor 2.272%, about 7x the old figures.**
+
+**RESOLVED 2026-09-24 (run 16):** `checks.limit_prices` is the one definition
+(Python + `limits_sql`), used by the gate, fillability and
+measure_fillability; the flat-epsilon helpers are deleted; a live test asserts
+Python == gate SQL. STILL TO CONFIRM against the exchange rulebooks: the
+ceiling rounds DOWN and the floor UP, to the tick of the limit price itself;
+one tick from the reference when rounding lands on it; UPCoM's reference is
+the previous AVERAGE price (so UPCoM fillability is flagged).
 
 **When the backtest applies fillability per trade it must reuse `checks.py`'s
 tick- and first-day-aware logic, not the simplified helper.** Consider
@@ -567,6 +604,9 @@ backtest MUST run results through `features.base.quarantine_flagged` before
 reporting anything as validated; flagged sector features are exploratory only.
 The §7.1 fallback may pool on current labels (`data.sectors.current_groups`),
 but it must SAY it pooled on current labels.
+
+### B2 — BUILT 2026-09-24 (run 16, E1): `forward_returns.outcomes` + storage
+Kept for context (the original finding):
 
 ### B2 — The return generator is not written
 `backtest/forward_returns.py` is **primitives only**: `earliest_sell_offset`,

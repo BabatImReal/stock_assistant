@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 
 from vnstock_research.backtest import forward_returns as fr
-from vnstock_research.data import exchanges
+from vnstock_research.data import checks, exchanges
 from vnstock_research.features import quarantine_flagged
 from vnstock_research.features.base import FLAG
 
@@ -125,9 +125,10 @@ def bars(exchange="HOSE", unknown=False, open_move=0.07, n=3):
 
 
 def test_the_limit_is_the_one_in_force_for_that_exchange_and_date():
-    assert fr.limit_in_force("HNX", D(2012, 6, 1)) == 0.07  # before 2013-01-15
-    assert fr.limit_in_force("HNX", D(2014, 6, 1)) == 0.10
-    assert fr.limit_in_force("UPCOM", D(2020, 1, 2)) == 0.15
+    rate = checks.limit_rate(
+        ["HNX", "HNX", "UPCOM"], [D(2012, 6, 1), D(2014, 6, 1), D(2020, 1, 2)]
+    )
+    assert rate.tolist() == [0.07, 0.10, 0.15]  # HNX widened on 2013-01-15
 
 
 def test_fillability_uses_the_exchange_it_is_given():
@@ -135,6 +136,33 @@ def test_fillability_uses_the_exchange_it_is_given():
     assert fr.fillability(bars("HOSE"))["entry_at_ceiling"].iloc[1] == 1.0
     assert fr.fillability(bars("HNX"))["entry_at_ceiling"].iloc[1] == 0.0
     assert np.isnan(fr.fillability(bars("HOSE"))["entry_at_ceiling"].iloc[0])
+
+
+def test_a_resumption_after_a_long_suspension_gets_the_first_day_band():
+    # +7% is the ceiling on an ordinary HOSE day, not after 25 skipped
+    # sessions (the 20% band).
+    b = bars("HOSE")
+    b["gap_before"] = [0, 25, 0]
+    out = fr.fillability(b)
+    assert out["limit"].tolist()[1:] == [0.20, 0.07]
+    assert out["entry_at_ceiling"].iloc[1] == 0.0
+
+
+def test_the_reference_price_is_used_when_given():
+    # An ex-date: the reference is the previous close adjusted for the
+    # action, 50 not 100, so an open of 53.5 is AT the ceiling.
+    b = bars("HOSE", open_move=-0.465)
+    b["reference"] = [np.nan, 50.0, 100.0]
+    assert fr.fillability(b)["entry_at_ceiling"].iloc[1] == 1.0
+    raw_prev = fr.fillability(b.drop(columns="reference"))
+    assert raw_prev["entry_at_ceiling"].iloc[1] == 0.0
+
+
+def test_fillability_on_upcom_is_flagged_approximate():
+    # UPCoM's reference is (to be verified) the previous AVERAGE price.
+    out = fr.fillability(bars("UPCOM"))
+    for name in fr.FILLABILITY:
+        assert out[FLAG + name].all()
 
 
 def test_every_fillability_result_on_an_unknown_exchange_is_flagged():

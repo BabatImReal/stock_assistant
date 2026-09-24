@@ -144,8 +144,7 @@ def tick_sql(price_col: str) -> str:
         for regime in sorted(periods, key=lambda r: r["from"], reverse=True):
             for band in regime["bands"]:
                 cond = (
-                    f"exchange = '{exchange}' AND trade_date >= "
-                    f"DATE '{regime['from']}'"
+                    f"exchange = '{exchange}' AND trade_date >= DATE '{regime['from']}'"
                 )
                 if band["under"] is not None:
                     cond += f" AND {price_col} < {band['under']}"
@@ -153,12 +152,16 @@ def tick_sql(price_col: str) -> str:
     return "CASE " + " ".join(cases) + " ELSE 0.1 END"
 
 
+def _iso(dates) -> np.ndarray:
+    return pd.to_datetime(pd.Series(dates)).dt.strftime("%Y-%m-%d").to_numpy()
+
+
 def _ticks(dates, prices) -> dict[str, np.ndarray]:
     """Each exchange's tick at each (date, RAW price), in thousands of VND; NaN
     before the exchange opened. The Python twin of `tick_sql`, reading the same
     table."""
     regimes = yaml.safe_load(MARKET_RULES.read_text())["tick_size"]
-    d = pd.to_datetime(pd.Series(dates)).dt.strftime("%Y-%m-%d").to_numpy()
+    d = _iso(dates)
     p = np.asarray(prices, dtype="float64")
     out = {}
     for exchange, periods in regimes.items():
@@ -193,13 +196,19 @@ def floor_tick(dates, prices, exchange, exchange_unknown) -> np.ndarray:
     everywhere overshoots HOSE's real tick 2-10x on 64% of dated liquid HOSE
     days (measured 2026-09-23) and would drop real candles on HOSE only.
     """
-    ticks = _ticks(dates, prices)
-    ex = np.asarray(exchange, dtype=object)
-    own = np.full(len(ex), np.nan)
-    for name, tick in ticks.items():
-        own = np.where(ex == name, tick, own)
+    own = _own_tick(dates, prices, exchange)
     unknown = np.asarray(exchange_unknown, dtype=bool) | np.isnan(own)
     return np.where(unknown, max_tick(dates, prices), own)
+
+
+def _own_tick(dates, prices, exchange) -> np.ndarray:
+    """Each row's OWN exchange's tick at (date, RAW price); NaN for an exchange
+    that is not in the table or not open yet."""
+    ex = np.asarray(exchange, dtype=object)
+    own = np.full(len(ex), np.nan)
+    for name, tick in _ticks(dates, prices).items():
+        own = np.where(ex == name, tick, own)
+    return own
 
 
 def first_day_limit_sql() -> str:
@@ -218,30 +227,162 @@ def first_day_limit_sql() -> str:
     return "CASE " + " ".join(cases) + " ELSE 0.20 END"
 
 
-def price_limit_sql() -> str:
+def limit_rate(exchange, dates) -> np.ndarray:
+    """The daily limit in force for each row's exchange and date. The Python
+    twin of `limit_sql` (0.07 for an exchange not in the table, as there)."""
+    rules = yaml.safe_load(MARKET_RULES.read_text())["price_limits"]
+    d, ex = _iso(dates), np.asarray(exchange, dtype=object)
+    out = np.full(len(ex), 0.07)
+    for name, periods in rules.items():
+        # Oldest first, so a later period overwrites from its start date.
+        for period in sorted(periods, key=lambda r: r["from"]):
+            out = np.where((ex == name) & (d >= period["from"]), period["limit"], out)
+    return out
+
+
+def first_day_rate(exchange) -> np.ndarray:
+    """The first-day / resumption band. Twin of `first_day_limit_sql`."""
+    rules = yaml.safe_load(MARKET_RULES.read_text())["first_day_limits"]
+    return np.array([float(rules.get(e, 0.20)) for e in exchange], dtype="float64")
+
+
+# Floating-point noise only: 100 x 1.07 / 0.1 is 1069.9999999999998 in binary,
+# and a rounding DOWN must not lose a whole tick to it. Orders of magnitude
+# below any tick.
+ROUND_EPS = 1e-9
+
+
+def limit_prices(ref, exchange, dates, first_day) -> pd.DataFrame:
+    """THE ceiling and floor prices (B1), one row per input row.
+
+    ref        the RAW reference price (normally the previous close; on an
+               ex-date, the previous close adjusted for the action)
+    exchange   the exchange in force that day
+    first_day  True where the wider first-day / resumption band applies (a
+               resumption is counted in SESSIONS skipped, by the caller)
+
+    The exchange computes ref x (1 +- limit) and rounds the ceiling DOWN and
+    the floor UP to the tick of the resulting price. Where that rounding lands
+    back on the reference itself (a very cheap stock whose limit is smaller than
+    one tick), the band is one tick either side of it. Both rounding rules are
+    to be confirmed against the exchange rulebooks (open-questions B1).
+
+    Returns rate, ceiling, floor and the tick at each. "At the ceiling" is
+    within HALF a tick of it (`at_ceiling`): the prices are on the tick grid,
+    so half a tick separates the ceiling from the next price below it on
+    every exchange and in every era, which no fixed tolerance can do.
+
+    `limits_sql` is the SQL twin, used by the gate; a test asserts the two
+    agree row for row on real data.
+    """
+    ref = np.asarray(ref, dtype="float64")
+    ex = np.asarray(exchange, dtype=object)
+    first = np.asarray(first_day, dtype=bool)
+    rate = np.where(first, first_day_rate(ex), limit_rate(ex, dates))
+    up, down = ref * (1 + rate), ref * (1 - rate)
+    up_tick, down_tick = _own_tick(dates, up, ex), _own_tick(dates, down, ex)
+    ceiling = np.floor(up / up_tick + ROUND_EPS) * up_tick
+    floor = np.ceil(down / down_tick - ROUND_EPS) * down_tick
+    ceiling = np.where(ceiling <= ref + ROUND_EPS, ref + up_tick, ceiling)
+    floor = np.where(floor >= ref - ROUND_EPS, ref - down_tick, floor)
+    return pd.DataFrame(
+        {
+            "rate": rate,
+            "ceiling": ceiling,
+            "floor": floor,
+            "ceiling_tick": up_tick,
+            "floor_tick": down_tick,
+        }
+    )
+
+
+def at_ceiling(price, limits: pd.DataFrame) -> np.ndarray:
+    return (
+        np.asarray(price, dtype="float64")
+        >= (limits["ceiling"] - limits["ceiling_tick"] / 2).to_numpy()
+    )
+
+
+def at_floor(price, limits: pd.DataFrame) -> np.ndarray:
+    return (
+        np.asarray(price, dtype="float64")
+        <= (limits["floor"] + limits["floor_tick"] / 2).to_numpy()
+    )
+
+
+def limits_sql(source: str, ref: str = "prev_close", skipped: str = "skipped") -> str:
+    """`source` (a SQL relation with exchange, trade_date, {ref} and {skipped},
+    the sessions skipped before the row) plus rate, ceiling, floor,
+    ceiling_tick and floor_tick. The SQL twin of `limit_prices`, built from the
+    same config, layer by layer in the same order."""
+    n = resumption_sessions()
+    return f"""
+    SELECT l.*,
+           CASE WHEN c_round <= {ref} + {ROUND_EPS} THEN {ref} + ceiling_tick
+                ELSE c_round END AS ceiling,
+           CASE WHEN f_round >= {ref} - {ROUND_EPS} THEN {ref} - floor_tick
+                ELSE f_round END AS floor
+    FROM (
+        SELECT t.*,
+               floor(up / ceiling_tick + {ROUND_EPS}) * ceiling_tick AS c_round,
+               ceil(down / floor_tick - {ROUND_EPS}) * floor_tick AS f_round
+        FROM (
+            SELECT u.*, ({tick_sql("up")}) AS ceiling_tick,
+                   ({tick_sql("down")}) AS floor_tick
+            FROM (
+                SELECT r.*, {ref} * (1 + r.rate) AS up, {ref} * (1 - r.rate) AS down
+                FROM (
+                    SELECT s.*,
+                           CASE WHEN coalesce({skipped}, 0) >= {n}
+                                THEN ({first_day_limit_sql()})
+                                ELSE ({limit_sql()}) END AS rate
+                    FROM ({source}) s
+                ) r
+            ) u
+        ) t
+    ) l"""
+
+
+def price_limit_sql(rows: bool = False) -> str:
     """(violations on DATED exchange days, violations on FLAGGED days) since
-    2012: raw moves beyond the limit in force + 1 tick with no factor change.
+    2012: raw closes more than one tick beyond the ceiling or floor in force
+    (`limits_sql`, the same definition the backtest uses) with no factor
+    change. With `rows=True`, every judged row with its limits instead of the
+    counts (the agreement test reads it).
 
     Params: build, symbols (NULL = every symbol; a list restricts it, for tests).
     The exchange is the one IN FORCE on the date (data/exchanges.py); where it
     is not dated, the filed one is borrowed and the row counts as FLAGGED.
+
+    The one tick of slack beyond the exact ceiling absorbs what the reference
+    price cannot tell us from a close alone: UPCoM's reference is (to be
+    verified) the previous session's AVERAGE price, and a cash dividend lowers
+    the reference without changing our factor.
     """
-    return f"""
-    WITH moves AS (
+    judged = limits_sql("SELECT * FROM moves WHERE prev_close > 0")
+    head = f"""
+    WITH sessions AS (
+        SELECT trade_date, row_number() OVER (ORDER BY trade_date) AS s
+        FROM (SELECT DISTINCT trade_date FROM trading_day) cal
+    ),
+    moves AS (
         SELECT r.symbol, r.trade_date,
                coalesce(xm.exchange, r.exchange) AS exchange,
                xm.exchange IS NULL AS exchange_unknown,
                r.close,
                lag(r.close) OVER w AS prev_close,
-               r.close / lag(r.close) OVER w - 1 AS move,
                f.factor,
                lag(f.factor) OVER w AS prev_factor,
-               row_number() OVER w AS n,
-               lag(r.trade_date) OVER w AS prev_date
+               -- Sessions skipped since the previous row: a resumption after
+               -- a long suspension comes under the WIDER first-day band
+               -- (20/30/40 percent), so it is a different rule, not a
+               -- violation. Counted in sessions, as the backtest counts it.
+               s.s - lag(s.s) OVER w - 1 AS skipped
         FROM bar_raw r
         JOIN adjustment_factor f
           ON f.symbol = r.symbol AND f.trade_date = r.trade_date
          AND f.build_id = %(build)s
+        LEFT JOIN sessions s ON s.trade_date = r.trade_date
         {exchanges.RESOLVE_JOIN_SQL}
         WHERE r.trade_date >= DATE '2012-01-01'
           AND (%(symbols)s::text[] IS NULL OR r.symbol = ANY(%(symbols)s))
@@ -257,26 +398,19 @@ def price_limit_sql() -> str:
           -- them added 1,916 phantom violations.
           AND NOT r.is_adjusted_source
         WINDOW w AS (PARTITION BY r.symbol ORDER BY r.trade_date)
-    )
+    )"""
+    if rows:
+        return head + f"\n    SELECT * FROM ({judged}) m ORDER BY symbol, trade_date"
+    return (
+        head
+        + f"""
     SELECT count(*) FILTER (WHERE NOT exchange_unknown),
            count(*) FILTER (WHERE exchange_unknown)
-    FROM moves
-    WHERE move IS NOT NULL AND prev_close > 0
-      -- A first trading day and a resumption after a long suspension
-      -- come under a WIDER band (20/30/40 percent), so they are not
-      -- violations at all -- they are a different rule. 35 calendar
-      -- days stands in for the 25-session threshold; the calendar
-      -- table could give the exact count, but the classes either side
-      -- of this boundary are already separated in the investigation.
-      AND abs(move) > CASE
-            WHEN n <= 2
-              OR prev_date < trade_date - INTERVAL '35 days'
-            THEN ({first_day_limit_sql()})
-            ELSE ({limit_sql()})
-          END
-          + ({tick_sql("prev_close")}) / prev_close
+    FROM ({judged}) m
+    WHERE (close > ceiling + ceiling_tick OR close < floor - floor_tick)
       AND abs(factor - prev_factor) < 0.000001
     """
+    )
 
 
 def resumption_sessions() -> int:
@@ -458,9 +592,7 @@ def run_all(conn, build_id: int) -> list[Check]:
 
         # A session or a bar on a listed holiday is a phantom: the market was
         # closed (2025-05-02 was exactly this). Blocking, like the weekend check.
-        cur.execute(
-            HOLIDAY_SESSIONS_SQL, {"days": [d for _, d in holiday_list()]}
-        )
+        cur.execute(HOLIDAY_SESSIONS_SQL, {"days": [d for _, d in holiday_list()]})
         n_hol_sessions, n_hol_bars = cur.fetchone()
         checks.append(
             Check(
