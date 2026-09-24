@@ -336,3 +336,10 @@ Implementation choices (run 10):
 | 2026-09-24 | **Bug fixed (found by the first real build): `compute()` crashed on any stock with NO sector label in any snapshot.** `sectors.assign` returned an all-NaN FLOAT sector, which pandas refuses to merge with the string sector keys. Now the empty sector keeps the labels' dtype, so the stock gets NaN sector values, flagged. 125 of 1,705 symbols (40,667 stock-days since 2012, delisted stocks absent from today's ICB snapshot) | Test `test_a_symbol_with_no_label_at_all_is_blank_and_flagged` failed with the same error before the fix and passes after; the strict proof is genuine (the test turns a crash into an assert, because not crashing IS the rule). Earlier runs used liquid, labelled stocks only, so it never showed | dropping unlabelled stocks from the fingerprint |
 | 2026-09-24 | `test_each_sector_measure_is_individually_flagged` now asserts that every flagged measure has its flag column | After the `featureset()` refactor, removing a per-symbol flag made the test crash on a KeyError instead of judging it | — |
 | 2026-09-24 | Exchange-label proof script: the filed-exchange mutant is now mapped to the test that catches it (`test_the_gate_judges_a_move_by_the_dated_exchange_not_the_filed_one`); strict 15/15 | Run 13 had confirmed it by hand; the script still named the old test | — |
+
+## Session 2026-09-23-03 run 15 — merge + analysis-engine PROPOSAL, branch `features/analog-backtest`
+
+| Date | Decision | Reason | Rejected |
+| --- | --- | --- | --- |
+| 2026-09-24 | main fast-forwarded to `f53b72a` (T1–T5) by me at Ben's choice; `features/patterns` deleted locally and on GitHub; `features/analog-backtest` cut from the new main | Ben said "merged", but origin/main was still 168c2e9 with no PR; verified first, then asked | cutting from the unmerged main |
+| 2026-09-24 | PROPOSED (not decided): outcomes in their own table, joined to features only through one gate; exact combinations = evidence, kNN = one pre-registered look-alike method; purge by `known_on`; BH-FDR over a logged hypothesis count; a base rate on the identical population; a level-labelled fallback. Awaiting A1–A12 | Doc §8, G5 | — |

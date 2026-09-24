@@ -496,6 +496,17 @@ snapshots are taken, which needs scheduling (in the nightly-hardening list).
 - For the broker friend: star_body_max 0.3 and max_wick_to_range 0.25 are
   our choices (doc §3.3 gives no numbers).
 
+## Analysis engine — A1–A12 for Ben (2026-09-24, proposal in session 03 run 15)
+Horizons (G10), the hit definition, the middle fallback level (liquidity tier vs
+sector), min occurrences de-clustered, the split years, FDR + validate
+thresholds, the hypothesis vocabulary, the kNN spec, the reference price (the
+ex-date adjusted prev close; UPCoM average-price reference UNVERIFIED), the
+storage helper, MFE/MAE now vs target/stop later, and accepting the
+ceiling-rejection bias. Full text: logs/sessions/2026-09-23-session-03.md run 15.
+- **B1 correction (found run 15):** `checks.py` has NO ceiling-price function
+  to reuse. Its limit logic is violation-counting SQL, so B1 needs a new shared
+  `limit_prices()` in checks.py plus a Python/SQL agreement test.
+
 ## Patterns tranche 5 (fingerprint) — for Ben (2026-09-24)
 - **Code hash in the manifest** (my addition): any edit under `data/`,
   `features/` or `patterns/`, even a comment, makes the stored fingerprint

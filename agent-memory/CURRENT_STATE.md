@@ -1,20 +1,23 @@
-# Current state — 2026-09-24 (end of session 2026-09-23-03, run 14)
+# Current state — 2026-09-24 (end of session 2026-09-23-03, run 15)
 
-Rewritten from scratch. The DB figures were re-read this run (build 5
-'good'; 2,511,070 bar_adjusted rows since 2012; 1,705 symbols). The git figures
-were checked with `git log` before the commit.
+Rewritten for run 15 (a proposal run; nothing built). The git figures were
+checked with `git ls-remote` this run. The DB figures are from run 14 (build 5
+'good'; 2,511,070 bar_adjusted rows since 2012; 1,705 symbols).
 
 ## Phase
-**Phase 5 features (25 measures), the nightly hardening and dated exchange
-labels are on main** (`168c2e9`). **On `features/patterns`:** the full
-pattern catalogue (T1–T4, approved) and **T5, the fingerprint, built this run
-and awaiting Ben's review.** Next: T6 (encode/neighbours, sequence, weekly),
-which waits for G5.
+**On main (`f53b72a`):** features (25), the nightly hardening, dated exchange
+labels, the pattern catalogue (T1–T4) and the fingerprint (T5). **Now: the
+ANALYSIS ENGINE, PROPOSED on `features/analog-backtest` (run 15), no code;
+waiting for Ben's answers to A1–A12** (session log run 15). This covers the
+return generator (B2 + B1), exact-combination evidence plus kNN look-alikes
+(G5 / T6) with the §8 defences, base rates with a labelled fallback, and one
+quarantine gate.
 
 ## Git: ONE working branch (Ben, 2026-09-23)
-- `main` = `168c2e9` (GitHub too). Only Ben merges.
-- **`features/patterns`** is the only other branch (T1 `538f584`, T2
-  `449f8c8`, T3 `4c0392d`, T4 `98ea120`, then T5).
+- `main` = `f53b72a` (GitHub too). I fast-forwarded it on 2026-09-24 at Ben's
+  choice (he had said "merged" but it was not). Only on Ben's say-so.
+- **`features/analog-backtest`** is the only other branch (the proposal
+  commit). `features/patterns` is deleted.
 
 ## Measures: 51 (REGISTRY 44 per-symbol + 6 market + 1 sector)
 - Features (25): volume 7, trend/levels 10, index regime 4, breadth 2,
@@ -90,10 +93,11 @@ The market is closed on Saturday, Sunday and public holidays
 weekday the market was open.
 
 ## Next steps
-1. Ben reviews T5 on `features/patterns` and merges.
-2. G5 (the analog-search design), then T6: encode/neighbours with
-   point-in-time normalisation and purge/embargo; sequence; weekly.
-3. The backtest return generator (B2).
+1. Ben answers A1–A12 (the engine proposal). No engine code before that.
+2. E1: the shared B1 limit function + the return generator + returns storage.
+3. E2: the gate + base rates + fallback. E3: the hypothesis registry, exact
+   combinations, discover/validate, FDR. E4 (= T6): encode/neighbours.
+   The holdout runs once, at the end.
 
 ## Parked
 TypeSafe / Jev; SSI FastConnect; the broker fee is provisional at 0.15%/side;
@@ -102,7 +106,7 @@ measure; `sector_advance_share_10d`; sector rotation; precomputing
 market/sector values once per build (a `ponytail:` note in `build`).
 
 ## Reading order for the next session
-1. This file. 2. `knowledge/00-index.md`. 3. Runs 13–14 of
+1. This file. 2. `knowledge/00-index.md`. 3. Runs 14–15 of
 `logs/sessions/2026-09-23-session-03.md` (run 8 = the patterns and fingerprint
 proposal). 4. `knowledge/patterns.md`. 5. Only the code the task touches, via
 `code-map.md`.
