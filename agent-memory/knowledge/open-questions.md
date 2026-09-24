@@ -765,3 +765,18 @@ Related: [[decisions]] [[data-sources]] [[architecture]]
 - RESOLVED 2026-09-24 (run 24): the exchange key stays FIRST (Ben
   confirmed). Still open: the tier direction wording, the UPCoM/undated
   exclusion, the fee, and running the daily pipeline.
+
+## After batch complements_1 (session 2026-09-23-03, run 25) — for Ben
+- **151 paper-trading candidates, 49 display families; NONE materially
+  stronger than the best of the six.** Adding any to the forward test needs a
+  new `daily_scan` version (Ben's call). It should happen before forward rows
+  exist, or the forward record is split by rule version.
+- **Many candidates are near-duplicates of registered hypotheses.** Some
+  complements are near-universal: `not_at_support` in 54 candidates,
+  `not_volume_dry` in 40, `not_rvol_high` in 32. For example,
+  marubozu_red+ma_50_rising+not_at_support ≈ marubozu_red+ma_50_rising.
+  The genuinely new region is the WEAK MARKET (`not_market_up`, 13
+  candidates).
+- Validate needs no significance: 28 of 151 have validate p < 0.05.
+- Discover's one SUSPICIOUS result (k3 three_black_crows+not_ma_50_rising
+  +rvol_high, hit 76.5% on 68) held on validate at a normal 58.4%.
