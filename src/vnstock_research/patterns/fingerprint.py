@@ -38,7 +38,7 @@ from __future__ import annotations
 
 import operator
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 import pandas as pd
@@ -54,7 +54,6 @@ from ..features.base import (
     compute,
     featureset,
     load_config,
-    quarantine_flagged,
 )
 
 PKG = Path(__file__).resolve().parents[1]
@@ -121,7 +120,8 @@ def schema(fs: FeatureSet) -> pd.DataFrame:
                     "flagged": False,
                     "direction": None,
                     "description": f"True where {name} rests on a borrowed "
-                    f"(pre-snapshot) label; validated() blanks {name} there.",
+                    f"(pre-snapshot) label; the gate (backtest.evidence) "
+                    f"blanks {name} there.",
                 }
             )
     return pd.DataFrame(rows + flag_rows)
@@ -201,7 +201,7 @@ def build(conn, root: Path = ROOT, start: str = "2012-01-01") -> Path:
 class Fingerprint:
     """A stored fingerprint as loaded. EXPLORATORY: flagged values are still
     in `values`, next to their flag columns. Validated statistics must go
-    through `validated()`."""
+    through the gate, `backtest.evidence.validated()`."""
 
     values: pd.DataFrame
     schema: pd.DataFrame
@@ -234,7 +234,7 @@ def load(
     current code, or a file changed since it was written.
 
     `columns` narrows what is read; the flag column of every flagged measure
-    asked for is ALWAYS read with it, so `validated()` can never be handed a
+    asked for is ALWAYS read with it, so the gate can never be handed a
     flagged value without its flag.
     """
     values, man = store.load(
@@ -247,37 +247,6 @@ def load(
         end,
     )
     return Fingerprint(values, pd.DataFrame(man["schema"]), man)
-
-
-# --- validated: the ONE path into validated statistics -----------------------
-
-_KEY = object()
-
-
-@dataclass(frozen=True)
-class Validated:
-    """Fingerprint values with every flagged value blanked and the flag
-    columns gone. Validated statistics take THIS type, and only `validated()`
-    can make one."""
-
-    values: pd.DataFrame
-    manifest: dict
-    _key: object = field(default=None, repr=False, compare=False)
-
-    def __post_init__(self):
-        if self._key is not _KEY:
-            raise TypeError(
-                "a Validated fingerprint comes only from validated(), the one "
-                "path that applies the quarantine"
-            )
-
-
-def validated(fp: Fingerprint) -> Validated:
-    """THE HARD GATE (base.quarantine_flagged) applied with the MANIFEST's list
-    of flagged measures, not the caller's, for every one that was loaded. A
-    flagged measure present without its flag column raises there."""
-    names = [n for n in fp.manifest["flagged"] if n in fp.values.columns]
-    return Validated(quarantine_flagged(fp.values, names), fp.manifest, _KEY)
 
 
 # --- query: exact combinations ----------------------------------------------
@@ -301,7 +270,7 @@ class Match:
     per_symbol: pd.Series  # occurrences by symbol (the §7.1 fallback floor)
 
 
-def query(fp: Fingerprint | Validated, conditions: dict) -> Match:
+def query(fp, conditions: dict) -> Match:
     """Rows where EVERY condition holds, with occurrence counts.
 
     A condition is a number (equality: `{"hammer_shape": 1}`) or a comparison

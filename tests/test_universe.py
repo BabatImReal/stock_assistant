@@ -146,3 +146,40 @@ def test_liquidity_cannot_see_the_future():
     full, _ = universe.liquid_panel(df, cal, CFG)
     cut, _ = universe.liquid_panel(df.iloc[:80], cal[:80], CFG)
     pd.testing.assert_series_equal(full["AAA"].iloc[:80], cut["AAA"])
+
+
+# --- liquidity tiers (the §7.1 fallback's middle level) ----------------------
+
+
+def test_tiers_rank_the_days_liquid_set_by_trailing_value():
+    """Terciles among the stocks liquid THAT day; a stock not liquid has no
+    tier, and a thinner stock never outranks a busier one."""
+    cal = calendar(70)
+    r = pd.concat(
+        [
+            rows(cal, "AAA", volume=100.0),
+            rows(cal, "BBB", volume=200.0),
+            rows(cal, "CCC", volume=300.0),
+            rows(cal, "EEE", volume=400.0),
+            rows(cal, "DDD", volume=1.0),
+        ],
+        ignore_index=True,
+    )
+    _, avg = universe.liquid_panel(r, cal, CFG)
+    last = universe.tier_panel(avg, 3).iloc[-1]
+    # Four liquid stocks in three tiers: percentiles .25/.5/.75/1 -> 1/2/3/3.
+    assert [last[s] for s in ("AAA", "BBB", "CCC", "EEE")] == [1.0, 2.0, 3.0, 3.0]
+    assert pd.isna(last["DDD"])  # below the liquidity floor: no tier
+    assert universe.tier_panel(avg, 3).iloc[:59].isna().all().all()
+
+
+def test_the_universe_rows_are_the_liquid_stock_days_only():
+    cal = calendar(70)
+    r = pd.concat(
+        [rows(cal, "AAA", volume=100.0), rows(cal, "DDD", volume=1.0)],
+        ignore_index=True,
+    )
+    _, avg = universe.liquid_panel(r, cal, CFG)
+    t = universe.tier_rows(avg, 3, cal[0])
+    assert set(t["symbol"]) == {"AAA"}  # DDD is never liquid: never a row
+    assert len(t) == 70 - 59  # AAA from its first full 60-session window

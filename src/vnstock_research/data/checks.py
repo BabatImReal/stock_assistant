@@ -310,6 +310,76 @@ def at_floor(price, limits: pd.DataFrame) -> np.ndarray:
     )
 
 
+def reference(bars: pd.DataFrame) -> pd.Series:
+    """The RAW reference price each day: the previous close, ADJUSTED for any
+    corporate action between the two days (ruling A9).
+
+    On an ex-date the exchange lowers the reference by the action, so a raw
+    previous close would put the ceiling too high and miss a real limit-up.
+    adj(t-1) / factor(t), with factor = adjusted / raw close, is exactly the
+    previous close in today's raw terms; on an ordinary day it is the raw
+    previous close. bars: one symbol, oldest first; close (adjusted), raw_close.
+    """
+    return bars["close"].shift(1) * bars["raw_close"] / bars["close"]
+
+
+# --- G20: factor defects --------------------------------------------------
+# A factor "changed" when it differs from the previous row's by at least this:
+# the gate's own tolerance (price_limit_sql), so the two checks split the days
+# between them.
+FACTOR_TOL = 0.000001
+# An ADJUSTED move beyond this many daily limits is not a market move (Ben,
+# 2026-09-24): the margin absorbs what a close cannot tell us about the
+# reference (UPCoM's average-price reference, cash-dividend ex-dates).
+JUMP_LIMITS = 2.0
+
+
+def factor_triage(bars: pd.DataFrame) -> pd.Series:
+    """G20: label each day whose ADJUSTED close jumps by more than JUMP_LIMITS
+    daily limits on a day the factor changed. None elsewhere.
+
+      'resumption'    >= resumption_sessions() skipped: already a gap, and under
+                      the wider first-day band
+      'new_exchange'  the first day on another exchange, with the raw close
+                      inside that exchange's first-day band (+ one tick)
+      'defect'        anything else: the adjusted series has a step the market
+                      could not have made, so the factor (or the raw print) is
+                      wrong. A window across it measures an artefact.
+
+    Found 2026-09-24: BNA 2021-10-07, raw -43% with the factor x3.71, a +111%
+    step in the adjusted series. Backfilled rows (adjusted at source) are not
+    judged. Reads only the row and the one before it, so it adds no
+    look-ahead. bars: one symbol, oldest first: trade_date, close (adjusted),
+    raw_close, factor, exchange, gap_before, is_adjusted_source.
+    """
+    adj = bars["close"].astype("float64")
+    move = adj / adj.shift(1) - 1.0
+    factor = bars["factor"].astype("float64")
+    changed = (factor - factor.shift(1)).abs() >= FACTOR_TOL
+    rate = limit_rate(bars["exchange"], bars["trade_date"])
+    candidate = (
+        changed
+        & (move.abs() > JUMP_LIMITS * rate)
+        & ~bars["is_adjusted_source"].astype(bool)
+    )
+    resumption = bars["gap_before"].to_numpy() >= resumption_sessions()
+    prev_exchange = bars["exchange"].shift(1)
+    new_exchange = (bars["exchange"] != prev_exchange) & prev_exchange.notna()
+    band = limit_prices(
+        reference(bars), bars["exchange"], bars["trade_date"], np.ones(len(bars), bool)
+    )
+    raw = bars["raw_close"].astype("float64").to_numpy()
+    inside = (raw <= (band["ceiling"] + band["ceiling_tick"]).to_numpy()) & (
+        raw >= (band["floor"] - band["floor_tick"]).to_numpy()
+    )
+    label = np.select(
+        [resumption, new_exchange.to_numpy() & inside],
+        ["resumption", "new_exchange"],
+        "defect",
+    )
+    return pd.Series(np.where(candidate, label, None), index=bars.index, dtype=object)
+
+
 def limits_sql(source: str, ref: str = "prev_close", skipped: str = "skipped") -> str:
     """`source` (a SQL relation with exchange, trade_date, {ref} and {skipped},
     the sessions skipped before the row) plus rate, ceiling, floor,

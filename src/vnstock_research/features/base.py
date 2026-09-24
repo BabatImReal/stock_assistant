@@ -103,8 +103,13 @@ def measure(
 
     def wrap(fn: Callable[[pd.DataFrame, dict], pd.Series]) -> Callable:
         REGISTRY[name] = Measure(
-            name=name, doc_ref=doc_ref, kind=kind, needs=needs,
-            lookback=lookback, fn=fn, direction=direction,
+            name=name,
+            doc_ref=doc_ref,
+            kind=kind,
+            needs=needs,
+            lookback=lookback,
+            fn=fn,
+            direction=direction,
         )
         return fn
 
@@ -130,8 +135,13 @@ def market_measure(
 
     def wrap(fn: Callable[[pd.DataFrame, dict], pd.Series]) -> Callable:
         MARKET_REGISTRY[name] = Measure(
-            name=name, doc_ref=doc_ref, kind=kind, needs=needs,
-            lookback=lookback, fn=fn, frame=frame,
+            name=name,
+            doc_ref=doc_ref,
+            kind=kind,
+            needs=needs,
+            lookback=lookback,
+            fn=fn,
+            frame=frame,
         )
         return fn
 
@@ -155,8 +165,13 @@ def sector_measure(
 
     def wrap(fn: Callable[[pd.DataFrame, dict], pd.Series]) -> Callable:
         SECTOR_REGISTRY[name] = Measure(
-            name=name, doc_ref=doc_ref, kind=kind, needs=needs,
-            lookback=lookback, fn=fn, frame="sector",
+            name=name,
+            doc_ref=doc_ref,
+            kind=kind,
+            needs=needs,
+            lookback=lookback,
+            fn=fn,
+            frame="sector",
         )
         return fn
 
@@ -191,7 +206,8 @@ class FeatureSet:
 
         blob = json.dumps(
             {m: self.params.get(m, {}) for m in sorted(self.measures)},
-            sort_keys=True, default=str,
+            sort_keys=True,
+            default=str,
         )
         return hashlib.sha256(blob.encode()).hexdigest()[:16]
 
@@ -269,6 +285,10 @@ def _window_ok(bars: pd.DataFrame, lookback: int, needs_volume: bool) -> pd.Seri
     # that contains BOTH -- i.e. gaps on the first row of the window are before
     # it and harmless.
     gap = bars["gap_before"].fillna(0).to_numpy() > 0
+    if "factor_break" in bars:
+        # G20: a factor defect breaks the series between two rows exactly as a
+        # trading gap does (features/bars.py), so it is treated as one.
+        gap = gap | bars["factor_break"].to_numpy(bool)
     gap_inside = (
         pd.Series(gap, index=bars.index)
         .rolling(span - 1, min_periods=span - 1)
@@ -347,8 +367,8 @@ def compute_market(
                 f"{m.frame} frame was supplied"
             )
         out = per_frame.setdefault(
-            m.frame, pd.DataFrame({"trade_date": f["trade_date"].to_numpy()},
-                                  index=f.index)
+            m.frame,
+            pd.DataFrame({"trade_date": f["trade_date"].to_numpy()}, index=f.index),
         )
         p = {k: v for k, v in settings.items() if k != "enabled"}
         values = pd.Series(m.fn(f, p), index=f.index).astype("float64")
@@ -389,8 +409,11 @@ def compute_sector(
             values = pd.Series(m.fn(s, p), index=s.index).astype("float64")
             part[name] = values.where(_market_window_ok(s, lb))
             part[FLAG + name] = (
-                s["labels_current"].astype("float64")
-                .rolling(lb + 1, min_periods=1).max().astype(bool)
+                s["labels_current"]
+                .astype("float64")
+                .rolling(lb + 1, min_periods=1)
+                .max()
+                .astype(bool)
             )
         parts.append(part)
     return pd.concat(parts, ignore_index=True), {n: p for n, _, p in enabled}
@@ -462,8 +485,10 @@ def compute(
         symbol = str(bars["symbol"].iloc[0]) if len(bars) else ""
         member = sectors.assign(symbol, bars["trade_date"], sector.labels)
         key = pd.DataFrame(
-            {"trade_date": bars["trade_date"].to_numpy(),
-             "sector": member["sector"].to_numpy()}
+            {
+                "trade_date": bars["trade_date"].to_numpy(),
+                "sector": member["sector"].to_numpy(),
+            }
         )
         joined = key.merge(per_sector, on=["trade_date", "sector"], how="left")
         work = bars.copy()
@@ -472,10 +497,9 @@ def compute(
             # Flagged if the sector value read a borrowed label, or THIS
             # symbol's own label is borrowed. No match (no sector) is not
             # known to be dated, so it is flagged too.
-            flags[name] = (
-                joined[FLAG + name].astype("boolean").fillna(True).to_numpy(bool)
-                | member["labels_current"].to_numpy(bool)
-            )
+            flags[name] = joined[FLAG + name].astype("boolean").fillna(True).to_numpy(
+                bool
+            ) | member["labels_current"].to_numpy(bool)
             out[name] = work[name].to_numpy()
 
     for name, settings in cfg.items():
@@ -516,9 +540,7 @@ def compute(
         # market frame does not cover comes back NaN: carrying yesterday's
         # regime forward would silently assert a market state we have no index
         # for, which is the quiet kind of wrong the other guards exist to stop.
-        joined = bars[["trade_date"]].merge(
-            market_values, on="trade_date", how="left"
-        )
+        joined = bars[["trade_date"]].merge(market_values, on="trade_date", how="left")
         for name in market_params:
             out[name] = joined[name].to_numpy()
 

@@ -165,11 +165,13 @@ def test_the_exemption_covers_nothing_but_tagged_seam_rescales(conn):
         before = _factors_above_one(cur)
         cur.execute(
             "UPDATE adjustment_factor SET factor = 1.5, source = 'cafef' "
-            "WHERE symbol = %s AND trade_date = %s AND build_id = %s", (s1, d1, build),
+            "WHERE symbol = %s AND trade_date = %s AND build_id = %s",
+            (s1, d1, build),
         )
         cur.execute(
             "UPDATE adjustment_factor SET factor = 1.5, source = 'seam_rescale' "
-            "WHERE symbol = %s AND trade_date = %s AND build_id = %s", (s2, d2, build),
+            "WHERE symbol = %s AND trade_date = %s AND build_id = %s",
+            (s2, d2, build),
         )
         assert _factors_above_one(cur) == before + 2
 
@@ -242,8 +244,18 @@ def test_the_python_and_sql_resolvers_agree(conn):
 
     spans = exchanges.load(conn)
     with conn.cursor() as cur:
-        for symbol in ("DPG", "ACB", "ACG", "VNM", "SHB", "VIX", "MHL", "HBC",
-                       "PXL", "ITA"):
+        for symbol in (
+            "DPG",
+            "ACB",
+            "ACG",
+            "VNM",
+            "SHB",
+            "VIX",
+            "MHL",
+            "HBC",
+            "PXL",
+            "ITA",
+        ):
             cur.execute(
                 f"SELECT r.trade_date, r.exchange, xm.exchange, r.source "
                 f"FROM bar_raw r "
@@ -252,14 +264,18 @@ def test_the_python_and_sql_resolvers_agree(conn):
                 (symbol,),
             )
             rows = cur.fetchall()
-            py = exchanges.resolve(spans, symbol, [r[0] for r in rows],
-                                   [r[1] for r in rows],
-                                   [r[3] == "vnstock" for r in rows])
+            py = exchanges.resolve(
+                spans,
+                symbol,
+                [r[0] for r in rows],
+                [r[1] for r in rows],
+                [r[3] == "vnstock" for r in rows],
+            )
             sql_known = [r[2] for r in rows]
             assert py["exchange_unknown"].tolist() == [k is None for k in sql_known]
-            assert [e for e, k in zip(py["exchange"], sql_known, strict=True) if k] \
-                == [k for k in sql_known if k]
-
+            assert [e for e, k in zip(py["exchange"], sql_known, strict=True) if k] == [
+                k for k in sql_known if k
+            ]
 
 
 def test_no_transfer_dates_pre_move_history_with_the_current_exchange(conn):
@@ -308,8 +324,7 @@ def test_no_transfer_dates_pre_move_history_with_the_current_exchange(conn):
             """
         )
         odd = {(sym, str(d)) for sym, d in cur.fetchall()}
-    assert odd == {("PXL", "2015-09-01"), ("VLF", "2015-09-01"),
-                   ("VNA", "2015-09-01")}
+    assert odd == {("PXL", "2015-09-01"), ("VLF", "2015-09-01"), ("VNA", "2015-09-01")}
 
 
 def test_a_flagged_exchange_day_lands_in_the_gates_flagged_count(conn):
@@ -373,18 +388,23 @@ def test_g3_fillability_on_real_dpg_is_quarantined_before_its_listing(conn):
             "WHERE symbol = 'DPG' AND trade_date BETWEEN '2018-01-01' AND "
             "'2018-12-31' ORDER BY 1"
         )
-        bars = pd.DataFrame(cur.fetchall(),
-                            columns=["trade_date", "open", "close", "filed", "source"])
+        bars = pd.DataFrame(
+            cur.fetchall(), columns=["trade_date", "open", "close", "filed", "source"]
+        )
     bars[["open", "close"]] = bars[["open", "close"]].astype(float)
-    r = exchanges.resolve(exchanges.load(conn), "DPG", bars["trade_date"],
-                          bars["filed"], bars["source"] == "vnstock")
+    r = exchanges.resolve(
+        exchanges.load(conn),
+        "DPG",
+        bars["trade_date"],
+        bars["filed"],
+        bars["source"] == "vnstock",
+    )
     bars["exchange"] = r["exchange"].to_numpy()
     bars["exchange_unknown"] = r["exchange_unknown"].to_numpy()
     clean = quarantine_flagged(fr.fillability(bars), fr.FILLABILITY)
     before = (bars["trade_date"] < dt.date(2018, 5, 22)).to_numpy()
     assert clean["limit"][before].isna().all()
     assert clean["limit"][~before].notna().all()
-
 
 
 def test_rebuild_drops_a_kbs_span_the_cafef_filing_contradicts(conn):
@@ -394,8 +414,10 @@ def test_rebuild_drops_a_kbs_span_the_cafef_filing_contradicts(conn):
 
     with conn.transaction(force_rollback=True), conn.cursor() as cur:
         counts = exchanges.rebuild(conn, commit=False)
-        cur.execute("SELECT count(*) FROM exchange_membership "
-                    "WHERE symbol = 'MHL' AND source = 'kbs_listing'")
+        cur.execute(
+            "SELECT count(*) FROM exchange_membership "
+            "WHERE symbol = 'MHL' AND source = 'kbs_listing'"
+        )
         assert cur.fetchone()[0] == 0
     assert counts["kbs_dropped_contradicted"] >= 1
 
@@ -447,7 +469,6 @@ def test_the_limit_function_and_the_gate_sql_agree_row_for_row(conn):
     from vnstock_research.features.bars import current_build
 
     with conn.cursor() as cur:
-        cur.execute("SET max_parallel_workers_per_gather = 0")
         cur.execute(
             """
             (SELECT symbol FROM bar_raw WHERE exchange = 'HNX' AND close > 0
@@ -482,7 +503,26 @@ def test_the_limit_function_and_the_gate_sql_agree_row_for_row(conn):
         assert np.allclose(py[col], sql[col].astype(float), atol=1e-9), col
     # Not vacuous: every case the definition distinguishes is present.
     assert first.any()
-    assert (np.isclose(py["ceiling"], sql["prev_close"].astype(float)
-                       + py["ceiling_tick"])).any()
+    assert (
+        np.isclose(py["ceiling"], sql["prev_close"].astype(float) + py["ceiling_tick"])
+    ).any()
     assert (pd.to_datetime(sql["trade_date"]) < "2013-01-15").any()
     assert set(sql["exchange"]) >= {"HOSE", "HNX", "UPCOM"}
+
+
+def test_the_bars_loader_marks_a_real_factor_defect(conn):
+    """G20 on real data: BNA 2021-10-07, raw -43% with the factor x3.71, is
+    a +111% step in the adjusted series. The loader marks exactly that day,
+    so every window across it is blanked like a gap."""
+    import datetime as dt
+
+    from vnstock_research.features import bars
+
+    b = bars.load(conn, "BNA")
+    near = b[
+        (b["trade_date"] >= dt.date(2021, 9, 1))
+        & (b["trade_date"] <= dt.date(2021, 11, 30))
+    ]
+    assert near.loc[near["factor_break"], "trade_date"].tolist() == [
+        dt.date(2021, 10, 7)
+    ]

@@ -14,6 +14,11 @@ services:
     image: timescale/timescaledb:latest-pg16
     container_name: vnstock-db
     restart: unless-stopped
+    # Shared memory for Postgres' parallel query workers. Docker's default is
+    # 64 MB, and a whole-market parallel hash join (the gate, the fillability
+    # measurement) failed with "could not resize shared memory segment"
+    # (2026-09-24). 1 GB is ample for this machine's workload.
+    shm_size: 1gb
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-vnstock}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vnstock}

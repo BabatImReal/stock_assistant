@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from ..data import exchanges
+from ..data import checks, exchanges
 
 COLUMNS = [
     "symbol",
@@ -49,6 +49,8 @@ COLUMNS = [
     "exchange",
     "exchange_unknown",
     "date_shifted",
+    "factor",
+    "is_adjusted_source",
 ]
 
 
@@ -80,12 +82,18 @@ b AS (
            xm.exchange IS NULL AS exchange_unknown,
            -- Moved off a non-trading date by the loader: real data with a
            -- corrected date, never an entry or exit day (universe.yaml).
-           r.date_shifted
+           r.date_shifted,
+           -- The build's factor and whether the row came adjusted at source:
+           -- the G20 factor-defect detector reads them (data/checks.py).
+           f.factor, r.is_adjusted_source
     FROM bar_adjusted a
     JOIN sessions s ON s.trade_date = a.trade_date
     -- RAW prices too: exchange ticks apply to the price that traded, so a
     -- range measured in ticks (patterns/candles.py) needs them.
     JOIN bar_raw r ON r.symbol = a.symbol AND r.trade_date = a.trade_date
+    JOIN adjustment_factor f
+      ON f.symbol = a.symbol AND f.trade_date = a.trade_date
+     AND f.build_id = a.build_id
     -- The exchange IN FORCE that day where dated (data/exchanges.py); the
     -- filed one, marked exchange_unknown, where not.
     {resolve}
@@ -105,7 +113,7 @@ SELECT b.symbol, b.trade_date, b.open, b.high, b.low, b.close,
              AND b.trade_date BETWEEN w.valid_from AND w.valid_to
        ) AS excluded,
        b.raw_open, b.raw_high, b.raw_low, b.raw_close, b.exchange,
-       b.exchange_unknown, b.date_shifted
+       b.exchange_unknown, b.date_shifted, b.factor, b.is_adjusted_source
 FROM b
 ORDER BY b.trade_date
 """
@@ -131,11 +139,16 @@ def load(conn, symbol: str, start: str = "2012-01-01", build: int | None = None)
         "raw_high",
         "raw_low",
         "raw_close",
+        "factor",
     ):
         df[col] = df[col].astype("float64")
     # The first row has no predecessor, so there is no gap before it -- not an
     # unknown one. Leaving it NaN would make every first window unusable.
     df["gap_before"] = df["gap_before"].fillna(0).astype("int64")
+    # G20: a day the adjusted series steps where the market could not have
+    # moved. Every window across it is blanked exactly like a trading gap
+    # (features.base._window_ok, backtest.forward_returns.outcomes).
+    df["factor_break"] = (checks.factor_triage(df) == "defect").to_numpy(bool)
     return df.reset_index(drop=True)
 
 

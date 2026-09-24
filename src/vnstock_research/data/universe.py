@@ -39,6 +39,7 @@ unit-tested without a database (tests/test_universe.py).
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 import yaml
 
@@ -163,6 +164,33 @@ def liquid_panel(rows: pd.DataFrame, calendar, cfg: dict | None = None):
         & (avg >= float(cfg["min_avg_matched_value"]))
     )
     return liquid, avg.where(liquid)
+
+
+def tier_panel(avg: pd.DataFrame, n: int) -> pd.DataFrame:
+    """Sessions x symbols: the liquidity tier (1 = least traded .. n) of each
+    LIQUID symbol among the liquid set THAT DAY, by its trailing average
+    traded value. `avg` as `liquid_panel` returns it: NaN where not liquid,
+    so only that day's liquid peers are ranked. Point in time: the average is
+    trailing and the ranking is within the day."""
+    return np.ceil(avg.rank(axis=1, pct=True) * n)
+
+
+def tier_rows(avg: pd.DataFrame, n: int, start) -> pd.DataFrame:
+    """(trade_date, symbol, tier) for every LIQUID stock-day from `start`.
+    pandas 3's stack() keeps NaN cells, so the non-liquid ones are dropped
+    explicitly: a stock-day with no tier is not in the universe."""
+    t = tier_panel(avg, n).stack().rename("tier").reset_index()
+    t = t[t["tier"].notna() & (t["trade_date"] >= pd.to_datetime(start).date())]
+    return t.astype({"tier": "Int64"}).reset_index(drop=True)
+
+
+def tiers(conn, start, end=None) -> pd.DataFrame:
+    """(trade_date, symbol, tier) for every stock-day liquid on that date: the
+    middle level of the doc §7.1 fallback (ruling A3), knowable on the day."""
+    cfg = liquidity_config()
+    rows, calendar = load_rows(conn, start, end, warmup=int(cfg["lookback_days"]) - 1)
+    _, avg = liquid_panel(rows, calendar, cfg)
+    return tier_rows(avg, int(cfg["tiers"]), start)
 
 
 def liquid(conn, start, end=None) -> pd.DataFrame:

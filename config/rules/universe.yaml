@@ -25,6 +25,11 @@ liquidity:
   lookback_days: 60
   # A stock must also actually trade: days with volume > 0 are what count.
   min_trading_days_in_lookback: 40
+  # The middle level of the doc §7.1 fallback (stock -> liquidity tier ->
+  # market; ruling A3, 2026-09-24): terciles of the day's liquid set by the
+  # same trailing average traded value. Knowable on the day, unlike a sector
+  # label taken from today's snapshot.
+  tiers: 3
 
 universe:
   # Research window. History is STORED from 2000 (Ben, 2026-09-22) but only

@@ -398,7 +398,18 @@ New, found while resolving them. NOT fixed this run:
 - **X4 (for Ben)**: re-derive `bar_raw.exchange` / the `trading_day` split from
   the resolved exchange, or keep raw as filed (current)?
 
-### G20 — Adjusted-series jumps on factor-change days (found 2026-09-24, run 16) — NOT FIXED
+### G20 — DETECTED AND EXCLUDED 2026-09-24 (run 17); the factors themselves are NOT repaired
+`checks.factor_triage` sorts the 1,818 into: 1,305 resumptions (already gaps),
+2 legitimate new-exchange first days, and **511 genuine defects on 313
+symbols**. Each defect blanks every feature and return window across it, like
+a gap (`factor_break`).
+- Liquid k=3 outcomes lost: 82 of 874,390 (0.009%).
+- Rows now reasoned `factor_break`: 118 liquid k=3.
+
+Still open: REPAIR (re-derive the factors, or a new build) and a gate check.
+Ask Ben.
+
+Original finding:
 The first real returns build showed BNA +114% to +136% over 3 sessions on HNX.
 The cause is build 5's factor: on 2021-10-07 the raw close fell 67.9 → 38.7
 (a corporate action), but the factor jumped 0.1668 → 0.6189. That is a +111%
@@ -519,7 +530,7 @@ snapshots are taken, which needs scheduling (in the nightly-hardening list).
   our choices (doc §3.3 gives no numbers).
 
 ## Analysis engine — A1–A12 ANSWERED 2026-09-24 (approved as proposed + five additions; decisions.md run 16). E1 built.
-- **Environment:** the recreated DB container has Docker's default 64 MB /dev/shm. A
+- **Environment (FIXED run 17):** `shm_size: 1gb` in docker-compose.yml; the container was recreated. Originally: the recreated DB container had Docker's default 64 MB /dev/shm. A
   whole-market parallel hash join failed with "could not resize shared
   memory segment". Workaround: `SET max_parallel_workers_per_gather = 0` in the
   heavy queries. A fix would be `shm_size` in docker-compose.yml (an

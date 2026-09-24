@@ -38,7 +38,10 @@ def _ma(bars: pd.DataFrame, window: int) -> pd.Series:
 
 
 @measure(
-    name="ma_20", doc_ref="doc §5.1", kind="numeric", needs=("close",),
+    name="ma_20",
+    doc_ref="doc §5.1",
+    kind="numeric",
+    needs=("close",),
     lookback=lambda p: int(p["window_days"]) - 1,
 )
 def ma_20(bars: pd.DataFrame, p: dict) -> pd.Series:
@@ -47,7 +50,10 @@ def ma_20(bars: pd.DataFrame, p: dict) -> pd.Series:
 
 
 @measure(
-    name="ma_50", doc_ref="doc §5.1", kind="numeric", needs=("close",),
+    name="ma_50",
+    doc_ref="doc §5.1",
+    kind="numeric",
+    needs=("close",),
     lookback=lambda p: int(p["window_days"]) - 1,
 )
 def ma_50(bars: pd.DataFrame, p: dict) -> pd.Series:
@@ -66,7 +72,10 @@ def _slope(series: pd.Series, span: int) -> pd.Series:
 
 
 @measure(
-    name="ma_20_slope", doc_ref="doc §5.1", kind="numeric", needs=("close",),
+    name="ma_20_slope",
+    doc_ref="doc §5.1",
+    kind="numeric",
+    needs=("close",),
     lookback=lambda p: int(p["window_days"]) - 1 + int(p["slope_days"]),
 )
 def ma_20_slope(bars: pd.DataFrame, p: dict) -> pd.Series:
@@ -75,7 +84,10 @@ def ma_20_slope(bars: pd.DataFrame, p: dict) -> pd.Series:
 
 
 @measure(
-    name="ma_50_slope", doc_ref="doc §5.1", kind="numeric", needs=("close",),
+    name="ma_50_slope",
+    doc_ref="doc §5.1",
+    kind="numeric",
+    needs=("close",),
     lookback=lambda p: int(p["window_days"]) - 1 + int(p["slope_days"]),
 )
 def ma_50_slope(bars: pd.DataFrame, p: dict) -> pd.Series:
@@ -84,7 +96,10 @@ def ma_50_slope(bars: pd.DataFrame, p: dict) -> pd.Series:
 
 
 @measure(
-    name="price_vs_ma_20", doc_ref="doc §5.1", kind="numeric", needs=("close",),
+    name="price_vs_ma_20",
+    doc_ref="doc §5.1",
+    kind="numeric",
+    needs=("close",),
     lookback=lambda p: int(p["window_days"]) - 1,
 )
 def price_vs_ma_20(bars: pd.DataFrame, p: dict) -> pd.Series:
@@ -94,7 +109,10 @@ def price_vs_ma_20(bars: pd.DataFrame, p: dict) -> pd.Series:
 
 
 @measure(
-    name="price_vs_ma_50", doc_ref="doc §5.1", kind="numeric", needs=("close",),
+    name="price_vs_ma_50",
+    doc_ref="doc §5.1",
+    kind="numeric",
+    needs=("close",),
     lookback=lambda p: int(p["window_days"]) - 1,
 )
 def price_vs_ma_50(bars: pd.DataFrame, p: dict) -> pd.Series:
@@ -104,7 +122,10 @@ def price_vs_ma_50(bars: pd.DataFrame, p: dict) -> pd.Series:
 
 
 @measure(
-    name="price_change_10d", doc_ref="doc §5.1", kind="numeric", needs=("close",),
+    name="price_change_10d",
+    doc_ref="doc §5.1",
+    kind="numeric",
+    needs=("close",),
     lookback=lambda p: int(p["window_days"]),
 )
 def price_change_10d(bars: pd.DataFrame, p: dict) -> pd.Series:
@@ -114,7 +135,10 @@ def price_change_10d(bars: pd.DataFrame, p: dict) -> pd.Series:
 
 
 @measure(
-    name="price_change_20d", doc_ref="doc §5.1", kind="numeric", needs=("close",),
+    name="price_change_20d",
+    doc_ref="doc §5.1",
+    kind="numeric",
+    needs=("close",),
     lookback=lambda p: int(p["window_days"]),
 )
 def price_change_20d(bars: pd.DataFrame, p: dict) -> pd.Series:
@@ -140,9 +164,7 @@ def _pivots(values: np.ndarray, k: int, kind: str) -> np.ndarray:
     return flag
 
 
-def _near_level(
-    bars: pd.DataFrame, p: dict, kind: str
-) -> tuple[pd.Series, pd.Series]:
+def _near_level(bars: pd.DataFrame, p: dict, kind: str) -> tuple[pd.Series, pd.Series]:
     """Is today's extreme near a level that held at least `min_touches` times?
 
     Doc §5.2's sketch: "is today's low within ~2% of a low that held at least
@@ -164,9 +186,7 @@ def _near_level(
     for i in range(n):
         lo = max(0, i - lookback + 1)
         # Only pivots whose confirmation window has closed by row i.
-        confirmed = [
-            prices[j] for j in range(lo, max(lo, i - k + 1)) if pivot[j]
-        ]
+        confirmed = [prices[j] for j in range(lo, max(lo, i - k + 1)) if pivot[j]]
         if i < lookback - 1:
             continue
         today = prices[i]
@@ -179,7 +199,10 @@ def _near_level(
 
 
 @measure(
-    name="near_support", doc_ref="doc §5.2", kind="boolean", needs=("low",),
+    name="near_support",
+    doc_ref="doc §5.2",
+    kind="boolean",
+    needs=("low",),
     # lookback_days - 1 + pivot_k, not lookback_days - 1. The pivot at the
     # window's left edge (j = i - lookback_days + 1) is itself confirmed by
     # _pivots reading j-pivot_k .. j+pivot_k, so the measure genuinely touches
@@ -196,7 +219,10 @@ def near_support(bars: pd.DataFrame, p: dict) -> pd.Series:
 
 
 @measure(
-    name="near_resistance", doc_ref="doc §5.2", kind="boolean", needs=("high",),
+    name="near_resistance",
+    doc_ref="doc §5.2",
+    kind="boolean",
+    needs=("high",),
     lookback=lambda p: int(p["lookback_days"]) - 1 + int(p["pivot_k"]),
 )
 def near_resistance(bars: pd.DataFrame, p: dict) -> pd.Series:

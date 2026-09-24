@@ -135,19 +135,6 @@ def net_return(gross: float, costs: Costs) -> float:
 FILLABILITY = ("limit", "entry_at_ceiling", "exit_at_floor")
 
 
-def reference(bars: pd.DataFrame) -> pd.Series:
-    """The RAW reference price each day: the previous close, ADJUSTED for any
-    corporate action between the two days (ruling A9).
-
-    On an ex-date the exchange lowers the reference by the action, so a raw
-    previous close would put the ceiling too high and miss a real limit-up.
-    adj(t-1) / factor(t), with factor = adjusted / raw close, is exactly the
-    previous close in today's raw terms; on an ordinary day it is the raw
-    previous close.
-    """
-    return bars["close"].shift(1) * bars["raw_close"] / bars["close"]
-
-
 def fillability(bars: pd.DataFrame) -> pd.DataFrame:
     """G3's two fillability tests, per row of one symbol's bars.
 
@@ -210,6 +197,7 @@ REASONS = (
     "data_ends",  # the stock's rows end first while the market goes on (G11)
     "no_next_session",  # the stock's next row comes after a trading gap
     "window_gap",  # a trading gap inside the window (CLAUDE.md)
+    "factor_break",  # a G20 factor defect on entry .. exit: treated as a gap
     "window_excluded",  # an excluded row on t .. exit
     "not_tradeable",  # entry or exit day: no matched volume, or date-shifted
     "not_sellable",  # k below the entry era's earliest-sell offset
@@ -264,12 +252,21 @@ def outcomes(bars: pd.DataFrame, calendar, ks=None, costs=None) -> pd.DataFrame:
     n = len(bars)
     fill = fillability(
         bars.assign(
-            open=bars["raw_open"], close=bars["raw_close"], reference=reference(bars)
+            open=bars["raw_open"],
+            close=bars["raw_close"],
+            reference=checks.reference(bars),
         )
     )
     session = pd.Index(calendar).get_indexer(bars["trade_date"])
     n_cal = len(calendar)
     gap = (bars["gap_before"].to_numpy() > 0).tolist()
+    # G20 (data/checks.py factor_triage): the series steps between two rows,
+    # so a window across it is blanked like a gap, under its own reason.
+    broken = (
+        bars["factor_break"].to_numpy(bool)
+        if "factor_break" in bars
+        else np.zeros(n, bool)
+    ).tolist()
     excluded = bars["excluded"].to_numpy(bool).tolist()
     shifted = (
         bars["date_shifted"].to_numpy(bool)
@@ -307,6 +304,8 @@ def outcomes(bars: pd.DataFrame, calendar, ks=None, costs=None) -> pd.DataFrame:
             return missing(1)
         if gap[e]:
             return "no_next_session", None, e
+        if broken[e]:
+            return "factor_break", None, e
         if excluded[e]:
             return "window_excluded", None, e
         if not tradeable[e]:
@@ -321,6 +320,8 @@ def outcomes(bars: pd.DataFrame, calendar, ks=None, costs=None) -> pd.DataFrame:
                 return missing(m)
             if gap[j]:
                 return "window_gap", None, j
+            if broken[j]:
+                return "factor_break", None, j
             if excluded[j]:
                 return "window_excluded", None, j
             if m < 1 + k:
@@ -372,9 +373,10 @@ def outcomes(bars: pd.DataFrame, calendar, ks=None, costs=None) -> pd.DataFrame:
 # --- storage (Parquet by year + manifest, shared with the fingerprint) -------
 
 ROOT = store.PROCESSED / "returns"
-# The code an outcome depends on: this module, the limit function and loaders
-# (data/), the bars frame (features/) and the storage code.
-CODE_DIRS = ("backtest", "data", "features", "store.py")
+# The code an outcome depends on: this module (not the rest of backtest/,
+# which only reads outcomes), the limit function and loaders (data/), the bars
+# frame (features/) and the storage code.
+CODE_DIRS = ("backtest/forward_returns.py", "data", "features", "store.py")
 
 
 def rules_hash() -> str:

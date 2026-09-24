@@ -1,6 +1,7 @@
 """Tests for the fingerprint (patterns/fingerprint.py, doc §3.6): assembly,
-the generated schema, storage with its staleness checks, the validated() gate,
-and query(). One test per rule; each fails if its rule is removed.
+the generated schema, storage with its staleness checks, and query(). The
+gate (validated) is tested in test_evidence.py. One test per rule; each
+fails if its rule is removed.
 
 Two synthetic stocks over 300 sessions (2020-01 to 2021-02, so two year
 files), with measures from all three registries. The sector labels are
@@ -21,12 +22,10 @@ from vnstock_research.features.base import (
 from vnstock_research.patterns import fingerprint as fpm
 from vnstock_research.patterns.fingerprint import (
     Fingerprint,
-    Validated,
     assemble,
     load,
     query,
     schema,
-    validated,
     write,
 )
 
@@ -306,38 +305,6 @@ def test_a_flagged_measure_is_always_loaded_with_its_flag(tmp_path):
         "rvol",
         FLAG + "sector_change_20d",
     ]
-
-
-# --- validated(): the one path into validated statistics --------------------
-
-
-def test_validated_blanks_every_flagged_value_and_drops_the_flags(tmp_path):
-    _, fs = stored(tmp_path)
-    fp = load(5, fs, root=tmp_path)
-    v = validated(fp)
-    for name in ("sector_change_20d", "stock_vs_sector_20d"):
-        flag = fp.values[FLAG + name]
-        assert flag.any() and (~flag & fp.values[name].notna()).any()
-        assert v.values.loc[flag, name].isna().all()
-        pd.testing.assert_series_equal(
-            v.values.loc[~flag, name], fp.values.loc[~flag, name]
-        )
-    assert not [c for c in v.values.columns if c.startswith(FLAG)]
-    pd.testing.assert_series_equal(v.values["rvol"], fp.values["rvol"])
-
-
-def test_a_flagged_measure_without_its_flag_is_refused(tmp_path):
-    _, fs = stored(tmp_path)
-    fp = load(5, fs, root=tmp_path)
-    stripped = Fingerprint(
-        fp.values.drop(columns=FLAG + "sector_change_20d"), fp.schema, fp.manifest
-    )
-    fails_with(KeyError, FLAG + "sector_change_20d", validated, stripped)
-
-
-def test_validated_values_come_only_from_validated():
-    values, _ = stacked()
-    fails_with(TypeError, "only from validated", Validated, values, {})
 
 
 # --- query(): exact combinations ------------------------------------------

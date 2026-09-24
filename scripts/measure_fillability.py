@@ -45,9 +45,6 @@ def main() -> None:
     say("")
 
     with db.connect() as conn, conn.cursor() as cur:
-        # The recreated container's /dev/shm is small; a parallel hash join
-        # over the whole market can exhaust it.
-        cur.execute("SET max_parallel_workers_per_gather = 0")
         cur.execute(
             """
             CREATE TEMP TABLE liquid AS

@@ -31,8 +31,16 @@ import pandas as pd
 from ..data import db
 from .base import boolean_from, market_measure
 
-INDEX_COLUMNS = ["symbol", "trade_date", "open", "high", "low", "close",
-                 "volume", "gap_before"]
+INDEX_COLUMNS = [
+    "symbol",
+    "trade_date",
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "gap_before",
+]
 
 _SQL = """
 WITH cal AS (
@@ -96,8 +104,11 @@ def _ma(market: pd.DataFrame, window: int) -> pd.Series:
 
 
 @market_measure(
-    name="index_above_ma_50", doc_ref="doc §5.3", kind="boolean",
-    needs=("close",), lookback=lambda p: int(p["window_days"]) - 1,
+    name="index_above_ma_50",
+    doc_ref="doc §5.3",
+    kind="boolean",
+    needs=("close",),
+    lookback=lambda p: int(p["window_days"]) - 1,
 )
 def index_above_ma_50(market: pd.DataFrame, p: dict) -> pd.Series:
     """Is the index above its 50-session average -- doc §5.3's regime question."""
@@ -107,7 +118,9 @@ def index_above_ma_50(market: pd.DataFrame, p: dict) -> pd.Series:
 
 
 @market_measure(
-    name="index_ma_50_slope", doc_ref="doc §5.3", kind="numeric",
+    name="index_ma_50_slope",
+    doc_ref="doc §5.3",
+    kind="numeric",
     needs=("close",),
     lookback=lambda p: int(p["window_days"]) - 1 + int(p["slope_days"]),
 )
@@ -119,8 +132,11 @@ def index_ma_50_slope(market: pd.DataFrame, p: dict) -> pd.Series:
 
 
 @market_measure(
-    name="index_change_20d", doc_ref="doc §5.3", kind="numeric",
-    needs=("close",), lookback=lambda p: int(p["window_days"]),
+    name="index_change_20d",
+    doc_ref="doc §5.3",
+    kind="numeric",
+    needs=("close",),
+    lookback=lambda p: int(p["window_days"]),
 )
 def index_change_20d(market: pd.DataFrame, p: dict) -> pd.Series:
     """How far the market has moved recently."""
@@ -129,8 +145,11 @@ def index_change_20d(market: pd.DataFrame, p: dict) -> pd.Series:
 
 
 @market_measure(
-    name="index_drawdown_from_high", doc_ref="doc §5.3", kind="numeric",
-    needs=("close",), lookback=lambda p: int(p["window_days"]) - 1,
+    name="index_drawdown_from_high",
+    doc_ref="doc §5.3",
+    kind="numeric",
+    needs=("close",),
+    lookback=lambda p: int(p["window_days"]) - 1,
 )
 def index_drawdown_from_high(market: pd.DataFrame, p: dict) -> pd.Series:
     """How far below its recent peak the market sits.
@@ -147,8 +166,6 @@ def load_default(conn, start: str = "2012-01-01") -> pd.DataFrame:
     """The index the regime measures read, per config."""
     import yaml
 
-    cfg = yaml.safe_load(
-        (db.REPO / "config" / "rules" / "features.yaml").read_text()
-    )
+    cfg = yaml.safe_load((db.REPO / "config" / "rules" / "features.yaml").read_text())
     symbol = cfg.get("market", {}).get("index_symbol", "VNINDEX")
     return load(conn, symbol, start)
