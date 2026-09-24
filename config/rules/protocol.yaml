@@ -59,7 +59,13 @@ registered:
   slices:
     discover: {start: "2012-01-01", end: "2019-12-31"}
     validate: {start: "2020-01-01", end: "2023-12-31"}
-    holdout: {start: "2024-01-01", end: null}   # end = the freeze, set when run
+    # end = the freeze F, set 2026-09-24 before the one holdout run, computed by
+    # protocol.freeze_date from the stored returns (build 5, last settled
+    # session 2026-09-21): the last session before the first entry with an
+    # outcome still pending (2026-09-11, an exit deferred at the floor), so
+    # every k=3 and k=5 outcome of an entry in [start, F] is final. Left out of
+    # the protocol hash (protocol.protocol_hash): the one value left open.
+    holdout: {start: "2024-01-01", end: "2026-09-10"}
 
   # --- what a result is -------------------------------------------------------
   hit: "net return > 0 (fee PROVISIONAL until Ben confirms it)"

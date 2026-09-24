@@ -14,7 +14,9 @@ carries it out, and refuses every way of bending it:
     part of a slice's first use may never be tested on that slice: data once
     looked at is spent.
   - VALIDATE runs only the discover survivors, as registered, with no
-    retuning. The HOLDOUT is refused here: it runs once, with Ben, at the end.
+    retuning. The HOLDOUT is refused by `run`: it has its own path,
+    `run_holdout`, which runs ONCE (with Ben) on the validate survivors only,
+    under the registered holdout_rule.
 
 The statistics, per hypothesis and slice, on rows that passed the gate
 (backtest.evidence.validated: liquid on t, fillability and feature
@@ -32,6 +34,8 @@ fee), and flagged when its hit rate is implausibly high.
 
 from __future__ import annotations
 
+import copy
+import dataclasses
 import hashlib
 import json
 from dataclasses import dataclass
@@ -46,7 +50,7 @@ import yaml
 from .. import store
 from ..features.base import MARKET_REGISTRY, REGISTRY, SECTOR_REGISTRY
 from .evidence import _hit, declustered, validated
-from .forward_returns import CONFIG
+from .forward_returns import CONFIG, Costs, net_return
 
 PROTOCOL = CONFIG / "protocol.yaml"
 LOG = store.PKG.parents[1] / "research" / "hypothesis_log.csv"
@@ -76,8 +80,13 @@ def load_protocol(path: Path = PROTOCOL) -> dict:
 
 
 def protocol_hash(proto: dict) -> str:
-    """The frozen block's fingerprint, written into the log."""
-    blob = json.dumps(proto["registered"], sort_keys=True, default=str)
+    """The frozen block's fingerprint, written into the log. The holdout's END
+    is left out: it is the one value the registration left open on purpose
+    (the freeze, "set when run"), so setting it does not unfreeze the block.
+    It cannot be moved and re-run: the holdout runs once (`holdout_plan`)."""
+    reg = copy.deepcopy(proto["registered"])
+    reg["slices"]["holdout"]["end"] = None
+    blob = json.dumps(reg, sort_keys=True, default=str)
     return hashlib.sha256(blob.encode()).hexdigest()[:16]
 
 
@@ -177,12 +186,18 @@ def check_unused(hyps, slice_name: str, log: pd.DataFrame) -> None:
         )
 
 
-def discover_survivors(log: pd.DataFrame, hyps) -> list[Hypothesis]:
-    """The survivors of the LATEST discover run, the only ones validate may test."""
-    d = log[log["slice"] == "discover"]
+def _latest(log: pd.DataFrame, slice_name: str) -> pd.DataFrame:
+    """The rows of the LATEST run on a slice."""
+    d = log[log["slice"] == slice_name]
     if d.empty:
-        raise ValueError("validate needs a discover run first")
-    last = d[d["run_id"] == d["run_id"].iloc[-1]]
+        raise ValueError(f"the next slice needs a {slice_name} run first")
+    return d[d["run_id"] == d["run_id"].iloc[-1]]
+
+
+def survivors(log: pd.DataFrame, hyps, slice_name: str) -> list[Hypothesis]:
+    """The survivors of the LATEST run on a slice, the only ones the next slice
+    may test (discover -> validate -> holdout)."""
+    last = _latest(log, slice_name)
     ok = set(last.loc[last["survived"].astype(bool), "hypothesis"])
     return [h for h in hyps if h.id in ok]
 
@@ -374,7 +389,7 @@ def run(
     check_registration(proto, log)
     hyps = vocabulary(proto)
     if slice_name == "validate":
-        hyps = discover_survivors(log, hyps)
+        hyps = survivors(log, hyps, "discover")
     check_unused(hyps, slice_name, log)
     n = n_tested(log, hyps)
     start, end, before = _slice(proto, slice_name)
@@ -393,13 +408,26 @@ def run(
     if slice_name == "discover":
         res["survived"] = discover_verdict(res, proto, n)
     else:
-        d = log[(log["slice"] == "discover")]
-        d = d[d["run_id"] == d["run_id"].iloc[-1]].set_index("hypothesis")["edge"]
+        d = _latest(log, "discover").set_index("hypothesis")["edge"]
         res["discover_edge"] = res["hypothesis"].map(d).to_numpy()
         res["survived"] = holds(res["discover_edge"], res, proto)
         years = range(int(reg["slices"]["discover"]["start"][:4]), int(end[:4]) + 1)
         res["walk_forward"] = walk_forward(fp, rt, uni, hyps, proto, years)
 
+    run_id = _append_log(res, slice_name, proto, build, log_path)
+    d = Path(out) / run_id.replace(":", "")
+    d.mkdir(parents=True, exist_ok=True)
+    res.to_parquet(d / "results.parquet", index=False)
+    (d / "report.txt").write_text(
+        "\n".join(report(res, slice_name, n, proto, v.manifest, run_id)),
+        encoding="utf-8",
+    )
+    return d
+
+
+def _append_log(res, slice_name: str, proto: dict, build, log_path: Path) -> str:
+    """Append one row per hypothesis to the log, with the protocol hash, the
+    code hash and the build; return the run id."""
     run_at = datetime.now(UTC).isoformat(timespec="seconds")
     run_id = f"{slice_name}-{run_at}"
     entry = res.assign(
@@ -413,15 +441,7 @@ def run(
     log_path = Path(log_path)
     log_path.parent.mkdir(parents=True, exist_ok=True)
     entry.to_csv(log_path, mode="a", header=not log_path.exists(), index=False)
-
-    d = Path(out) / run_id.replace(":", "")
-    d.mkdir(parents=True, exist_ok=True)
-    res.to_parquet(d / "results.parquet", index=False)
-    (d / "report.txt").write_text(
-        "\n".join(report(res, slice_name, n, proto, v.manifest, run_id)),
-        encoding="utf-8",
-    )
-    return d
+    return run_id
 
 
 def walk_forward(fp, rt, universe_rows, hyps, proto: dict, years) -> list:
@@ -496,6 +516,236 @@ def report(
     return lines
 
 
+# --- the holdout: the single, final test, run ONCE (with Ben) -------------------
+
+REPORTS = LOG.parent / "reports"
+# An outcome in the holdout must be FINAL: not waiting for the calendar
+# (pending) and not resolved only after the cutoff (the gate's not_yet_known).
+NOT_FINAL = ("pending", "not_yet_known")
+# INFORMATION ONLY, beside the verdict (it never changes one): NET recomputed at
+# these ALL-IN round-trip costs = both broker fees + the statutory 0.10% sale
+# tax, which stays fixed. The registered cost is 2 x 0.15% + 0.10% = 0.40%, so
+# 0.10% is a zero-fee broker, 0.25% is 0.075% a side, and 0.40% must reproduce
+# the verdict.
+FEE_ROUND_TRIPS = (0.0010, 0.0025, 0.0040)
+
+
+def freeze_date(values: pd.DataFrame, start, ks) -> str:
+    """F, the holdout's end: the last session before the first signal day on or
+    after `start` with an outcome still `pending` at any horizon in ks (the
+    calendar ends before it resolves: the window is not over yet, or an exit
+    deferred at the floor is still waiting). Every outcome of an entry in
+    [start, F] is then final on settled prices. The cut is made at the first
+    pending day, not by dropping the pending rows: those are often the
+    floor-locked losers, and dropping only them would flatter the result."""
+    rows = values[pd.to_datetime(values["trade_date"]) >= pd.Timestamp(start)]
+    pending = np.logical_or.reduce(
+        [(rows[f"reason_{k}"] == "pending").to_numpy() for k in ks]
+    )
+    days = sorted(rows["trade_date"].unique())
+    if not pending.any():
+        return str(days[-1])
+    first = rows.loc[pending, "trade_date"].min()
+    return str(max(d for d in days if d < first))
+
+
+def cutoff(values: pd.DataFrame) -> str:
+    """The holdout's point-in-time cutoff (the gate's `before`): the day after
+    the last settled session. Every outcome of an entry up to F resolved by
+    then, and no price after it exists; entries after F are cut by the slice,
+    and `holdout` refuses any entry up to F whose outcome is not final."""
+    return str((pd.Timestamp(max(values["trade_date"])) + pd.Timedelta(days=1)).date())
+
+
+def holdout_plan(proto: dict, log: pd.DataFrame) -> list[Hypothesis]:
+    """What the holdout may test: ONLY the hypotheses that held in the latest
+    validate run. Refused unless the end is frozen, and refused if the log
+    already has any holdout row: the used-data rule at its strictest, since
+    the holdout is spent by its one run."""
+    if proto["registered"]["slices"]["holdout"]["end"] is None:
+        raise ValueError("freeze the holdout end first (registered.slices.holdout)")
+    check_registration(proto, log)
+    if (log["slice"] == "holdout").any():
+        raise ValueError("the holdout has already been run: it runs ONCE")
+    return survivors(log, vocabulary(proto), "validate")
+
+
+def holdout_verdict(discover_edge, res: pd.DataFrame, proto: dict) -> pd.Series:
+    """The registered holdout_rule AS WRITTEN (not `holds`: the validate rule's
+    min_edge is not part of it): ACCEPT when the edge keeps its discover sign
+    and the mean net return per de-clustered occurrence is above
+    min_net_expectancy. Below min_declustered it is NOT TESTABLE, never a pass."""
+    rule = proto["registered"]["holdout_rule"]
+    same = np.sign(res["edge"].to_numpy()) == np.sign(np.asarray(discover_edge, float))
+    ok = (same if rule["same_sign"] else True) & (
+        res["expectancy"] > float(rule["min_net_expectancy"])
+    ).to_numpy()
+    testable = (res["n_declustered"] >= int(rule["min_declustered"])).to_numpy()
+    verdict = np.where(testable, np.where(ok, "ACCEPT", "REJECT"), "NOT TESTABLE")
+    return pd.Series(verdict, index=res.index)
+
+
+def at_round_trip(v, round_trip: float, tax: float):
+    """The same gated rows with NET recomputed from the gross return at another
+    all-in round-trip cost: a broker fee of (round_trip - tax) / 2 a side, on
+    the traded amounts (forward_returns.net_return)."""
+    fee = (round_trip - tax) / 2
+    if fee < 0:
+        raise ValueError(f"a round trip of {round_trip:.2%} is below the sale tax")
+    costs = Costs(fee, tax, True)
+    nets = {
+        f"net_{k}": net_return(v.values[f"ret_{k}"], costs)
+        for k in v.manifest["horizons"]
+    }
+    return dataclasses.replace(v, values=v.values.assign(**nets))
+
+
+def break_even(gross_mean: float, tax: float) -> float:
+    """The all-in round-trip cost at which the mean NET return is zero. NET is
+    linear in the gross, so the mean gross decides it:
+    (1 + g)(1 - f - tax) / (1 + f) = 1  ->  f = ((1 + g)(1 - tax) - 1) / (2 + g)."""
+    fee = ((1 + gross_mean) * (1 - tax) - 1) / (2 + gross_mean)
+    return 2 * fee + tax
+
+
+def holdout(v, hyps, proto: dict, discover_edge: dict, tax: float) -> pd.DataFrame:
+    """The holdout statistics (evaluate: the same gate, de-clustering and
+    date-block p as every slice), the frozen verdict, and beside it, as
+    information only, the verdict and net at the other all-in costs."""
+    sl = proto["registered"]["slices"]["holdout"]
+    rows = v.values
+    d = pd.to_datetime(rows["trade_date"])
+    inside = rows[(d >= pd.Timestamp(sl["start"])) & (d <= pd.Timestamp(sl["end"]))]
+    for k in sorted({h.k for h in hyps}):
+        late = int(inside[f"reason_{k}"].isin(NOT_FINAL).sum())
+        if late:
+            raise ValueError(
+                f"{late} holdout outcomes at k={k} are not final (pending, or "
+                "known only after the cutoff): the freeze date is too late"
+            )
+    res = evaluate(v, hyps, proto, sl["start"], sl["end"])
+    res["discover_edge"] = res["hypothesis"].map(discover_edge).to_numpy()
+    res["verdict"] = holdout_verdict(res["discover_edge"], res, proto)
+    # Logged as survived: ACCEPTED only (never a not-testable one).
+    res["survived"] = res["verdict"] == "ACCEPT"
+    res["break_even"] = [break_even(g, tax) for g in res["gross"]]
+    for cost in FEE_ROUND_TRIPS:
+        alt = evaluate(
+            at_round_trip(v, cost, tax), hyps, proto, sl["start"], sl["end"], False
+        )
+        res[f"exp_at_{cost}"] = alt["expectancy"].to_numpy()
+        res[f"verdict_at_{cost}"] = holdout_verdict(
+            res["discover_edge"], alt, proto
+        ).to_numpy()
+    return res
+
+
+def run_holdout(
+    conn,
+    log_path: Path = LOG,
+    out: Path = OUT,
+    proto_path: Path = PROTOCOL,
+    reports: Path = REPORTS,
+) -> Path:
+    """THE HOLDOUT, once: the validate survivors on [holdout start, F], every
+    outcome final on the settled prices up to the last session; appended to
+    the log as slice 'holdout'; the report written to reports/holdout-<F>.txt."""
+    from ..data import universe
+    from ..patterns import fingerprint as fpm
+    from . import forward_returns as fr
+
+    proto = load_protocol(proto_path)
+    reg = proto["registered"]
+    log = read_log(log_path)
+    hyps = holdout_plan(proto, log)
+    n = n_tested(log, hyps)
+    start, end = reg["slices"]["holdout"]["start"], reg["slices"]["holdout"]["end"]
+
+    build, fs = fpm.expected(conn)
+    columns = sorted(
+        {h.trigger for h in hyps}
+        | {c for x in reg["conditions"].values() for c in x}
+        | {reg["regime"]}
+    )
+    fp = fpm.load(build, fs, columns=columns, start=start, end=end)
+    rt = fr.load(build, start=start)
+    before = cutoff(rt.values)
+    uni = universe.tiers(conn, "2012-01-01", end)
+    v = validated(fp, rt, uni, before=before)
+    disc = _latest(log, "discover").set_index("hypothesis")["edge"].to_dict()
+    res = holdout(v, hyps, proto, disc, fr.load_costs().sale_tax_rate)
+
+    run_id = _append_log(res, "holdout", proto, build, log_path)
+    d = Path(out) / run_id.replace(":", "")
+    d.mkdir(parents=True, exist_ok=True)
+    res.to_parquet(d / "results.parquet", index=False)
+    path = Path(reports) / f"holdout-{end}.txt"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        "\n".join(holdout_report(res, n, proto, v.manifest, run_id)) + "\n",
+        encoding="utf-8",
+    )
+    return path
+
+
+def holdout_report(
+    res: pd.DataFrame, n: int, proto: dict, manifest: dict, run_id: str
+) -> list[str]:
+    reg = proto["registered"]
+    rule, sl = reg["holdout_rule"], reg["slices"]["holdout"]
+    net = (
+        " | NET PROVISIONAL (fee not confirmed)" if manifest["net_provisional"] else ""
+    )
+    count = res["verdict"].value_counts()
+    lines = [
+        f"{run_id} | HOLDOUT {sl['start']} .. {sl['end']} (the freeze) | outcomes "
+        f"final before {manifest['before']} | protocol {protocol_hash(proto)} | "
+        f"N = {n}{net}",
+        f"the rule, as registered: {rule['text']}",
+        f"validate survivors run: {len(res)} | ACCEPTED {count.get('ACCEPT', 0)} | "
+        f"REJECTED {count.get('REJECT', 0)} | not testable on the holdout (< "
+        f"{rule['min_declustered']} de-clustered) {count.get('NOT TESTABLE', 0)}",
+        "beside each verdict, INFORMATION ONLY (it changes no verdict): the "
+        "two-sided date-block bootstrap p, and NET at other ALL-IN round-trip "
+        "costs (both broker fees + the 0.10% sale tax; registered = 0.40%)",
+    ]
+    order = {"ACCEPT": 0, "REJECT": 1, "NOT TESTABLE": 2}
+    shown = res.assign(o=res["verdict"].map(order)).sort_values(
+        ["o", "edge"], ascending=[True, False]
+    )
+    for _, r in shown.iterrows():
+        kept = (
+            "kept" if np.sign(r["edge"]) == np.sign(r["discover_edge"]) else "FLIPPED"
+        )
+        p = f"p {r['p']:.4f}" if r["testable"] else "p n/a (not testable)"
+        tail = "  SUSPICIOUS" if r["suspicious"] else ""
+        lines.append(
+            f"  [N={n}] {r['hypothesis']}: {r['verdict']} | edge {r['edge']:+.1%} "
+            f"(discover {r['discover_edge']:+.1%}, sign {kept})"
+            f" | net exp {r['expectancy']:+.2%} | {r['n_declustered']} de-cl. "
+            f"(n {r['n_raw']}) hit {r['hit_rate']:.1%} vs base {r['base_rate']:.1%}"
+            f" | {p}{tail}"
+        )
+        fees = "; ".join(
+            f"{c:.2%}: exp {r[f'exp_at_{c}']:+.2%} {r[f'verdict_at_{c}']}"
+            for c in FEE_ROUND_TRIPS
+        )
+        lines.append(
+            f"      all-in cost: {fees} | net exp is zero at {r['break_even']:.2%}"
+        )
+        for name in ("by_regime", "by_year"):
+            cells = [
+                f"{g}: {x['edge']:+.1%} (n {x['n_declustered']})"
+                for g, x in json.loads(r[name]).items()
+            ]
+            lines.append(f"      {name}: " + ", ".join(cells))
+    lines.append("display grouping only (families of nested survivors):")
+    for fam in families(res["hypothesis"]):
+        v = res.set_index("hypothesis").loc[fam, "verdict"]
+        lines.append("  " + ", ".join(f"{h} {v[h]}" for h in fam))
+    return lines
+
+
 # --- display only: families and exploratory avoid candidates (no claim) -------
 
 
@@ -535,11 +785,9 @@ def summary(log: pd.DataFrame) -> list[str]:
     verdict; no avoid rule is registered (there is no unused data to test one
     on without spending the holdout)."""
 
-    def latest(name):
-        d = log[log["slice"] == name]
-        return d[d["run_id"] == d["run_id"].iloc[-1]].set_index("hypothesis")
-
-    disc, val = latest("discover"), latest("validate")
+    disc, val = (
+        _latest(log, x).set_index("hypothesis") for x in ("discover", "validate")
+    )
     n = log["hypothesis"].nunique()
     held = val[val["survived"].astype(bool)]
     fams = families(held.index)
@@ -578,6 +826,24 @@ if __name__ == "__main__":
 
     if sys.argv[1] == "summary":
         print("\n".join(summary(read_log())))
+    elif sys.argv[1] == "freeze":
+        # Compute F from the stored returns; writing it into protocol.yaml is
+        # a separate, committed step, before the holdout runs.
+        from ..patterns import fingerprint as fpm
+        from . import forward_returns as fr
+
+        reg = load_protocol()["registered"]
+        start = reg["slices"]["holdout"]["start"]
+        with db.connect() as conn:
+            build, _ = fpm.expected(conn)
+        values = fr.load(build, start=start).values
+        print(
+            f"F = {freeze_date(values, start, reg['horizons'])} | last session "
+            f"{max(values['trade_date'])} | build {build}"
+        )
+    elif sys.argv[1] == "holdout":
+        with db.connect() as conn:
+            print(run_holdout(conn).read_text())
     else:
         with db.connect() as conn:
             path = run(conn, sys.argv[1])

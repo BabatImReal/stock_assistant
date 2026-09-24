@@ -222,7 +222,7 @@ def test_validate_takes_only_the_latest_discover_survivors():
             },
         ]
     )
-    assert pr.discover_survivors(past, [HAMMER, doji]) == [doji]
+    assert pr.survivors(past, [HAMMER, doji], "discover") == [doji]
 
 
 # --- the split ------------------------------------------------------------------
