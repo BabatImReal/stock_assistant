@@ -694,3 +694,18 @@ explicitly a later layer, and evaluating a model for it now would be building
 the roof before the walls.
 
 Related: [[decisions]] [[data-sources]] [[architecture]]
+
+## The holdout (2026-09-24, run 20) — for Ben
+- **The broker fee is now decisive.** 5 of the 9 rejects become ACCEPT at an
+  all-in round trip of 0.10% (a zero-fee broker) and 4 at 0.25%; none of the
+  6 accepts flips down to 0.10%. The break-even of the accepts is 0.57–1.21%
+  all-in. The verdict stays on the registered 0.40%. Please confirm your real
+  fee.
+- **The weak accepts.** 3 of the 6 pass the rule on 34–49 occurrences with p
+  0.09–0.64 (the rule does not require significance). How should G9 (ranking
+  to one pick) weigh them against the 2 that are both accepted and
+  significant?
+- **2026.** Several survivors are weaker or negative in 2026 (by_year in the
+  report). Watch this, don't tune.
+- `pool_before` for the look-alikes can now move past 2024, since the holdout
+  is spent. That is Ben's call, and it needs a new neighbours version.

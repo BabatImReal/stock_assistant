@@ -1,0 +1,75 @@
+holdout-2026-09-24T08:46:45+00:00 | HOLDOUT 2024-01-01 .. 2026-09-10 (the freeze) | outcomes final before 2026-09-22 | protocol 0106fab4dc2f35a2 | N = 1554 | NET PROVISIONAL (fee not confirmed)
+the rule, as registered: A validated survivor is ACCEPTED only if, on the holdout (2024-01-01 to the freeze date), its edge keeps its discover sign AND its mean net return per de-clustered occurrence is above zero, with at least 30 de-clustered occurrences. Nothing is tuned after it is seen.
+validate survivors run: 16 | ACCEPTED 6 | REJECTED 9 | not testable on the holdout (< 30 de-clustered) 1
+beside each verdict, INFORMATION ONLY (it changes no verdict): the two-sided date-block bootstrap p, and NET at other ALL-IN round-trip costs (both broker fees + the 0.10% sale tax; registered = 0.40%)
+  [N=1554] k3:marubozu_red+breadth_positive+rvol_high: ACCEPT | edge +12.4% (discover +7.0%, sign kept) | net exp +0.77% | 501 de-cl. (n 518) hit 52.9% vs base 40.5% | p 0.0220
+      all-in cost: 0.10%: exp +1.07% ACCEPT; 0.25%: exp +0.92% ACCEPT; 0.40%: exp +0.77% ACCEPT | net exp is zero at 1.17%
+      by_regime: 0.0: +4.0% (n 40), 1.0: +15.3% (n 461)
+      by_year: 2024: +6.8% (n 174), 2025: +16.1% (n 281), 2026: -0.1% (n 46)
+  [N=1554] k5:marubozu_red+ma_50_rising+rvol_high: ACCEPT | edge +9.7% (discover +6.5%, sign kept) | net exp +0.27% | 741 de-cl. (n 782) hit 51.4% vs base 41.7% | p 0.0070
+      all-in cost: 0.10%: exp +0.57% ACCEPT; 0.25%: exp +0.42% ACCEPT; 0.40%: exp +0.27% ACCEPT | net exp is zero at 0.67%
+      by_regime: 0.0: +4.4% (n 273), 1.0: +12.0% (n 468)
+      by_year: 2024: +5.7% (n 286), 2025: +13.5% (n 335), 2026: +5.1% (n 120)
+  [N=1554] k3:breakout+volume_dry: ACCEPT | edge +9.5% (discover +16.6%, sign kept) | net exp +0.67% | 46 de-cl. (n 62) hit 50.0% vs base 40.5% | p 0.0870
+      all-in cost: 0.10%: exp +0.97% ACCEPT; 0.25%: exp +0.82% ACCEPT; 0.40%: exp +0.67% ACCEPT | net exp is zero at 1.06%
+      by_regime: 0.0: +7.1% (n 13), 1.0: +10.9% (n 33)
+      by_year: 2024: +20.7% (n 21), 2025: +7.8% (n 16), 2026: -14.8% (n 9)
+  [N=1554] k3:three_black_crows+breadth_positive+rvol_high: ACCEPT | edge +8.5% (discover +23.4%, sign kept) | net exp +0.81% | 49 de-cl. (n 53) hit 49.0% vs base 40.5% | p 0.3198
+      all-in cost: 0.10%: exp +1.12% ACCEPT; 0.25%: exp +0.96% ACCEPT; 0.40%: exp +0.81% ACCEPT | net exp is zero at 1.21%
+      by_regime: 0.0: +54.0% (n 3), 1.0: +7.8% (n 46)
+      by_year: 2024: +4.9% (n 24), 2025: +9.6% (n 23), 2026: +13.0% (n 2)
+  [N=1554] k3:breakout+above_ma_50+volume_dry: ACCEPT | edge +3.7% (discover +16.3%, sign kept) | net exp +0.44% | 34 de-cl. (n 46) hit 44.1% vs base 40.4% | p 0.6397
+      all-in cost: 0.10%: exp +0.74% ACCEPT; 0.25%: exp +0.59% ACCEPT; 0.40%: exp +0.44% ACCEPT | net exp is zero at 0.83%
+      by_regime: 0.0: +3.3% (n 10), 1.0: +4.3% (n 24)
+      by_year: 2024: +15.0% (n 16), 2025: -0.2% (n 12), 2026: -20.3% (n 6)
+  [N=1554] k3:higher_lows+breadth_positive+ma_50_rising: ACCEPT | edge +3.3% (discover +7.5%, sign kept) | net exp +0.17% | 508 de-cl. (n 652) hit 43.7% vs base 40.4% | p 0.3428
+      all-in cost: 0.10%: exp +0.47% ACCEPT; 0.25%: exp +0.32% ACCEPT; 0.40%: exp +0.17% ACCEPT | net exp is zero at 0.57%
+      by_regime: 0.0: -4.8% (n 51), 1.0: +6.4% (n 457)
+      by_year: 2024: +1.5% (n 285), 2025: +7.6% (n 184), 2026: -13.9% (n 39)
+  [N=1554] k5:marubozu_red+rvol_high: REJECT | edge +7.1% (discover +4.5%, sign kept) | net exp -0.01% | 1485 de-cl. (n 1599) hit 49.0% vs base 41.9% | p 0.0030
+      all-in cost: 0.10%: exp +0.29% ACCEPT; 0.25%: exp +0.14% ACCEPT; 0.40%: exp -0.01% REJECT | net exp is zero at 0.39%
+      by_regime: 0.0: +4.0% (n 617), 1.0: +7.4% (n 868)
+      by_year: 2024: +3.0% (n 527), 2025: +10.6% (n 602), 2026: +7.0% (n 356)
+  [N=1554] k3:inside_day_run+above_ma_50+ma_50_rising: REJECT | edge +6.0% (discover +4.1%, sign kept) | net exp -0.05% | 1247 de-cl. (n 1393) hit 46.4% vs base 40.4% | p 0.0010
+      all-in cost: 0.10%: exp +0.25% ACCEPT; 0.25%: exp +0.10% ACCEPT; 0.40%: exp -0.05% REJECT | net exp is zero at 0.35%
+      by_regime: 0.0: +5.5% (n 266), 1.0: +7.5% (n 981)
+      by_year: 2024: +3.6% (n 559), 2025: +6.8% (n 468), 2026: +8.1% (n 220)
+  [N=1554] k5:marubozu_red+above_ma_50+rvol_high: REJECT | edge +5.6% (discover +6.4%, sign kept) | net exp -0.10% | 569 de-cl. (n 596) hit 47.3% vs base 41.7% | p 0.5947
+      all-in cost: 0.10%: exp +0.20% ACCEPT; 0.25%: exp +0.05% ACCEPT; 0.40%: exp -0.10% REJECT | net exp is zero at 0.30%
+      by_regime: 0.0: -8.4% (n 126), 1.0: +11.1% (n 443)
+      by_year: 2024: +2.5% (n 205), 2025: +12.6% (n 262), 2026: -9.0% (n 102)
+  [N=1554] k3:marubozu_red+market_up+rvol_high: REJECT | edge +4.5% (discover +5.8%, sign kept) | net exp -0.36% | 885 de-cl. (n 922) hit 45.0% vs base 40.5% | p 0.3598
+      all-in cost: 0.10%: exp -0.06% REJECT; 0.25%: exp -0.21% REJECT; 0.40%: exp -0.36% REJECT | net exp is zero at 0.04%
+      by_regime: 0.0: +nan% (n 0), 1.0: +7.4% (n 885)
+      by_year: 2024: +3.9% (n 268), 2025: +6.0% (n 439), 2026: +0.1% (n 178)
+  [N=1554] k3:marubozu_red+ma_50_rising: REJECT | edge +4.4% (discover +3.2%, sign kept) | net exp -0.29% | 3943 de-cl. (n 4628) hit 44.8% vs base 40.4% | p 0.0030
+      all-in cost: 0.10%: exp +0.01% ACCEPT; 0.25%: exp -0.14% REJECT; 0.40%: exp -0.29% REJECT | net exp is zero at 0.11%
+      by_regime: 0.0: +3.4% (n 1159), 1.0: +5.3% (n 2784)
+      by_year: 2024: +3.0% (n 1648), 2025: +4.7% (n 1530), 2026: +5.2% (n 765)
+  [N=1554] k5:marubozu_red+market_up+rvol_high: REJECT | edge +3.6% (discover +5.7%, sign kept) | net exp -0.50% | 871 de-cl. (n 924) hit 45.5% vs base 41.9% | p 0.5847
+      all-in cost: 0.10%: exp -0.20% REJECT; 0.25%: exp -0.35% REJECT; 0.40%: exp -0.50% REJECT | net exp is zero at -0.10%
+      by_regime: 0.0: +nan% (n 0), 1.0: +7.3% (n 871)
+      by_year: 2024: -0.0% (n 266), 2025: +6.1% (n 430), 2026: +0.9% (n 175)
+  [N=1554] k3:three_black_crows+rvol_high: REJECT | edge +1.3% (discover +15.0%, sign kept) | net exp -0.41% | 177 de-cl. (n 187) hit 41.8% vs base 40.5% | p 0.7036
+      all-in cost: 0.10%: exp -0.11% REJECT; 0.25%: exp -0.26% REJECT; 0.40%: exp -0.41% REJECT | net exp is zero at -0.01%
+      by_regime: 0.0: +0.6% (n 76), 1.0: +0.1% (n 101)
+      by_year: 2024: +7.1% (n 62), 2025: -1.8% (n 77), 2026: -2.8% (n 38)
+  [N=1554] k3:tight_range+breadth_positive+volume_dry: REJECT | edge +0.8% (discover +5.2%, sign kept) | net exp -0.07% | 1196 de-cl. (n 1962) hit 41.4% vs base 40.6% | p 0.8696
+      all-in cost: 0.10%: exp +0.23% ACCEPT; 0.25%: exp +0.08% ACCEPT; 0.40%: exp -0.07% REJECT | net exp is zero at 0.33%
+      by_regime: 0.0: +4.4% (n 355), 1.0: -0.4% (n 841)
+      by_year: 2024: +9.0% (n 481), 2025: -7.4% (n 501), 2026: -0.6% (n 214)
+  [N=1554] k3:three_black_crows+market_up+rvol_high: REJECT | edge -2.9% (discover +15.1%, sign FLIPPED) | net exp -0.90% | 101 de-cl. (n 109) hit 37.6% vs base 40.5% | p 0.6287
+      all-in cost: 0.10%: exp -0.61% REJECT; 0.25%: exp -0.75% REJECT; 0.40%: exp -0.90% REJECT | net exp is zero at -0.51%
+      by_regime: 0.0: +nan% (n 0), 1.0: +0.1% (n 101)
+      by_year: 2024: +2.9% (n 34), 2025: -7.5% (n 52), 2026: -3.7% (n 15)
+  [N=1554] k3:breakout+ma_50_rising+volume_dry: NOT TESTABLE | edge -7.0% (discover +20.0%, sign FLIPPED) | net exp -1.81% | 24 de-cl. (n 32) hit 33.3% vs base 40.4% | p n/a (not testable)
+      all-in cost: 0.10%: exp -1.52% NOT TESTABLE; 0.25%: exp -1.67% NOT TESTABLE; 0.40%: exp -1.81% NOT TESTABLE | net exp is zero at -1.43%
+      by_regime: 0.0: -13.4% (n 6), 1.0: -3.9% (n 18)
+      by_year: 2024: -2.8% (n 13), 2025: -16.9% (n 8), 2026: -3.6% (n 3)
+display grouping only (families of nested survivors):
+  k3:breakout+volume_dry ACCEPT, k3:breakout+above_ma_50+volume_dry ACCEPT, k3:breakout+ma_50_rising+volume_dry NOT TESTABLE
+  k3:higher_lows+breadth_positive+ma_50_rising ACCEPT
+  k3:inside_day_run+above_ma_50+ma_50_rising REJECT
+  k3:marubozu_red+ma_50_rising REJECT, k5:marubozu_red+rvol_high REJECT, k3:marubozu_red+breadth_positive+rvol_high ACCEPT, k3:marubozu_red+market_up+rvol_high REJECT, k5:marubozu_red+above_ma_50+rvol_high REJECT, k5:marubozu_red+ma_50_rising+rvol_high ACCEPT, k5:marubozu_red+market_up+rvol_high REJECT
+  k3:three_black_crows+rvol_high REJECT, k3:three_black_crows+breadth_positive+rvol_high ACCEPT, k3:three_black_crows+market_up+rvol_high REJECT
+  k3:tight_range+breadth_positive+volume_dry REJECT

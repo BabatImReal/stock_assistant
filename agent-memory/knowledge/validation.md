@@ -61,7 +61,7 @@ Design approved by Ben (A1–A12 + five additions; decisions.md run 16):
   UPCoM) never enter a validated number. UPCoM is 11.8% of liquid outcomes.
 - **Built:** E1 (limits + returns + storage), E2 (the gate + base rates +
   fallback, G20 factor defects blanked like gaps), E3 (the protocol).
-- **E3 results** (holdout NOT run): N = 1,554 → 1,454 testable → **82 passed
+- **E3 results:** N = 1,554 → 1,454 testable → **82 passed
   discovery** (BH q = 0.10, date-block bootstrap) → **16 held on validate**.
   The held list is led by "bearish" patterns behaving bullishly
   (three_black_crows / marubozu_red + high rvol), and it forms ~5 nested
@@ -71,4 +71,17 @@ Design approved by Ben (A1–A12 + five additions; decisions.md run 16):
   day, and until the holdout is run stops before 2024. The 16 held survivors
   are displayed as 6 families; the 8 negative-edge survivors are shown as
   exploratory avoid candidates.
-- **Next:** the holdout, once, with Ben, under the pre-registered rule.
+- **THE HOLDOUT (run once, 2026-09-24):** 2024-01-01 → F = 2026-09-10.
+  - **F:** the session before the first entry with a pending outcome, so
+    every outcome is final; the rows still pending are floor-locked exits,
+    which dropping would have flattered.
+  - **16 → 6 ACCEPTED, 9 REJECTED, 1 not testable.**
+  - Honest reading:
+    - only 2 accepts are also significant (p 0.022, 0.007: two marubozu_red
+      + rvol variants);
+    - 3 accepts rest on 34–49 occurrences with p 0.09–0.64;
+    - 8 rejects kept a positive edge but net ≤ 0 at the registered 0.40%,
+      and 5 of them flip at a zero-fee broker (0.10%).
+  - The edge in hit rate mostly persists; whether it pays depends on the
+    fee.
+  - Nothing tuned after.
