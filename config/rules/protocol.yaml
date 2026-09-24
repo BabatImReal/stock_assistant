@@ -151,3 +151,74 @@ neighbours:
 # Hypotheses registered AFTER the first run: {trigger, conditions: [names],
 # horizon, added_on}. Logged, counted in N, and tested only on data not used.
 additions: []
+
+# --- THE DAILY SCAN, PRE-REGISTERED 2026-09-24 before any forward day is scored.
+# Its OWN frozen block: its hash goes into every row of the paper-trading ledger
+# (research/paper_ledger.csv), and once the ledger has a row a changed block is
+# refused (report/scan.py). Adding it does not touch `registered` or
+# `neighbours`, so their logs stay valid.
+daily_scan:
+  version: 1
+  registered_on: "2026-09-24"
+  # What may be proposed: EXACTLY the ACCEPTs of the latest holdout run in the
+  # hypothesis log, as-is. No filter fitted on the holdout or its description.
+  signals: holdout_accepted
+  # A (signal, stock) pair is a candidate on T when the signal fired on T's
+  # fingerprint (every condition known and true: unknown never fires), the
+  # stock is liquid on T (data.universe.tiers), and its fillability can be
+  # judged at T: a DATED exchange that is not UPCoM. The holdout's gate
+  # (backtest.evidence.validated) blanked every outcome resting on an undated
+  # or UPCoM fillability judgement, so no accepted signal was ever measured on
+  # one; proposing it would trade something the frozen rule never accepted.
+  # ONE candidate is proposed, by these keys in order (Ben, 2026-09-24):
+  tie_breaker:
+    # The validate slice's net expectancy, from the log: PER TRADE and frozen.
+    # It only ranks; it is never reported as a forward metric.
+    - {key: validate_expectancy, prefer: highest}
+    # Mean traded_value (fingerprint) over the stock's last 20 sessions up to
+    # and including T: known at T. Fewer than 20 sessions ranks last.
+    - {key: traded_value_20d, prefer: highest}
+    # data.universe tiers: 3 = MOST liquid, 1 = least. Ben's instruction reads
+    # "tier 1 = most liquid"; the code numbers them the other way, so this key
+    # prefers the more liquid tier, which is what the instruction means.
+    - {key: tier, prefer: most_liquid}
+    - {key: symbol, prefer: alphabetical}
+  traded_value_sessions: 20
+
+# --- PAPER TRADING, PRE-REGISTERED 2026-09-24 (Ben set these numbers; change
+# them only if Ben says so). Its OWN frozen block, hash in every ledger row.
+paper_trading:
+  version: 1
+  registered_on: "2026-09-24"
+  # The forward record = signal days STRICTLY AFTER this date (the date of the
+  # commit that freezes these blocks). Earlier days may be shown, labelled
+  # BEFORE THE FREEZE, and are never part of the forward record.
+  frozen_on: "2026-09-24"
+  # The unit is the SIGNAL DAY: one proposal a day, one stake, entry at the
+  # next open, exit at the signal's k (backtest.forward_returns: no buy at the
+  # ceiling, a floor-locked exit waits), net at the all-in cost. Never per
+  # de-clustered trade.
+  unit: signal_day
+  hit: "net > 0"
+  # A proposal whose outcome was decided AT ENTRY with no trade (the next
+  # session opens at the ceiling, the stock does not trade, ...) is VOID: no
+  # stake was placed; counted and shown, never scored. One whose stake was
+  # placed but has no return (stuck: a gap in the hold, an exit locked at the
+  # floor past the cap, the data ends) is STUCK: it withholds any verdict
+  # until Ben rules on it, because dropping it would hide a loss.
+  verdict:
+    min_signal_days: 30
+    # The first to the last scored signal day spans at least this many
+    # calendar months.
+    min_span_months: 3
+    pass:
+      cumulative_above: 0.0       # stakes
+      drawdown_at_least: -1.0     # max drawdown no worse than -1.0 stake
+      positive_months: majority   # strictly more than half the months net > 0
+    fail:                         # either, once the minimum sample is reached
+      cumulative_at_most: 0.0
+      drawdown_below: -1.5        # at any point of the record
+    # Otherwise PROVISIONAL: keep accumulating.
+  fee: "no PASS/FAIL is declared while the broker fee is PROVISIONAL"
+  # The record per family is shown as information; the bar is on the aggregate.
+  families: information_only
