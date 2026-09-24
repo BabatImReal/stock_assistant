@@ -229,3 +229,50 @@ paper_trading:
   fee: "no PASS/FAIL is declared while the broker fee is PROVISIONAL"
   # The record per family is shown as information; the bar is on the aggregate.
   families: information_only
+
+# --- NEW-HYPOTHESIS BATCHES: CANDIDATE GENERATION, NOT CONFIRMATION ----------
+# Registered 2026-09-24, AFTER the holdout was spent and after the first run's
+# results were seen. The discover (2012-2019) and validate (2020-2023) slices
+# were already looked at by the registered run, so a survivor here is at best
+# a PAPER-TRADING CANDIDATE; the forward ledger is the only arbiter left. The
+# holdout is not run for a batch (there is no code path for it).
+#
+# Each batch is its OWN frozen block: its hash goes into every row of
+# research/hypothesis_log_batches.csv (the original hypothesis log is never
+# written by a batch), a changed block is refused afterwards, and each slice
+# runs ONCE per batch. Everything not stated here is taken unchanged from
+# `registered`: the triggers, the conditions, the slices and their purge, the
+# de-clustering, min_declustered, the date-block bootstrap, the suspicious
+# flag, the regime split and the year-by-year walk-forward.
+batches:
+  complements_1:
+    version: 1
+    registered_on: "2026-09-24"
+    # THE RULE THAT DEFINES THE SET (no hand-picking): the registered context
+    # vocabulary made two-sided. Every registered condition gains its EXACT
+    # logical complement, not_<name>: the other side of the same comparison
+    # on the same measure (>= -> <, > -> <=, == -> !=). No new measure, no new
+    # threshold; a value that cannot be judged stays unknown on both sides.
+    # The batch = every registered trigger x every set of 1 or 2 conditions
+    # drawn from the 16 x every registered horizon, that contains at least
+    # one complement (the rest were registered) and never a condition
+    # together with its own complement (a contradiction).
+    # 21 triggers x (8 + 84) condition sets x 2 horizons:
+    n: 3864
+    max_conditions: 2
+    # The fee is out of scope for this batch (Ben, 2026-09-24): hit = GROSS
+    # return > 0, base rate the same. Net at the provisional cost is reported
+    # beside each result as information only; it gates nothing.
+    hit: gross
+    discover:
+      fdr_q: 0.10              # Benjamini-Hochberg over THIS batch's N
+      min_abs_edge: 0.03       # the edge's magnitude, either sign
+    validate:
+      same_sign: true
+      min_gross_expectancy: 0.0  # strictly above
+    # A PAPER-TRADING CANDIDATE: held on validate with a POSITIVE edge (a
+    # negative one cannot be traded: no short selling in Vietnam).
+    # "Materially stronger than the six": on validate, on this batch's gross
+    # basis, a higher edge AND a higher gross expectancy than the best of the
+    # six holdout ACCEPTs, AND at least as many walk-forward years positive.
+    stronger_than_six: [edge, gross, years_positive]
