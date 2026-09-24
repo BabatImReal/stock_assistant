@@ -1,27 +1,18 @@
-# Current state — 2026-09-24 (end of session 2026-09-23-03, run 23)
+# Current state — 2026-09-24 (end of session 2026-09-23-03, run 24)
 
 Rewritten from scratch. Checked this run: `git log` / `rev-parse` (main
 untouched), the hypothesis log (the 6 holdout ACCEPTs), the stored
 fingerprint and returns (build 5, to 2026-09-21), the ledger, and pytest.
 
 ## Phase
-- **On main (`f53b72a`):** features, nightly hardening, exchange labels, the
-  pattern catalogue (T1–T4), the fingerprint (T5). Untouched; only Ben merges.
-- **`features/analog-backtest` (`dc4dff9`):** the analysis engine E1–E4, THE
-  HOLDOUT (spent), the holdout description, the fee research. Awaiting Ben's
-  review; not merged.
-- **`features/daily-scan` (the working branch, cut from analog-backtest):**
-  the product layer, the daily scan + the paper-trading ledger. Awaiting
-  review.
-- `claude/great-bell-6wr1jq` still exists (fully merged into analog-backtest).
-  Ben deletes it; the permission guard blocks me.
-
-## Git (features/daily-scan)
-1. `eaebcd2`: THE FREEZE. The code, the tests and two frozen blocks in
-   `config/rules/protocol.yaml`, committed before any day was recorded.
-2. The run-22 commit: the first ledger rows, the smoke-test report, memory.
-3. `daily_scan` v2 (HOSE first) + the freeze guarding forward rows only,
-   committed BEFORE any forward day.
+- **Everything is on main** (Ben asked to merge, 2026-09-24): features,
+  nightly hardening, exchange labels, the pattern catalogue + fingerprint,
+  the analysis engine E1–E4, THE HOLDOUT (spent), its description, and the
+  daily scan + paper-trading ledger. main was fast-forwarded to the
+  daily-scan head.
+- **No working branch.** daily-scan, analog-backtest and
+  claude/great-bell-6wr1jq were merged and deleted (locally and on GitHub).
+  The next branch is cut from main when Ben gives the next task.
 
 ## The daily scan (report/scan.py) and paper trading (report/paper.py)
 - **Trades exactly the 6 holdout ACCEPTs, as-is.** "Strong" = one fired; no
@@ -73,9 +64,8 @@ the ACCEPTs run from breakout+volume_dry +0.74% down to k5 marubozu+ma50
   4. `report.scan`.
 
   Then `report.paper score`. Nothing is scheduled.
-- Ben: confirm the exchange key is FIRST (not after the validate
-  expectancy); confirm the tier direction and the UPCoM/undated exclusion; the real
-  broker fee (no verdict until then); delete `claude/great-bell-6wr1jq`.
+- Ben: confirm the tier direction and the UPCoM/undated exclusion; the real
+  broker fee (no verdict until then).
 - G20 repair; X4, G19, G18, G2, G10, G11; the limit rounding / UPCoM
   reference.
 
@@ -85,7 +75,7 @@ The market is closed on Saturday, Sunday and public holidays
 weekday the market was open.
 
 ## Next steps
-1. Ben reviews `features/daily-scan` (and analog-backtest under it).
+1. Ben gives the next task (a new branch from main).
 2. Decide how the daily pipeline runs (manual or scheduled), then scan each
    new session and score as outcomes mature.
 
@@ -96,7 +86,7 @@ the "crowded day" idea; moving `pool_before` past 2024 (needs a new neighbours
 version).
 
 ## Reading order for the next session
-1. This file. 2. `knowledge/00-index.md`. 3. Runs 22–23 of
+1. This file. 2. `knowledge/00-index.md`. 3. Runs 22–24 of
 `logs/sessions/2026-09-23-session-03.md`. 4. `config/rules/protocol.yaml`
 (the `daily_scan` and `paper_trading` blocks). 5. Only the code the task
 touches, via `code-map.md`.

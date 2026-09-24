@@ -762,3 +762,6 @@ Related: [[decisions]] [[data-sources]] [[architecture]]
 - **STUCK proposals** (a placed stake with no return) withhold the verdict
   until you rule on them.
 - The fee: while it is PROVISIONAL, no PASS/FAIL is declared.
+- RESOLVED 2026-09-24 (run 24): the exchange key stays FIRST (Ben
+  confirmed). Still open: the tier direction wording, the UPCoM/undated
+  exclusion, the fee, and running the daily pipeline.
