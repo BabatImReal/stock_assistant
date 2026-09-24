@@ -167,17 +167,23 @@ class Evidence:
     sector: Level | None = None  # EXPLORATORY, beside, never in the fallback
 
 
+def declustered(dates: pd.Series, symbols: pd.Series, sessions: dict, k: int):
+    """Which occurrences are new evidence, aligned to the input: per symbol, one
+    within k sessions of the last COUNTED one shares its outcome window, so it
+    is not new."""
+    s = dates.map(sessions).to_numpy()
+    sym = symbols.to_numpy()
+    keep = np.zeros(len(s), bool)
+    last: dict = {}
+    for i in np.lexsort((s, sym)):
+        if sym[i] not in last or s[i] - last[sym[i]] > k:
+            keep[i], last[sym[i]] = True, s[i]
+    return keep
+
+
 def decluster(dates: pd.Series, symbols: pd.Series, sessions: dict, k: int) -> int:
-    """Occurrences that do not share an outcome window: per symbol, one within
-    k sessions of the last COUNTED one is not new."""
-    count = 0
-    frame = pd.DataFrame({"s": dates.map(sessions), "sym": symbols.to_numpy()})
-    for _, s in frame.sort_values("s").groupby("sym")["s"]:
-        last = None
-        for x in s:
-            if last is None or x - last > k:
-                count, last = count + 1, x
-    return count
+    """How many occurrences are new evidence (`declustered`)."""
+    return int(declustered(dates, symbols, sessions, k).sum())
 
 
 def _level(v, mask, hit, k, sessions, level, group, exploratory=False) -> Level:
