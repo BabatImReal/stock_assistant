@@ -1,4 +1,4 @@
-# Current state — 2026-09-24 (end of session 2026-09-23-03, run 22)
+# Current state — 2026-09-24 (end of session 2026-09-23-03, run 23)
 
 Rewritten from scratch. Checked this run: `git log` / `rev-parse` (main
 untouched), the hypothesis log (the 6 holdout ACCEPTs), the stored
@@ -96,7 +96,7 @@ the "crowded day" idea; moving `pool_before` past 2024 (needs a new neighbours
 version).
 
 ## Reading order for the next session
-1. This file. 2. `knowledge/00-index.md`. 3. Run 22 of
+1. This file. 2. `knowledge/00-index.md`. 3. Runs 22–23 of
 `logs/sessions/2026-09-23-session-03.md`. 4. `config/rules/protocol.yaml`
 (the `daily_scan` and `paper_trading` blocks). 5. Only the code the task
 touches, via `code-map.md`.
