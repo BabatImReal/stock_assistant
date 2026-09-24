@@ -143,7 +143,7 @@ PostgreSQL 16.15 + timescaledb 2.30.1, healthy, named volume created.
 | `config/rules/protocol.yaml` | **PRE-REGISTERED (b3ca180) research protocol**: the frozen `registered` block, the separately frozen `neighbours` block (a828418, E4), (21 triggers, 8 conditions, ≤ 2, k 3/5 = 1,554; slices; min 30 de-clustered; BH q 0.10; the date-block bootstrap; the validate rule; the HOLDOUT rule) and `additions` | — |
 | `research/hypothesis_log.csv` | The hypothesis log (in git): one row per hypothesis per run with the protocol/code hashes, build, slice and result; N = distinct hypotheses | — |
 | `research/neighbours_log.csv` | Every look-alike run with the method hash (the freeze check) | — |
-| `research/reports/*.txt` | The discover and validate run reports (every line carries N), the E3 families/avoid summary, and the E4 look-alike sanity check; `holdout-2026-09-10.txt`: THE HOLDOUT (run once) | — |
+| `research/reports/*.txt` | The discover and validate run reports (every line carries N), the E3 families/avoid summary, and the E4 look-alike sanity check; `holdout-2026-09-10.txt`: THE HOLDOUT (run once); `holdout-2026-09-10-describe.txt`: its description (avg win/loss, drawdown, streaks; run by Ben 2026-09-24 and pasted in; copied into git by Claude) | — |
 | `config/rules/costs.yaml` | Broker fee (provisional) and the 0.1% sale tax | — |
 | `config/rules/market_rules.yaml` | Price limits **with the date each took effect** and tick sizes by price band; settlement cycle. Used by the price-limit check | — |
 | `scripts/analyse_missed_actions.py` | For beyond-limit moves in the liquid universe, compares our adjusted series against vnstock's to tell "CafeF missed a corporate action" from "the move was real" | pandas, vnstock, `data.checks` |

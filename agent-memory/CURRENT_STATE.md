@@ -1,80 +1,72 @@
-# Current state — 2026-09-24 (end of session 2026-09-24-01, run 6)
+# Current state — 2026-09-24 (end of session 2026-09-24-01, run 7)
 
 Rewritten from scratch. This session ran in a cloud container with **NO
-database and no data files**. The DB figures below come from the previous
-session's checked state, NOT re-read. This run checked: `git log`, the
-hypothesis log in git (16 holdout rows), pytest, ruff.
+database**. The holdout-description numbers come from Ben's own run
+(`research/reports/holdout-2026-09-10-describe.txt`, pasted in, saved to git).
+This run checked: git log, the 16 trade counts against the holdout report, and
+pytest (from run 6).
 
 ## Phase
 - **On main (`f53b72a`):** features, nightly hardening, exchange labels, the
   pattern catalogue (T1–T4), the fingerprint (T5).
 - **On `features/analog-backtest` (`2ed5bef`):** the analysis engine E1–E4 and
-  THE HOLDOUT (run once 2026-09-24; spent). Awaiting Ben's review.
-- **On `claude/great-bell-6wr1jq`:** `features/analog-backtest` +
-  session 2026-09-24-01: the fee research and **`describe-holdout`** (built,
-  tested, NOT yet run on real data).
+  THE HOLDOUT (run once 2026-09-24; spent).
+- **On `claude/great-bell-6wr1jq`:** all of the above + session
+  2026-09-24-01: the fee research, `describe-holdout` (built, and run by Ben),
+  the clear unknown-command error, and this analysis. Ben should work from
+  this branch; `features/analog-backtest` lacks `describe-holdout`.
 
 ## Git
 - `main` = `f53b72a`. Only Ben merges.
-- `features/analog-backtest` = `2ed5bef` (the holdout commit).
-- `claude/great-bell-6wr1jq` = fast-forwarded to `2ed5bef`, then this
-  session's commit on top. It is the only session branch.
+- `features/analog-backtest` = `2ed5bef`.
+- `claude/great-bell-6wr1jq` = `2ed5bef` + `51b5aa9` (describe + fees) +
+  `ae8845c` (unknown command) + this run's commit (the report + notes).
 
-## The research result (unchanged; the holdout is spent)
-- N = 1,554 → 1,454 testable → 82 passed discovery → 16 held on validate →
-  **holdout: 6 ACCEPTED, 9 REJECTED, 1 NOT TESTABLE** at the registered 0.40%
-  all-in.
-- Only 2 accepts are also significant: k3 marubozu_red+breadth+rvol (p 0.022)
-  and k5 marubozu_red+ma_50_rising+rvol (p 0.007).
-- Report: `research/reports/holdout-2026-09-10.txt`. Log: slice "holdout",
-  protocol `0106fab4dc2f35a2`, build 5.
+## The research result
+- Holdout (registered, per trade, 0.40%): **6 ACCEPTED, 9 REJECTED, 1 NOT
+  TESTABLE**. Only 2 accepts are significant (the two marubozu_red + rvol
+  variants).
+- **Run 7 finding (knowledge/validation.md):** the per-trade expectancy is
+  not what a one-stake-a-day pick earns. Totals in % of one stake over
+  2024-01 → 2026-09, at 0.40%:
 
-## Fees (researched this session → knowledge/context-vietnam.md)
-- Tax 0.10% on each sale. Exchange fee 0.03% a side, even at "zero-fee"
-  brokers. Commission 0–0.35% a side (legal cap 0.5%).
-- All-in round trip: **0.16%** (zero-commission) / **0.40%** (registered) /
-  **0.60%** (0.25% a side). 0.10% is unreachable.
-- Verdicts at those costs, read off the report's break-even column (exact,
-  since NET is linear in the gross): **10 / 6 / 5 accepted.**
-- Ben does not know his fee. `costs.yaml` is unchanged (0.15%/side,
-  PROVISIONAL).
+| accepted | per-trade sum | one stake a day | its max drawdown |
+| --- | --- | --- | --- |
+| k3 breakout+volume_dry | +31% | **+30.5%** | −34% (bad path −45%) |
+| k3 higher_lows+breadth+ma50 | +86% | **+19.8%** | −41% (bad −71%) |
+| k3 breakout+above_ma50+volume_dry | +15% | +12.6% | −48% |
+| k3 three_black_crows+breadth+rvol | +40% | +4.5% | −37% |
+| k3 marubozu_red+breadth+rvol | +386% | **−2.8%** | −52% (bad −94%) |
+| k5 marubozu_red+ma50rising+rvol | +200% | **−117%** | −206% |
 
-## New this session: describe the holdout (information only)
-- `backtest/risk.py`:
-  - per trade: avg win, avg loss, payoff, best, worst;
-  - max drawdown and worst losing streak on a fixed stake per signal day
-    (basket, and one random pick over 1,000 seeded paths: median and
-    worst-5%);
-  - the share of 60-pick stretches ≤ 0.
-- `protocol.describe_holdout` / `run_describe_holdout`: takes the verdicts
-  from the log and re-derives the same de-clustered trades. It **refuses
-  unless the count, the mean NET and the build match the log**. It writes no
-  log row and is safe to repeat. Costs: 0.16 / 0.40 / 0.60%.
-- **Run 6:** Ben ran it on an OLD checkout (`features/analog-backtest`, where
-  the command does not exist). It fell through to `run()` and crashed in
-  `_slice` (`tuple.index`). `run()` now names an unknown command. **Ben must
-  check out `claude/great-bell-6wr1jq` first.**
-- **Run on Ben's machine** (DB up, on this branch):
-  `uv run python -m vnstock_research.backtest.protocol describe-holdout` →
-  `research/reports/holdout-2026-09-10-describe.txt`.
-- **Not computed yet.** No real numbers exist.
+- The 2 "significant" ideas earn only on crowded days (many stocks firing at
+  once). Every REJECT loses per day at 0.40%.
+- Nothing is strong enough to trade real money. The best per-day results
+  are small next to their drawdowns, and rare (breakout: 41 signal days in
+  2.7 years).
 
-## Verified by running it this run
-- `uv run pytest` → **534 passed, 0 failed, 24 skipped.** The 24 skips are
-  the DB tests (no database here). 537 + 21 new tests − 24 skipped = 534
-  (11 test_risk, 9 test_holdout, 1 test_protocol).
-- `uv run ruff check .` → clean.
-- Strict mutation check of the new code: **15/16 killed**. The survivor is
-  equivalent: the `losing_windows` short guard (NaN either way).
+## Fees (context-vietnam.md)
+- All-in round trip: 0.16% (zero commission) / 0.40% (registered) / 0.60%.
+- The fee swings the per-day totals hard: higher_lows +63% / +20% / −16%;
+  marubozu+breadth +36% / −3% / −35%.
+- Ben's fee is unknown; `costs.yaml` is unchanged (0.15%/side, PROVISIONAL).
 
-## Blockers / open
-- **Ben:** run `describe-holdout` and paste the report; choose a broker or
-  confirm the fee.
-- How G9 (one pick) weighs the weak-p accepts; the 2026 weakness;
-  `pool_before` for the look-alikes.
-- The paper-trading pass bar: to be written down BEFORE paper trading starts.
-- G20 repair; X4, G19, G18, G2, G9, G10, G11; the limit rounding / UPCoM
-  reference to confirm.
+## Verified (run 6; no code changed in run 7)
+- pytest **534 passed, 0 failed, 24 skipped** (the DB tests; no DB here).
+- ruff check clean.
+- Mutation check of the describe code: 15/16 killed (1 equivalent).
+
+## Blockers / open (open-questions.md, "After the holdout description")
+- **Ben, architectural:** measure the daily-pick strategy PER SIGNAL DAY
+  (one stake a day) in G9 and any future registered test? It can only be
+  tested on new data or in paper trading. The holdout is spent.
+- **Check the extreme trades** (−57.7%, +53.0%, −36.1%, a repeated −30.7%)
+  for missed corporate actions. The describe report does not name
+  symbol/date yet.
+- Broker/fee choice. The G9 ranking. The paper-trading pass bar (to be
+  written before starting).
+- G20 repair; X4, G19, G18, G2, G10, G11; the limit rounding / UPCoM
+  reference.
 
 ## Rule to remember when judging missing data
 The market is closed on Saturday, Sunday and public holidays
@@ -82,18 +74,17 @@ The market is closed on Saturday, Sunday and public holidays
 weekday the market was open.
 
 ## Next steps
-1. Ben runs `describe-holdout`; analyse avg win/loss, drawdown and streaks
-   for the 6 accepts (especially the 2 significant ones) at 0.16/0.40/0.60%.
-2. Fee fixed from a real order confirmation (the fee ÷ the order value).
-3. Ben reviews and merges `features/analog-backtest` (+ this branch).
-4. G9: rank to one pick; then the paper-trading pass bar; then the daily scan.
+1. Ben answers the unit question (per trade vs per signal day).
+2. Name and check the extreme trades.
+3. Design paper trading (the pass bar fixed in advance, per-day unit), then G9.
 
 ## Parked
 TypeSafe / Jev; SSI FastConnect; flag/pause (P7); pattern strength numbers
-(P9); precomputing market/sector per fingerprint build; target-before-stop.
+(P9); precomputing market/sector per fingerprint build; target-before-stop;
+the "crowded day" idea (a NEW hypothesis: only for unused data).
 
 ## Reading order for the next session
-1. This file. 2. `knowledge/00-index.md`. 3. `logs/sessions/2026-09-24-session-01.md`.
-4. `research/reports/holdout-2026-09-10.txt` (+ `-describe.txt` once run),
-`knowledge/validation.md`, `knowledge/context-vietnam.md` (fees).
-5. Only the code the task touches, via `code-map.md`.
+1. This file. 2. `knowledge/00-index.md`. 3. `logs/sessions/2026-09-24-session-01.md`
+(run 7). 4. `knowledge/validation.md` (the last section),
+`research/reports/holdout-2026-09-10-describe.txt`. 5. Only the code the task
+touches, via `code-map.md`.

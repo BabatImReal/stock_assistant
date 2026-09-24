@@ -1,0 +1,100 @@
+HOLDOUT 2024-01-01 .. 2026-09-10: WHAT FOLLOWING EACH SURVIVOR WOULD HAVE FELT LIKE | INFORMATION ONLY: every verdict is the logged one, nothing is re-judged
+every trade is a de-clustered holdout occurrence, NET at the all-in cost shown (registered 0.40%); a fixed stake per signal day, not compounding: -25% = a quarter of one stake (25M VND at 100M a trade)
+basket = the day's stake split over every stock that fired; one pick = the stake on ONE of them at random (1000 seeded paths: median, and a bad path = the worst 5%)
+positions overlap (a 3-5 day hold, a signal most days): the cash needed is several stakes; no slippage beyond the costs
+  k3:breakout+above_ma_50+volume_dry: ACCEPT | 34 trades on 33 signal days
+      per trade at 0.40%: avg win +7.7% | avg loss -5.3% | payoff 1.45 | best +36.8% | worst -23.7%
+      basket: total +12.6% | max drawdown -48.1% | worst losing streak 5 days
+      one pick: total +15.2% (median) | max drawdown -48.1% median, -48.1% bad | losing streak 5 median, 5 bad
+      at 0.16%: avg win +7.9% / loss -5.0% | basket total +20.6%, drawdown -44.9% | one pick drawdown -44.9% median, -44.9% bad
+      at 0.60%: avg win +7.4% / loss -5.5% | basket total +6.0%, drawdown -50.8% | one pick drawdown -50.8% median, -50.8% bad
+  k3:breakout+volume_dry: ACCEPT | 46 trades on 41 signal days
+      per trade at 0.40%: avg win +6.2% | avg loss -4.9% | payoff 1.27 | best +36.8% | worst -23.7%
+      basket: total +30.5% | max drawdown -34.2% | worst losing streak 4 days
+      one pick: total +39.2% (median) | max drawdown -34.2% median, -45.3% bad | losing streak 4 median, 4 bad
+      at 0.16%: avg win +6.5% / loss -4.7% | basket total +40.4%, drawdown -33.6% | one pick drawdown -33.6% median, -41.5% bad
+      at 0.60%: avg win +6.0% / loss -5.1% | basket total +22.3%, drawdown -34.7% | one pick drawdown -34.7% median, -49.1% bad
+  k5:marubozu_red+ma_50_rising+rvol_high: ACCEPT | 741 trades on 275 signal days
+      per trade at 0.40%: avg win +5.3% | avg loss -5.0% | payoff 1.05 | best +53.0% | worst -30.7%
+      basket: total -117.0% | max drawdown -205.6% | worst losing streak 9 days
+      one pick: total -118.3% (median) | max drawdown -218.1% median, -287.8% bad | losing streak 10 median, 11 bad | 60-pick stretches below zero 76%
+      at 0.16%: avg win +5.3% / loss -5.0% | basket total -51.1%, drawdown -164.9% | one pick drawdown -177.3% median, -242.4% bad
+      at 0.60%: avg win +5.2% / loss -5.1% | basket total -171.7%, drawdown -247.4% | one pick drawdown -255.7% median, -330.0% bad
+  k3:three_black_crows+breadth_positive+rvol_high: ACCEPT | 49 trades on 38 signal days
+      per trade at 0.40%: avg win +4.9% | avg loss -3.1% | payoff 1.57 | best +20.8% | worst -30.7%
+      basket: total +4.5% | max drawdown -37.1% | worst losing streak 4 days
+      one pick: total +4.7% (median) | max drawdown -37.9% median, -38.4% bad | losing streak 4 median, 4 bad
+      at 0.16%: avg win +4.5% / loss -3.5% | basket total +13.6%, drawdown -35.5% | one pick drawdown -36.3% median, -36.6% bad
+      at 0.60%: avg win +4.9% / loss -3.2% | basket total -3.1%, drawdown -38.5% | one pick drawdown -39.2% median, -41.8% bad
+  k3:marubozu_red+breadth_positive+rvol_high: ACCEPT | 501 trades on 160 signal days
+      per trade at 0.40%: avg win +4.2% | avg loss -3.1% | payoff 1.36 | best +26.9% | worst -30.7%
+      basket: total -2.8% | max drawdown -52.1% | worst losing streak 6 days
+      one pick: total -4.3% (median) | max drawdown -64.8% median, -93.7% bad | losing streak 7 median, 9 bad | 60-pick stretches below zero 37%
+      at 0.16%: avg win +4.2% / loss -3.1% | basket total +35.7%, drawdown -50.5% | one pick drawdown -58.9% median, -76.8% bad
+      at 0.60%: avg win +4.2% / loss -3.2% | basket total -34.8%, drawdown -58.2% | one pick drawdown -74.4% median, -114.8% bad
+  k3:higher_lows+breadth_positive+ma_50_rising: ACCEPT | 508 trades on 180 signal days
+      per trade at 0.40%: avg win +3.4% | avg loss -2.3% | payoff 1.46 | best +23.3% | worst -9.5%
+      basket: total +19.8% | max drawdown -40.9% | worst losing streak 7 days
+      one pick: total +21.1% (median) | max drawdown -47.1% median, -71.4% bad | losing streak 8 median, 12 bad | 60-pick stretches below zero 24%
+      at 0.16%: avg win +3.3% / loss -2.2% | basket total +63.1%, drawdown -32.0% | one pick drawdown -37.9% median, -55.4% bad
+      at 0.60%: avg win +3.4% / loss -2.4% | basket total -16.3%, drawdown -48.5% | one pick drawdown -58.2% median, -92.3% bad
+  k5:marubozu_red+above_ma_50+rvol_high: REJECT | 569 trades on 249 signal days
+      per trade at 0.40%: avg win +5.7% | avg loss -5.3% | payoff 1.07 | best +53.0% | worst -30.7%
+      basket: total -141.9% | max drawdown -322.4% | worst losing streak 10 days
+      one pick: total -143.4% (median) | max drawdown -329.3% median, -383.4% bad | losing streak 10 median, 15 bad | 60-pick stretches below zero 67%
+      at 0.16%: avg win +5.6% / loss -5.4% | basket total -82.3%, drawdown -292.1% | one pick drawdown -297.4% median, -351.7% bad
+      at 0.60%: avg win +5.6% / loss -5.4% | basket total -191.3%, drawdown -347.5% | one pick drawdown -358.5% median, -413.5% bad
+  k5:marubozu_red+rvol_high: REJECT | 1485 trades on 448 signal days
+      per trade at 0.40%: avg win +5.1% | avg loss -4.9% | payoff 1.03 | best +53.0% | worst -57.7%
+      basket: total -374.4% | max drawdown -514.4% | worst losing streak 22 days
+      one pick: total -374.1% (median) | max drawdown -517.9% median, -640.4% bad | losing streak 16 median, 20 bad | 60-pick stretches below zero 79%
+      at 0.16%: avg win +5.1% / loss -4.9% | basket total -267.6%, drawdown -430.0% | one pick drawdown -433.3% median, -555.0% bad
+      at 0.60%: avg win +5.0% / loss -5.0% | basket total -463.2%, drawdown -584.5% | one pick drawdown -588.7% median, -711.2% bad
+  k5:marubozu_red+market_up+rvol_high: REJECT | 871 trades on 306 signal days
+      per trade at 0.40%: avg win +5.0% | avg loss -5.0% | payoff 0.98 | best +53.0% | worst -57.7%
+      basket: total -405.0% | max drawdown -471.4% | worst losing streak 30 days
+      one pick: total -407.0% (median) | max drawdown -479.6% median, -571.8% bad | losing streak 20 median, 27 bad | 60-pick stretches below zero 93%
+      at 0.16%: avg win +4.9% / loss -5.1% | basket total -332.4%, drawdown -413.1% | one pick drawdown -420.5% median, -510.9% bad
+      at 0.60%: avg win +4.9% / loss -5.1% | basket total -465.4%, drawdown -519.8% | one pick drawdown -529.3% median, -622.2% bad
+  k3:three_black_crows+market_up+rvol_high: REJECT | 101 trades on 80 signal days
+      per trade at 0.40%: avg win +4.0% | avg loss -3.9% | payoff 1.04 | best +20.8% | worst -30.7%
+      basket: total -109.8% | max drawdown -125.7% | worst losing streak 6 days
+      one pick: total -110.2% (median) | max drawdown -125.7% median, -147.2% bad | losing streak 6 median, 11 bad | 60-pick stretches below zero 100%
+      at 0.16%: avg win +3.8% / loss -4.0% | basket total -90.8%, drawdown -109.7% | one pick drawdown -110.2% median, -131.4% bad
+      at 0.60%: avg win +3.9% / loss -4.0% | basket total -125.6%, drawdown -139.1% | one pick drawdown -139.0% median, -160.5% bad
+  k3:marubozu_red+market_up+rvol_high: REJECT | 885 trades on 309 signal days
+      per trade at 0.40%: avg win +3.9% | avg loss -3.8% | payoff 1.01 | best +26.9% | worst -30.7%
+      basket: total -258.9% | max drawdown -291.4% | worst losing streak 27 days
+      one pick: total -262.8% (median) | max drawdown -297.6% median, -376.0% bad | losing streak 22 median, 27 bad | 60-pick stretches below zero 91%
+      at 0.16%: avg win +3.8% / loss -3.9% | basket total -185.3%, drawdown -231.8% | one pick drawdown -237.7% median, -315.6% bad
+      at 0.60%: avg win +3.9% / loss -3.8% | basket total -320.2%, drawdown -341.0% | one pick drawdown -349.2% median, -428.5% bad
+  k3:three_black_crows+rvol_high: REJECT | 177 trades on 124 signal days
+      per trade at 0.40%: avg win +3.8% | avg loss -3.5% | payoff 1.11 | best +20.8% | worst -30.7%
+      basket: total -76.8% | max drawdown -99.8% | worst losing streak 8 days
+      one pick: total -77.1% (median) | max drawdown -102.1% median, -129.4% bad | losing streak 8 median, 8 bad | 60-pick stretches below zero 93%
+      at 0.16%: avg win +3.8% / loss -3.4% | basket total -47.2%, drawdown -76.4% | one pick drawdown -83.7% median, -106.4% bad
+      at 0.60%: avg win +3.7% / loss -3.6% | basket total -101.5%, drawdown -119.8% | one pick drawdown -120.7% median, -149.2% bad
+  k3:marubozu_red+ma_50_rising: REJECT | 3943 trades on 621 signal days
+      per trade at 0.40%: avg win +3.6% | avg loss -3.4% | payoff 1.05 | best +27.8% | worst -30.7%
+      basket: total -265.3% | max drawdown -275.2% | worst losing streak 12 days
+      one pick: total -265.6% (median) | max drawdown -295.1% median, -438.7% bad | losing streak 11 median, 15 bad | 60-pick stretches below zero 73%
+      at 0.16%: avg win +3.6% / loss -3.4% | basket total -116.7%, drawdown -145.7% | one pick drawdown -182.7% median, -307.5% bad
+      at 0.60%: avg win +3.6% / loss -3.5% | basket total -388.9%, drawdown -390.6% | one pick drawdown -405.3% median, -549.5% bad
+  k3:tight_range+breadth_positive+volume_dry: REJECT | 1196 trades on 198 signal days
+      per trade at 0.40%: avg win +3.4% | avg loss -2.6% | payoff 1.35 | best +25.7% | worst -36.1%
+      basket: total -33.7% | max drawdown -86.3% | worst losing streak 10 days
+      one pick: total -34.2% (median) | max drawdown -92.2% median, -156.4% bad | losing streak 10 median, 14 bad | 60-pick stretches below zero 63%
+      at 0.16%: avg win +3.4% / loss -2.5% | basket total +13.8%, drawdown -52.3% | one pick drawdown -66.0% median, -123.2% bad
+      at 0.60%: avg win +3.4% / loss -2.7% | basket total -73.2%, drawdown -114.5% | one pick drawdown -119.3% median, -182.8% bad
+  k3:inside_day_run+above_ma_50+ma_50_rising: REJECT | 1247 trades on 490 signal days
+      per trade at 0.40%: avg win +3.4% | avg loss -3.0% | payoff 1.12 | best +30.6% | worst -31.8%
+      basket: total -54.6% | max drawdown -123.9% | worst losing streak 8 days
+      one pick: total -58.0% (median) | max drawdown -133.7% median, -193.1% bad | losing streak 10 median, 15 bad | 60-pick stretches below zero 49%
+      at 0.16%: avg win +3.4% / loss -2.9% | basket total +63.1%, drawdown -79.1% | one pick drawdown -96.7% median, -144.8% bad
+      at 0.60%: avg win +3.4% / loss -3.0% | basket total -152.5%, drawdown -162.5% | one pick drawdown -188.6% median, -261.3% bad
+  k3:breakout+ma_50_rising+volume_dry: NOT TESTABLE | 24 trades on 23 signal days
+      per trade at 0.40%: avg win +5.2% | avg loss -5.3% | payoff 0.97 | best +15.7% | worst -23.7%
+      basket: total -45.7% | max drawdown -69.5% | worst losing streak 6 days
+      one pick: total -48.3% (median) | max drawdown -72.1% median, -72.1% bad | losing streak 8 median, 8 bad
+      at 0.16%: avg win +5.4% / loss -5.1% | basket total -40.3%, drawdown -65.8% | one pick drawdown -68.4% median, -68.4% bad
+      at 0.60%: avg win +4.9% / loss -5.5% | basket total -50.2%, drawdown -72.6% | one pick drawdown -75.2% median, -75.2% bad
