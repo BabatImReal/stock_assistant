@@ -96,6 +96,52 @@ registered:
     min_net_expectancy: 0.0
     min_declustered: 30
 
+# --- E4: the look-alike search, PRE-REGISTERED 2026-09-24 before it runs -----
+# Its OWN frozen block (hash written into research/neighbours_log.csv on the
+# first run; a changed block is refused afterwards). Adding it does not touch
+# `registered` above, so the E3 log stays valid.
+#
+# ILLUSTRATIVE, not a statistical claim: it shows Ben past days that looked like
+# today, with what followed. Nothing here enters N or the validated results.
+neighbours:
+  version: 1
+  registered_on: "2026-09-24"
+  # A neighbour must have EXACTLY today's fired set of the registered
+  # triggers (the 21 above): every trigger known on both days and equal. A
+  # trigger that could not be judged (NaN) never matches anything.
+  match_exactly: triggers
+  # Ranked by distance on these context measures (no sector: flagged, B3).
+  numeric:            # -> the same-day percentile among the day's LIQUID
+    - rvol            #    stocks; never scaled over full history
+    - up_down_volume_ratio
+    - price_vs_ma_20
+    - price_vs_ma_50
+    - ma_20_slope
+    - ma_50_slope
+    - price_change_10d
+    - price_change_20d
+    - range_rel_20d
+    - body_to_range
+    - upper_wick_to_range
+    - lower_wick_to_range
+    - open_gap
+  boolean:            # kept as 1 / 0; NaN stays unknown
+    - near_support
+    - near_resistance
+    - volume_dry_up
+    - index_above_ma_50
+  # Distance = the mean absolute difference over the columns known on BOTH
+  # days (equal weights). A missing value never matches a 0: the column is
+  # left out, and a pair needs at least this share of columns known on both.
+  min_known_share: 0.8
+  k: 50
+  horizons: [3, 5]
+  # The pool: liquid stock-days through the gate (backtest.evidence.validated),
+  # outcome resolved strictly before the query day. UNTIL THE HOLDOUT IS RUN,
+  # the pool also stops before the holdout starts, so no holdout-period
+  # outcome is seen before Ben and I run it.
+  pool_before: "2024-01-01"
+
 # Hypotheses registered AFTER the first run: {trigger, conditions: [names],
 # horizon, added_on}. Logged, counted in N, and tested only on data not used.
 additions: []
