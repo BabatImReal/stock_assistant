@@ -1,0 +1,101 @@
+# THE RESEARCH PROTOCOL: PRE-REGISTERED (doc §8.2; Ben, E3, 2026-09-24).
+#
+# Written and committed BEFORE the first discover run, so what is tested, how
+# it is judged and what would count as success were fixed before any result
+# was seen. The `registered` block is FROZEN: its hash is written into the
+# hypothesis log (research/hypothesis_log.csv) on the first run, and every later
+# run refuses a changed block (backtest/protocol.py). A new idea goes into
+# `additions`, is logged, counts in N, and may only be tested on data no run
+# has used yet.
+
+registered:
+  version: 1
+  registered_on: "2026-09-24"
+
+  # --- the hypothesis vocabulary (ruling A7) --------------------------------
+  # One hypothesis = a trigger, 0, 1 or 2 of the conditions, and a horizon:
+  # 21 x (1 + 8 + 28) x 2 = 1,554. The bullish/bearish label is never used:
+  # every hypothesis is tested two-sided (doc §6.3: labels can be wrong).
+  horizons: [3, 5]                  # ruling A1: both, both count in N
+  triggers:
+    - hammer_shape
+    - inverted_hammer_shape
+    - doji
+    - marubozu_green
+    - marubozu_red
+    - bullish_engulfing
+    - bearish_engulfing
+    - bullish_harami
+    - bearish_harami
+    - piercing_line
+    - dark_cloud_cover
+    - morning_star
+    - evening_star
+    - three_white_soldiers
+    - three_black_crows
+    - three_inside_up
+    - three_inside_down
+    - tight_range
+    - inside_day_run
+    - higher_lows
+    - breakout
+  # Each condition is a FIXED comparison (patterns.fingerprint.query). No sector
+  # measure: every sector value is flagged (B3), so none may enter a validated
+  # result.
+  conditions:
+    rvol_high: {rvol: ">=1.5"}
+    above_ma_50: {price_vs_ma_50: ">0"}
+    ma_50_rising: {ma_50_slope: ">0"}
+    at_support: {near_support: 1}
+    at_resistance: {near_resistance: 1}
+    market_up: {index_above_ma_50: 1}
+    breadth_positive: {breadth_advance_share_10d: ">=0.5"}
+    volume_dry: {volume_dry_up: 1}
+  max_conditions: 2
+
+  # --- the split (ruling A5) --------------------------------------------------
+  # Each slice drops every row whose outcome is not known strictly before the
+  # next slice starts (the purge), through backtest.evidence.validated.
+  slices:
+    discover: {start: "2012-01-01", end: "2019-12-31"}
+    validate: {start: "2020-01-01", end: "2023-12-31"}
+    holdout: {start: "2024-01-01", end: null}   # end = the freeze, set when run
+
+  # --- what a result is -------------------------------------------------------
+  hit: "net return > 0 (fee PROVISIONAL until Ben confirms it)"
+  universe: "liquid on t (data.universe), through backtest.evidence.validated"
+  # Below this many DE-CLUSTERED occurrences in a slice a hypothesis is not
+  # testable there: p = 1, and it still counts in N.
+  min_declustered: 30
+  suspicious_hit_rate: 0.75         # above this: "suspect a bug first"
+  regime: index_above_ma_50         # every result is also split by it (G7)
+
+  # --- discover: multiple-testing control (ruling A6) -------------------------
+  fdr_q: 0.10                       # Benjamini-Hochberg over ALL N hypotheses
+  # Significance by resampling BLOCKS OF DATES, never rows: many stocks move
+  # together on one day, and an outcome window spans several days.
+  bootstrap:
+    block_sessions: 10
+    resamples: 2000
+    seed: 20260924
+
+  # --- validate: a discover survivor must hold, with no retuning -------------
+  validate_rule:
+    same_sign: true
+    min_edge: 0.03                  # at least +3 points over the base rate
+    min_net_expectancy: 0.0         # strictly above
+
+  # --- holdout: written down BEFORE it is ever touched; run ONCE, with Ben ---
+  holdout_rule:
+    text: >-
+      A validated survivor is ACCEPTED only if, on the holdout (2024-01-01 to
+      the freeze date), its edge keeps its discover sign AND its mean net
+      return per de-clustered occurrence is above zero, with at least 30
+      de-clustered occurrences. Nothing is tuned after it is seen.
+    same_sign: true
+    min_net_expectancy: 0.0
+    min_declustered: 30
+
+# Hypotheses registered AFTER the first run: {trigger, conditions: [names],
+# horizon, added_on}. Logged, counted in N, and tested only on data not used.
+additions: []
