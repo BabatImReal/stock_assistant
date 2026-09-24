@@ -24,6 +24,7 @@ VAL = {BREAKOUT.id: 0.015, MARUBOZU.id: 0.010}
 
 def test_the_registered_blocks_are_bens():
     assert [(t["key"], t["prefer"]) for t in SPEC["tie_breaker"]] == [
+        ("exchange", ["HOSE", "HNX", "UPCOM"]),
         ("validate_expectancy", "highest"),
         ("traded_value_20d", "highest"),
         ("tier", "most_liquid"),
@@ -152,8 +153,19 @@ def frame(**cols):
         "traded_value_20d": [100.0] * n,
         "tier": [3] * n,
         "hypothesis": ["h"] * n,
+        "exchange": ["HOSE"] * n,
     }
     return pd.DataFrame({**base, **cols})
+
+
+def test_hose_ranks_before_hnx_whatever_else():
+    f = frame(
+        symbol=["AAA", "BBB"],
+        exchange=["HNX", "HOSE"],
+        validate_expectancy=[0.05, 0.01],
+        traded_value_20d=[999.0, 1.0],
+    )
+    assert ranked(f)[0] == "BBB"
 
 
 def test_the_validate_expectancy_ranks_first():
@@ -187,7 +199,7 @@ def test_an_unknown_traded_value_ranks_last():
 
 def test_the_order_is_the_registered_one():
     spec = copy.deepcopy(SPEC)
-    spec["tie_breaker"] = [spec["tie_breaker"][3], *spec["tie_breaker"][:3]]
+    spec["tie_breaker"] = [spec["tie_breaker"][4], *spec["tie_breaker"][:4]]
     f = frame(symbol=["BBB", "AAA"], validate_expectancy=[0.02, 0.01])
     assert scan.rank(f.assign(eligible=True, why=None), spec)["symbol"][0] == "AAA"
 
@@ -292,6 +304,19 @@ def test_a_changed_scan_block_is_refused(tmp_path):
         log_rows(),
         path,
     )
+
+
+def test_a_change_before_the_first_forward_day_is_allowed(tmp_path):
+    """Days before the freeze are information only: Ben may still change the
+    rule then without splitting the forward record."""
+    path = tmp_path / "ledger.csv"
+    paper.record(pick_for("2026-09-18"), PROTO, log_rows(), path)
+    changed = copy.deepcopy(PROTO)
+    changed["daily_scan"]["traded_value_sessions"] = 10
+    try:
+        paper.record(pick_for("2026-09-21"), changed, log_rows(), path)
+    except ValueError as e:
+        raise AssertionError(f"refused before any forward day: {e}") from None
 
 
 def test_a_changed_paper_block_is_refused(tmp_path):

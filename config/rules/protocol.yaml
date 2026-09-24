@@ -158,7 +158,11 @@ additions: []
 # refused (report/scan.py). Adding it does not touch `registered` or
 # `neighbours`, so their logs stay valid.
 daily_scan:
-  version: 1
+  # Version 2 (Ben, 2026-09-24, BEFORE any forward day was recorded): HOSE
+  # first. Ben's focus is HOSE ~85% / HNX ~12% / UPCoM ~3%: HOSE holds the big,
+  # reliable companies; HNX and UPCoM are mostly small caps that are hard to
+  # analyse. Version 1 (no exchange key) ran only on days before the freeze.
+  version: 2
   registered_on: "2026-09-24"
   # What may be proposed: EXACTLY the ACCEPTs of the latest holdout run in the
   # hypothesis log, as-is. No filter fitted on the holdout or its description.
@@ -172,6 +176,9 @@ daily_scan:
   # one; proposing it would trade something the frozen rule never accepted.
   # ONE candidate is proposed, by these keys in order (Ben, 2026-09-24):
   tie_breaker:
+    # The exchange FIRST: an HNX stock is proposed only when no HOSE stock is
+    # eligible that day. UPCoM stays excluded by the eligibility rule above.
+    - {key: exchange, prefer: [HOSE, HNX, UPCOM]}
     # The validate slice's net expectancy, from the log: PER TRADE and frozen.
     # It only ranks; it is never reported as a forward metric.
     - {key: validate_expectancy, prefer: highest}

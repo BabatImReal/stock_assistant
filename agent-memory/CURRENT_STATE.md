@@ -20,14 +20,18 @@ fingerprint and returns (build 5, to 2026-09-21), the ledger, and pytest.
 1. `eaebcd2`: THE FREEZE. The code, the tests and two frozen blocks in
    `config/rules/protocol.yaml`, committed before any day was recorded.
 2. The run-22 commit: the first ledger rows, the smoke-test report, memory.
+3. `daily_scan` v2 (HOSE first) + the freeze guarding forward rows only,
+   committed BEFORE any forward day.
 
 ## The daily scan (report/scan.py) and paper trading (report/paper.py)
 - **Trades exactly the 6 holdout ACCEPTs, as-is.** "Strong" = one fired; no
   performance filter. Otherwise NOTHING STRONG TODAY.
-- **`daily_scan` block (hash `914a3afc4d05fea0`).**
+- **`daily_scan` block v2 (hash `a5be2561c39c60af`; v1 `914a3afc4d05fea0`
+  ran only on the pre-freeze days).**
   - Eligible = fired (unknown never fires) + liquid on T + a dated, non-UPCoM
     exchange (mirrors the holdout's gate).
-  - ONE pick by: validate net expectancy (per trade, frozen; ranks only) → the
+  - ONE pick by: **HOSE before HNX** (Ben: focus HOSE ~85% / HNX ~12% /
+    UPCoM ~3%) → validate net expectancy (per trade, frozen; ranks only) → the
     20-session mean traded value → the more liquid tier (tier 3 = most liquid
     in the code; Ben wrote "tier 1", see open questions) → symbol.
 - **`paper_trading` block (hash `45ed221c5145016a`, Ben's numbers).**
@@ -54,9 +58,9 @@ the ACCEPTs run from breakout+volume_dry +0.74% down to k5 marubozu+ma50
 `research/reports/holdout-2026-09-10-describe.txt`.
 
 ## Verified by running it this run
-- pytest **597 passed, 0 failed, 0 skipped** (DB up); `ruff check .` clean.
+- pytest **599 passed, 0 failed, 0 skipped** (DB up); `ruff check .` clean.
 - Strict proofs (no exemptions):
-  - new rules **38/38**;
+  - new rules **41/41** (after v2);
   - re-run: holdout 33/33, E3 33/33, E4 23/23, describe 14/14;
   - earlier and unchanged: E2 46, E1 50, fingerprint 27, universe/breadth 17,
     sector 23, exchange 15, guards 5, T1 23, T2 36, T3 55, T4 20.
@@ -69,7 +73,8 @@ the ACCEPTs run from breakout+volume_dry +0.74% down to k5 marubozu+ma50
   4. `report.scan`.
 
   Then `report.paper score`. Nothing is scheduled.
-- Ben: confirm the tier direction and the UPCoM/undated exclusion; the real
+- Ben: confirm the exchange key is FIRST (not after the validate
+  expectancy); confirm the tier direction and the UPCoM/undated exclusion; the real
   broker fee (no verdict until then); delete `claude/great-bell-6wr1jq`.
 - G20 repair; X4, G19, G18, G2, G10, G11; the limit rounding / UPCoM
   reference.

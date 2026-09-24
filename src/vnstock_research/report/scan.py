@@ -13,7 +13,8 @@ every ledger row, report/paper.py):
     condition known and true: unknown never fires), on a stock liquid on T,
     whose fillability can be judged at T (a dated exchange, not UPCoM: the
     holdout's gate never measured an accepted signal on any other);
-  - ONE is proposed by the registered tie-breaker: the validate slice's net
+  - ONE is proposed by the registered tie-breaker: HOSE before HNX (Ben's
+    focus on the big, reliable companies), then the validate slice's net
     expectancy (per trade, frozen: it ranks, it is never a forward metric),
     then the 20-session mean traded value known at T, then the more liquid
     tier, then the symbol alphabetically.
@@ -143,22 +144,38 @@ def candidates(
     return c[CANDIDATE_COLUMNS]
 
 
+def _column(t: dict) -> str:
+    return "exchange" if t["key"] == "exchange" else KEYS[(t["key"], t["prefer"])][0]
+
+
+def _sort_key(c: pd.DataFrame, t: dict) -> tuple[pd.Series, bool]:
+    """(values, ascending) for one tie-breaker key. The exchange key sorts by
+    its position in `prefer` (HOSE first); an unlisted exchange ranks last."""
+    if t["key"] == "exchange":
+        order = {x: i for i, x in enumerate(t["prefer"])}
+        return c["exchange"].map(order).astype(float), True
+    col, ascending = KEYS[(t["key"], t["prefer"])]
+    return c[col], ascending
+
+
 def rank(c: pd.DataFrame, spec: dict) -> pd.DataFrame:
     """The eligible candidates, best first, by the registered tie-breaker."""
-    keys = [KEYS[(t["key"], t["prefer"])] for t in spec["tie_breaker"]]
     e = c[c["eligible"]]
-    return e.sort_values(
-        [k for k, _ in keys],
+    keys = [_sort_key(e, t) for t in spec["tie_breaker"]]
+    tmp = pd.DataFrame({f"k{i}": v for i, (v, _) in enumerate(keys)}, index=e.index)
+    order = tmp.sort_values(
+        list(tmp.columns),
         ascending=[a for _, a in keys],
         na_position="last",
         kind="stable",
-    ).reset_index(drop=True)
+    ).index
+    return e.loc[order].reset_index(drop=True)
 
 
 def lost_on(winner: pd.Series, other: pd.Series, spec: dict) -> str:
     """The first tie-breaker key on which `other` ranked below `winner`."""
     for t in spec["tie_breaker"]:
-        col = KEYS[(t["key"], t["prefer"])][0]
+        col = _column(t)
         a, b = winner[col], other[col]
         if not (a == b or (pd.isna(a) and pd.isna(b))):
             if col == "traded_value_20d":  # thousands of VND -> billions

@@ -82,13 +82,17 @@ def read(path: Path = LEDGER) -> pd.DataFrame:
 
 
 def check_frozen(proto: dict, ledger: pd.DataFrame) -> None:
-    """Once the ledger has a row, the registered blocks may not change."""
+    """Once the ledger has a FORWARD row, the registered blocks may not change:
+    the forward record must be of one rule. Days before the freeze are
+    information only, so a change Ben makes before the first forward day does
+    not split the record."""
+    forward = ledger[ledger["forward"].astype(str) == "True"]
     for name, col in (("daily_scan", "scan"), ("paper_trading", "paper")):
-        seen = set(ledger[col].dropna())
+        seen = set(forward[col].dropna())
         now = block_hash(proto[name])
         if seen and seen != {now}:
             raise ValueError(
-                f"the registered `{name}` block changed after the ledger's first "
+                f"the registered `{name}` block changed after the first forward "
                 f"row (ledger {sorted(seen)}, now {now}); only Ben may change it"
             )
 
