@@ -640,6 +640,29 @@ def holdout(v, hyps, proto: dict, discover_edge: dict, tax: float) -> pd.DataFra
     return res
 
 
+def _holdout_gated(conn, proto: dict, hyps):
+    """The gated rows of the holdout: the fingerprint columns the hypotheses
+    read, the stored returns, the liquid universe, cut at the last settled
+    session. ONE loader, so the holdout run and its later description see the
+    same rows."""
+    from ..data import universe
+    from ..patterns import fingerprint as fpm
+    from . import forward_returns as fr
+
+    reg = proto["registered"]
+    start, end = reg["slices"]["holdout"]["start"], reg["slices"]["holdout"]["end"]
+    build, fs = fpm.expected(conn)
+    columns = sorted(
+        {h.trigger for h in hyps}
+        | {c for x in reg["conditions"].values() for c in x}
+        | {reg["regime"]}
+    )
+    fp = fpm.load(build, fs, columns=columns, start=start, end=end)
+    rt = fr.load(build, start=start)
+    uni = universe.tiers(conn, "2012-01-01", end)
+    return validated(fp, rt, uni, before=cutoff(rt.values))
+
+
 def run_holdout(
     conn,
     log_path: Path = LOG,
@@ -650,32 +673,18 @@ def run_holdout(
     """THE HOLDOUT, once: the validate survivors on [holdout start, F], every
     outcome final on the settled prices up to the last session; appended to
     the log as slice 'holdout'; the report written to reports/holdout-<F>.txt."""
-    from ..data import universe
-    from ..patterns import fingerprint as fpm
     from . import forward_returns as fr
 
     proto = load_protocol(proto_path)
-    reg = proto["registered"]
+    end = proto["registered"]["slices"]["holdout"]["end"]
     log = read_log(log_path)
     hyps = holdout_plan(proto, log)
     n = n_tested(log, hyps)
-    start, end = reg["slices"]["holdout"]["start"], reg["slices"]["holdout"]["end"]
-
-    build, fs = fpm.expected(conn)
-    columns = sorted(
-        {h.trigger for h in hyps}
-        | {c for x in reg["conditions"].values() for c in x}
-        | {reg["regime"]}
-    )
-    fp = fpm.load(build, fs, columns=columns, start=start, end=end)
-    rt = fr.load(build, start=start)
-    before = cutoff(rt.values)
-    uni = universe.tiers(conn, "2012-01-01", end)
-    v = validated(fp, rt, uni, before=before)
+    v = _holdout_gated(conn, proto, hyps)
     disc = _latest(log, "discover").set_index("hypothesis")["edge"].to_dict()
     res = holdout(v, hyps, proto, disc, fr.load_costs().sale_tax_rate)
 
-    run_id = _append_log(res, "holdout", proto, build, log_path)
+    run_id = _append_log(res, "holdout", proto, v.manifest["build_id"], log_path)
     d = Path(out) / run_id.replace(":", "")
     d.mkdir(parents=True, exist_ok=True)
     res.to_parquet(d / "results.parquet", index=False)
@@ -744,6 +753,191 @@ def holdout_report(
         v = res.set_index("hypothesis").loc[fam, "verdict"]
         lines.append("  " + ", ".join(f"{h} {v[h]}" for h in fam))
     return lines
+
+
+# --- after the holdout: what following each survivor would have felt like -----
+#
+# INFORMATION ONLY. The holdout is spent and is never re-judged: this reads its
+# verdicts from the log, re-derives the SAME de-clustered trades, refuses to go
+# on unless they reproduce the logged count and mean exactly, and then adds the
+# numbers doc §8.3 asks for beside the hit rate (backtest/risk.py).
+
+# All-in round-trip costs to describe at (researched 2026-09-24, see
+# knowledge/context-vietnam.md): 0.16% = a zero-commission broker, which still
+# passes on the exchange's 0.03% a side, + the 0.10% sale tax; 0.40% = the
+# registered cost (0.15% a side); 0.60% = 0.25% a side, a full-service rate on
+# small orders.
+DESCRIBE_ROUND_TRIPS = (0.0016, 0.0040, 0.0060)
+DESCRIBE_PATHS = 1000
+DESCRIBE_SEED = 20260924
+DESCRIBE_WINDOW = 60  # picks: about three months of daily proposals
+
+
+def occurrences(v, h: Hypothesis, proto: dict, start, end) -> pd.DataFrame:
+    """The de-clustered occurrences `evaluate` counts for h on [start, end], as
+    rows (trade_date, symbol, ret, net): the same slice, the same outcome
+    filter, eligibility and de-clustering, so their count and mean NET are
+    evaluate's n_declustered and expectancy."""
+    values = v.values
+    d = pd.to_datetime(values["trade_date"])
+    rows = values[(d >= pd.Timestamp(start)) & (d <= pd.Timestamp(end))]
+    # Sessions are numbered over the whole slice, before any row is dropped,
+    # exactly as in evaluate: de-clustering counts sessions, not rows.
+    sessions = {x: i for i, x in enumerate(sorted(rows["trade_date"].unique()))}
+    k = h.k
+    rows = rows[rows[f"net_{k}"].notna()].reset_index(drop=True)
+    hit = _hit(rows, h.query(proto))
+    o = rows[hit.notna() & (hit == 1.0)]
+    keep = declustered(o["trade_date"], o["symbol"], sessions, k)
+    return (
+        o[keep][["trade_date", "symbol", f"ret_{k}", f"net_{k}"]]
+        .rename(columns={f"ret_{k}": "ret", f"net_{k}": "net"})
+        .reset_index(drop=True)
+    )
+
+
+def describe_holdout(
+    v,
+    proto: dict,
+    log: pd.DataFrame,
+    tax: float,
+    costs=DESCRIBE_ROUND_TRIPS,
+    paths: int = DESCRIBE_PATHS,
+    seed: int = DESCRIBE_SEED,
+    window: int = DESCRIBE_WINDOW,
+) -> pd.DataFrame:
+    """One row per (holdout hypothesis, all-in cost): the logged verdict and
+    backtest.risk.describe of its de-clustered holdout trades at that cost."""
+    from . import risk
+
+    reg = proto["registered"]
+    sl = reg["slices"]["holdout"]
+    logged = _latest(log, "holdout").set_index("hypothesis")
+    if {str(b) for b in logged["build_id"]} != {str(v.manifest["build_id"])}:
+        raise ValueError(
+            f"the holdout ran on build {sorted(set(logged['build_id']))}, these rows "
+            f"are build {v.manifest['build_id']}: not the trades it judged"
+        )
+    by_id = {h.id: h for h in vocabulary(proto)}
+    floor = int(reg["holdout_rule"]["min_declustered"])
+    out = []
+    for hid, r in logged.iterrows():
+        occ = occurrences(v, by_id[hid], proto, sl["start"], sl["end"])
+        # The guard: these must be the very trades the holdout counted.
+        if len(occ) != int(r["n_declustered"]) or not np.isclose(
+            occ["net"].mean(), float(r["expectancy"]), rtol=1e-9, atol=1e-12
+        ):
+            raise ValueError(
+                f"{hid}: {len(occ)} trades, mean {occ['net'].mean():+.6f}, but the "
+                f"holdout logged {r['n_declustered']}, {float(r['expectancy']):+.6f}: "
+                "not the trades it judged"
+            )
+        n = int(r["n_declustered"])
+        verdict = (
+            "NOT TESTABLE"
+            if n < floor
+            else ("ACCEPT" if str(r["survived"]) == "True" else "REJECT")
+        )
+        for cost in costs:
+            fee = (cost - tax) / 2
+            if fee < 0:
+                raise ValueError(f"a round trip of {cost:.2%} is below the sale tax")
+            net = net_return(occ["ret"], Costs(fee, tax, True))
+            out.append(
+                {
+                    "hypothesis": hid,
+                    "verdict": verdict,
+                    "cost": cost,
+                    **risk.describe(occ["trade_date"], net, paths, seed, window),
+                }
+            )
+    return pd.DataFrame(out)
+
+
+def describe_report(res: pd.DataFrame, proto: dict, registered: float) -> list[str]:
+    sl = proto["registered"]["slices"]["holdout"]
+    w = int(res["window"].iloc[0]) if len(res) else DESCRIBE_WINDOW
+    lines = [
+        f"HOLDOUT {sl['start']} .. {sl['end']}: WHAT FOLLOWING EACH SURVIVOR WOULD "
+        "HAVE FELT LIKE | INFORMATION ONLY: every verdict is the logged one, "
+        "nothing is re-judged",
+        "every trade is a de-clustered holdout occurrence, NET at the all-in cost "
+        f"shown (registered {registered:.2%}); a fixed stake per signal day, not "
+        "compounding: -25% = a quarter of one stake (25M VND at 100M a trade)",
+        "basket = the day's stake split over every stock that fired; one pick = "
+        f"the stake on ONE of them at random ({DESCRIBE_PATHS} seeded paths: "
+        "median, and a bad path = the worst 5%)",
+        "positions overlap (a 3-5 day hold, a signal most days): the cash needed "
+        "is several stakes; no slippage beyond the costs",
+    ]
+    order = {"ACCEPT": 0, "REJECT": 1, "NOT TESTABLE": 2}
+    main = res[np.isclose(res["cost"], registered)]
+    shown = main.assign(o=main["verdict"].map(order)).sort_values(
+        ["o", "avg_win"], ascending=[True, False]
+    )
+
+    def pct(x):
+        return "n/a" if x != x else f"{x:+.1%}"
+
+    for _, r in shown.iterrows():
+        lines += [
+            f"  {r['hypothesis']}: {r['verdict']} | {r['trades']} trades on "
+            f"{r['signal_days']} signal days",
+            f"      per trade at {registered:.2%}: avg win {pct(r['avg_win'])} | "
+            f"avg loss {pct(r['avg_loss'])} | payoff {r['payoff']:.2f} | best "
+            f"{pct(r['best'])} | worst {pct(r['worst'])}",
+            f"      basket: total {pct(r['basket_total'])} | max drawdown "
+            f"{pct(r['basket_drawdown'])} | worst losing streak "
+            f"{r['basket_streak']} days",
+            f"      one pick: total {pct(r['pick_total_median'])} (median) | max "
+            f"drawdown {pct(r['pick_drawdown_median'])} median, "
+            f"{pct(r['pick_drawdown_bad'])} bad | losing streak "
+            f"{r['pick_streak_median']:.0f} median, {r['pick_streak_bad']:.0f} bad"
+            + (
+                ""
+                if r["pick_losing_windows"] != r["pick_losing_windows"]
+                else f" | {w}-pick stretches below zero {r['pick_losing_windows']:.0%}"
+            ),
+        ]
+        for _, a in res[
+            (res["hypothesis"] == r["hypothesis"])
+            & ~np.isclose(res["cost"], registered)
+        ].iterrows():
+            lines.append(
+                f"      at {a['cost']:.2%}: avg win {pct(a['avg_win'])} / loss "
+                f"{pct(a['avg_loss'])} | basket total {pct(a['basket_total'])}, "
+                f"drawdown {pct(a['basket_drawdown'])} | one pick drawdown "
+                f"{pct(a['pick_drawdown_median'])} median, "
+                f"{pct(a['pick_drawdown_bad'])} bad"
+            )
+    return lines
+
+
+def run_describe_holdout(
+    conn,
+    log_path: Path = LOG,
+    proto_path: Path = PROTOCOL,
+    reports: Path = REPORTS,
+) -> Path:
+    """Describe the holdout survivors (never re-judge them): the report goes to
+    reports/holdout-<F>-describe.txt. Safe to repeat: it writes no log row."""
+    from . import forward_returns as fr
+
+    proto = load_protocol(proto_path)
+    log = read_log(log_path)
+    check_registration(proto, log)
+    by_id = {h.id: h for h in vocabulary(proto)}
+    hyps = [by_id[h] for h in _latest(log, "holdout")["hypothesis"]]
+    v = _holdout_gated(conn, proto, hyps)
+    c = fr.load_costs()
+    res = describe_holdout(v, proto, log, c.sale_tax_rate)
+    end = proto["registered"]["slices"]["holdout"]["end"]
+    path = Path(reports) / f"holdout-{end}-describe.txt"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        "\n".join(describe_report(res, proto, c.round_trip)) + "\n", encoding="utf-8"
+    )
+    return path
 
 
 # --- display only: families and exploratory avoid candidates (no claim) -------
@@ -844,6 +1038,9 @@ if __name__ == "__main__":
     elif sys.argv[1] == "holdout":
         with db.connect() as conn:
             print(run_holdout(conn).read_text())
+    elif sys.argv[1] == "describe-holdout":
+        with db.connect() as conn:
+            print(run_describe_holdout(conn).read_text())
     else:
         with db.connect() as conn:
             path = run(conn, sys.argv[1])

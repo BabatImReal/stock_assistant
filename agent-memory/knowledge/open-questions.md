@@ -697,10 +697,21 @@ Related: [[decisions]] [[data-sources]] [[architecture]]
 
 ## The holdout (2026-09-24, run 20) — for Ben
 - **The broker fee is now decisive.** 5 of the 9 rejects become ACCEPT at an
-  all-in round trip of 0.10% (a zero-fee broker) and 4 at 0.25%; none of the
-  6 accepts flips down to 0.10%. The break-even of the accepts is 0.57–1.21%
-  all-in. The verdict stays on the registered 0.40%. Please confirm your real
-  fee.
+  all-in round trip of 0.10% and 4 at 0.25%; none of the 6 accepts flips down
+  to 0.10%. The break-even of the accepts is 0.57–1.21% all-in. The verdict
+  stays on the registered 0.40%. Please confirm your real fee.
+  - **Update 2026-09-24 (session 2026-09-24-01):** Ben does not know his fee.
+    Research (context-vietnam.md) shows the realistic range is 0.16% all-in
+    (a zero-commission broker still passes on 0.03% a side) to 0.60% (0.25%
+    a side). 0.10% is below any real broker, so "zero-fee" means 0.16%. At
+    0.16%: 10 accept (4 rejects flip). At 0.60%: 5 accept
+    (higher_lows+breadth+ma50, break-even 0.57%, drops out). These are read
+    off the break-even column, which is exact because NET is linear in the
+    gross. **Open: which broker Ben will use.**
+  - **Open: run `describe-holdout` on Ben's machine.** The code is built
+    (run 5 of session 2026-09-24-01), but the cloud session has no DB, so
+    the avg win/loss, drawdown and losing-streak numbers are NOT computed
+    yet.
 - **The weak accepts.** 3 of the 6 pass the rule on 34–49 occurrences with p
   0.09–0.64 (the rule does not require significance). How should G9 (ranking
   to one pick) weigh them against the 2 that are both accepted and

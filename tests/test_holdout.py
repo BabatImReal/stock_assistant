@@ -311,3 +311,121 @@ def test_the_holdout_logs_its_one_run_and_writes_its_report(lab):
     fails_with(
         ValueError, "runs ONCE", pr.run_holdout, None, reports=lab.reports, **lab.kw
     )
+
+
+# --- after the holdout: describe, never re-judge ------------------------------------
+
+
+def holdout_log(v, p, verdicts=None, build=None):
+    """A log whose holdout rows are what `holdout` really produced on v."""
+    res = pr.holdout(v, [HAMMER], p, DISC, 0.001)
+    rows = [
+        row(
+            run_id="h",
+            slice="holdout",
+            hypothesis=r["hypothesis"],
+            build_id=v.manifest["build_id"] if build is None else build,
+            n_declustered=r["n_declustered"],
+            expectancy=r["expectancy"],
+            survived=bool(r["survived"]) if verdicts is None else verdicts,
+            protocol=pr.protocol_hash(p),
+        )
+        for _, r in res.iterrows()
+    ]
+    return res, log(rows)
+
+
+def test_the_described_trades_are_the_ones_the_holdout_counted():
+    v = gated(start="2017-01-02", win=ALWAYS)
+    p = hproto()
+    res = pr.holdout(v, [HAMMER], p, DISC, 0.001).iloc[0]
+    occ = pr.occurrences(v, HAMMER, p, "2017-01-01", "2017-12-31")
+    assert len(occ) == res["n_declustered"]
+    assert occ["net"].mean() == pytest.approx(res["expectancy"], rel=1e-12)
+
+
+def test_the_described_trades_are_de_clustered_like_the_holdout():
+    # The hammer fires every 2nd session with k = 3: every other one repeats.
+    v = gated(start="2017-01-02", fire=lambda s, d: d % 2 == 0, win=ALWAYS)
+    p = hproto()
+    res = pr.holdout(v, [HAMMER], p, DISC, 0.001).iloc[0]
+    occ = pr.occurrences(v, HAMMER, p, "2017-01-01", "2017-12-31")
+    assert res["n_declustered"] < res["n_raw"]
+    assert len(occ) == res["n_declustered"]
+
+
+def test_describe_refuses_trades_that_do_not_reproduce_the_log():
+    v = gated(start="2017-01-02", win=ALWAYS)
+    p = hproto()
+    _, lg = holdout_log(v, p)
+    lg.loc[0, "expectancy"] = lg.loc[0, "expectancy"] + 1e-4
+    fails_with(
+        ValueError, "not the trades it judged", pr.describe_holdout, v, p, lg, 0.001
+    )
+
+
+def test_describe_refuses_another_build():
+    v = gated(start="2017-01-02", win=ALWAYS)
+    p = hproto()
+    _, lg = holdout_log(v, p, build=4)
+    fails_with(ValueError, "ran on build", pr.describe_holdout, v, p, lg, 0.001)
+
+
+def test_describe_keeps_the_logged_verdict_whatever_the_cost():
+    v = gated(start="2017-01-02", win=ALWAYS)
+    p = hproto()
+    _, lg = holdout_log(v, p, verdicts=False)  # the hammer wins, the log says no
+    d = pr.describe_holdout(v, p, lg, 0.001, costs=(0.0016, 0.004), paths=20)
+    assert set(d["verdict"]) == {"REJECT"} and len(d) == 2
+
+
+def test_describe_marks_a_hypothesis_below_the_floor_not_testable():
+    v = gated(start="2017-01-02", m=5, win=ALWAYS)
+    end = str(v.values["trade_date"].unique()[20])
+    p = hproto(end=end)
+    _, lg = holdout_log(v, p)
+    d = pr.describe_holdout(v, p, lg, 0.001, costs=(0.004,), paths=20)
+    assert d.iloc[0]["verdict"] == "NOT TESTABLE"
+
+
+MIXED = lambda s, d: s % 10 < 6 if d % 5 == 0 else (s + d) % 2 == 0  # noqa: E731
+
+
+def test_describe_recomputes_net_from_the_gross_at_each_cost():
+    v = gated(start="2017-01-02", win=MIXED)  # the hammer wins 60%
+    p = hproto()
+    v.values[f"ret_{K}"] = v.values[f"net_{K}"] + 0.004
+    _, lg = holdout_log(v, p)
+    d = pr.describe_holdout(
+        v, p, lg, 0.001, costs=(0.0016, 0.004, 0.006), paths=20
+    ).set_index("cost")
+    occ = pr.occurrences(v, HAMMER, p, "2017-01-01", "2017-12-31")
+    want = net_return(occ["ret"], Costs(0.0015, 0.001, True))
+    assert d.loc[0.004, "worst"] == pytest.approx(want.min())
+    # Cheaper trading: every trade keeps more, so the wins grow and losses shrink.
+    assert d.loc[0.0016, "avg_win"] > d.loc[0.004, "avg_win"] > d.loc[0.006, "avg_win"]
+    assert d.loc[0.0016, "avg_loss"] > d.loc[0.004, "avg_loss"]
+
+
+def test_the_describe_report_says_information_only_and_nothing_re_judged():
+    v = gated(start="2017-01-02", win=ALWAYS)
+    p = hproto()
+    _, lg = holdout_log(v, p)
+    d = pr.describe_holdout(v, p, lg, 0.001, costs=(0.0016, 0.004), paths=20)
+    lines = pr.describe_report(d, p, 0.004)
+    assert "INFORMATION ONLY" in lines[0] and "nothing is re-judged" in lines[0]
+    assert lines[4].startswith("  k3:hammer_shape: ACCEPT")
+    assert "avg win" in lines[5] and "max drawdown" in lines[6]
+    assert lines[8].startswith("      at 0.16%")
+
+
+def test_describe_runs_after_the_holdout_and_writes_no_log_row(lab):
+    pr.run_holdout(None, reports=lab.reports, **lab.kw)
+    before = pr.read_log(lab.kw["log_path"])
+    kw = {x: lab.kw[x] for x in ("log_path", "proto_path")}
+    path = pr.run_describe_holdout(None, reports=lab.reports, **kw)
+    assert path.name == f"holdout-{lab.end}-describe.txt"
+    assert "INFORMATION ONLY" in path.read_text()
+    pd.testing.assert_frame_equal(pr.read_log(lab.kw["log_path"]), before)
+    # Safe to repeat: describing spends nothing.
+    pr.run_describe_holdout(None, reports=lab.reports, **kw)

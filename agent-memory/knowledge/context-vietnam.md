@@ -74,3 +74,23 @@ break by swapping in a working Saturday; for example, 2025-05-02 was closed.
   decree-set extra Tet and bridge days are not listed. **Extend it every year.**
 - Checked 2026-09-23: 0 weekend dates in the calendar, and none on 1/1, 30/4,
   1/5 or 2/9.
+
+## Trading costs, researched 2026-09-24 (web search; the broker pages were not reachable, only search results)
+What a retail round trip costs (buy + sell), as a share of the order value:
+- **Sale tax 0.10%**, statutory, on every SALE, even a losing one.
+- **Exchange/handling fee 0.03% a side**, passed on even by "zero-fee" brokers
+  (DNSE lifetime free; TCBS 0.03% flat since 2023; Pinetree 0%).
+- **Broker commission** ranges from **0% to 0.35% a side**, capped by law at
+  0.5%. Reported: VPS 0.15–0.20%, SSI iBoard online 0.25% under 100M VND
+  (0.20 / 0.18 / 0.15% on larger daily value), SSI/VNDirect 0.15–0.35%.
+- The depository fee is 0.27 VND per share per month: negligible for a
+  3–5 day hold.
+- So the all-in round trip ranges from **0.16%** (zero-commission: 2 × 0.03% +
+  0.10%) through **0.40%** (0.15% a side, the registered cost) to **0.60%**
+  (0.25% a side, small orders at a full-service broker), and more at 0.35%.
+- **Correction:** earlier notes called 0.10% all-in "a zero-fee broker". Even
+  a zero-fee broker passes on the exchange fee, so the realistic floor is
+  0.16%.
+Ben does not know his fee yet (he may not have an account). The fee is a fact
+to read off a real order confirmation (the fee ÷ the order value), never a
+number to choose from the results.
