@@ -1,4 +1,4 @@
-# Current state — 2026-09-24 (end of session 2026-09-24-01, run 5)
+# Current state — 2026-09-24 (end of session 2026-09-24-01, run 6)
 
 Rewritten from scratch. This session ran in a cloud container with **NO
 database and no data files**. The DB figures below come from the previous
@@ -50,14 +50,19 @@ hypothesis log in git (16 holdout rows), pytest, ruff.
   from the log and re-derives the same de-clustered trades. It **refuses
   unless the count, the mean NET and the build match the log**. It writes no
   log row and is safe to repeat. Costs: 0.16 / 0.40 / 0.60%.
-- **Run on Ben's machine** (DB up):
+- **Run 6:** Ben ran it on an OLD checkout (`features/analog-backtest`, where
+  the command does not exist). It fell through to `run()` and crashed in
+  `_slice` (`tuple.index`). `run()` now names an unknown command. **Ben must
+  check out `claude/great-bell-6wr1jq` first.**
+- **Run on Ben's machine** (DB up, on this branch):
   `uv run python -m vnstock_research.backtest.protocol describe-holdout` →
   `research/reports/holdout-2026-09-10-describe.txt`.
 - **Not computed yet.** No real numbers exist.
 
 ## Verified by running it this run
-- `uv run pytest` → **532 passed, 0 failed, 24 skipped.** The 24 skips are
-  the DB tests (no database here). 537 + 19 new tests − 24 skipped = 532.
+- `uv run pytest` → **534 passed, 0 failed, 24 skipped.** The 24 skips are
+  the DB tests (no database here). 537 + 21 new tests − 24 skipped = 534
+  (11 test_risk, 9 test_holdout, 1 test_protocol).
 - `uv run ruff check .` → clean.
 - Strict mutation check of the new code: **15/16 killed**. The survivor is
   equivalent: the `losing_windows` short guard (NaN either way).

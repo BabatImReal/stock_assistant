@@ -379,6 +379,13 @@ def run(
             "the holdout runs ONCE, with Ben, at the very end (protocol.yaml "
             "holdout_rule); it is not run here"
         )
+    if slice_name not in ("discover", "validate"):
+        # A typo, or a command this copy of the code does not have yet (an
+        # older checkout): say so, instead of failing deep inside `_slice`.
+        raise ValueError(
+            f"unknown command '{slice_name}': use discover | validate | summary "
+            "| freeze | holdout | describe-holdout"
+        )
     from ..data import universe
     from ..patterns import fingerprint as fpm
     from . import forward_returns as fr

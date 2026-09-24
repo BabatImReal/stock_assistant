@@ -164,6 +164,10 @@ def test_the_holdout_is_never_run_here():
     fails_with(ValueError, "ONCE, with Ben", pr.run, None, "holdout")
 
 
+def test_an_unknown_command_is_named_not_a_crash_deep_inside():
+    fails_with(ValueError, "unknown command 'describe'", pr.run, None, "describe")
+
+
 # --- the log --------------------------------------------------------------------
 
 
