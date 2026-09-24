@@ -74,8 +74,12 @@ def test_losing_windows_counts_every_stretch_whose_total_is_not_positive():
 def test_describe_puts_the_basket_and_the_picks_on_the_same_trades():
     dates = pd.bdate_range("2024-01-01", periods=100).repeat(2)
     net = np.tile([0.03, -0.02], 100)
-    d = risk.describe(dates, net, paths=200, seed=3, window=60)
+    d = risk.describe(
+        dates, net, dates + pd.offsets.BDay(3), paths=200, seed=3, window=60
+    )
     assert d["trades"] == 200 and d["signal_days"] == 100
+    # Each stake is sold 3 sessions later: 3 signal days are open at once.
+    assert d["max_open"] == 3
     # Every day's mean is +0.5%: the basket never falls.
     assert d["basket_total"] == pytest.approx(0.5)
     assert d["basket_drawdown"] == 0 and d["basket_streak"] == 0
@@ -83,3 +87,29 @@ def test_describe_puts_the_basket_and_the_picks_on_the_same_trades():
     assert d["pick_drawdown_bad"] <= d["pick_drawdown_median"] < 0
     assert d["pick_streak_bad"] >= d["pick_streak_median"] >= 1
     assert 0 <= d["pick_losing_windows"] < 1
+
+
+def test_the_per_day_average_is_one_stake_a_signal_day_not_one_per_trade():
+    # Three trades of +3% on one day, one of -2% on the next.
+    d = risk.describe(
+        ["2024-01-02"] * 3 + ["2024-01-03"],
+        [0.03, 0.03, 0.03, -0.02],
+        ["2024-01-05"] * 4,
+        paths=10,
+        seed=1,
+        window=60,
+    )
+    assert d["avg"] == pytest.approx(0.07 / 4)  # per trade: (3 x 3% - 2%) / 4
+    assert d["per_day"] == pytest.approx(0.005)  # per day: (3% - 2%) / 2
+
+
+def test_open_stakes_count_each_day_until_its_last_exit():
+    # Day 1 has two trades sold on the 2nd and the 8th: its stake is busy
+    # until the 8th, so it is still open when day 4's stake goes in.
+    dates = ["2024-01-01", "2024-01-01", "2024-01-04"]
+    exits = ["2024-01-02", "2024-01-08", "2024-01-05"]
+    assert risk.max_open(dates, exits) == 2
+    # Sold before the next signal: one stake is enough.
+    assert (
+        risk.max_open(["2024-01-01", "2024-01-04"], ["2024-01-03", "2024-01-05"]) == 1
+    )

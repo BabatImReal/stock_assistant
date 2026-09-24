@@ -12,8 +12,8 @@ trades (net returns, in the order they were entered):
   streak      the longest run of trades in a row that lost money.
 
 Two ways of following a signal, both with a FIXED STAKE per signal day (not
-compounding, so every number is in units of one stake: -25% means a quarter
-of one trade's money, 25M VND at 100M a trade):
+compounding, so every total and drawdown is in STAKES, not a share of an
+account: -0.25 is a quarter of one stake, 25M VND at 100M a stake):
 
   basket      the stake is split equally over EVERY stock that fired that day.
               Smooth: the day's result is an average.
@@ -25,9 +25,10 @@ of one trade's money, 25M VND at 100M a trade):
               consecutive picks ended below zero.
 
 Assumptions, stated because they flatter or hurt:
-  - trades are ordered by their SIGNAL day; positions overlap (a 3-day hold
-    and a signal every day means up to four stakes open at once), so the cash
-    needed is several stakes, not one;
+  - trades are ordered by their SIGNAL day; positions can overlap, so the
+    cash needed is `max_open` stakes, measured from the real exit dates (a
+    signal that fires once a month needs one stake; a daily one needs
+    several);
   - no slippage beyond the costs already in NET, and the fills the gate
     allowed (no buy at the ceiling, a floor-locked exit waits).
 
@@ -66,6 +67,7 @@ def per_trade(net) -> dict:
     avg_loss = float(loss.mean()) if len(loss) else np.nan
     return {
         "trades": int(len(net)),
+        "avg": float(net.mean()) if len(net) else np.nan,
         "avg_win": avg_win,
         "avg_loss": avg_loss,
         # How many losses one average win pays for. Below 1, the hit rate
@@ -98,6 +100,26 @@ def one_pick_paths(dates, net, paths: int, seed: int) -> np.ndarray:
     return frame["x"].to_numpy()[pick]
 
 
+def max_open(dates, exits) -> int:
+    """The most stakes tied up at once. A signal day's stake is bought at the
+    next open and is busy until the LAST of that day's exits (the basket's
+    slowest piece; the one pick's stock can be any of them, so this is the
+    safe side). When day d's stake goes in, every earlier day whose last exit
+    is after d is still open. The T+2 wait for the sale money is left out: it
+    would add about two sessions to each hold."""
+    last = (
+        pd.Series(
+            pd.to_datetime(pd.Series(exits)).to_numpy(),
+            index=pd.to_datetime(pd.Series(dates)).to_numpy(),
+        )
+        .groupby(level=0)
+        .max()
+        .sort_index()
+    )
+    days, ends = last.index.to_numpy(), last.to_numpy()
+    return int(max(((days <= d) & (ends > d)).sum() for d in days)) if len(days) else 0
+
+
 def losing_windows(pnl, window: int) -> float:
     """The share of stretches of `window` consecutive trades whose total is
     <= 0 (every start point). NaN when there are fewer trades than that."""
@@ -109,9 +131,10 @@ def losing_windows(pnl, window: int) -> float:
 
 
 def describe(
-    dates, net, paths: int = 1000, seed: int = 20260924, window: int = 60
+    dates, net, exits, paths: int = 1000, seed: int = 20260924, window: int = 60
 ) -> dict:
-    """Every number above for one list of trades (signal dates + net)."""
+    """Every number above for one list of trades (signal dates, net, and the
+    date each trade was sold)."""
     day = basket(dates, net)
     picks = one_pick_paths(dates, net, paths, seed)
     dd = np.array([max_drawdown(p) for p in picks])
@@ -120,6 +143,11 @@ def describe(
     return {
         **per_trade(net),
         "signal_days": int(len(day)),
+        # The fair comparison with the per-trade average: one stake per signal
+        # day, averaged over the days. They differ when many stocks fire on
+        # the same few days.
+        "per_day": float(day.mean()) if len(day) else np.nan,
+        "max_open": max_open(dates, exits),
         "basket_total": float(day.sum()),
         "basket_drawdown": max_drawdown(day),
         "basket_streak": worst_streak(day),

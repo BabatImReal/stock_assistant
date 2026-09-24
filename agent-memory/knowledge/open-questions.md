@@ -728,15 +728,16 @@ Related: [[decisions]] [[data-sources]] [[architecture]]
   registered test measure the one-pick-a-day result (per signal day)? It
   cannot be re-tested on the spent holdout, only on new data or paper
   trading.
-- **Check the extreme trades.** The worst is −57.7% in 5 days (k5
-  marubozu_red+rvol_high); the best is +53.0% in 5 days. Also −36.1% (k3), and
-  −30.7% appears in many lists (likely one trade). These are possible
-  (floor-locked runs, HNX ±10%), but a missed corporate action would look
-  the same. The describe report does not name the symbol or date: add that
-  (small), or query them.
+- ~~Check the extreme trades.~~ RESOLVED 2026-09-24 (run 21): the report now
+  names them, and GKM / HVN / NTP / MCO were checked against raw prices and
+  factors. They are real floor-lock and limit-up runs, not data errors.
 - **Drawdown vs profit.** Even the best per-day idea (k3
   breakout+volume_dry: +30.5% of a stake over 2.7 years) fell 34% (basket)
   to 45% (bad one-pick path) on the way. Higher_lows: +19.8% vs −41% to −71%.
   At 100M VND a trade with overlapping positions, that is a small reward for
   the pain and capital. The fee swings it hard (higher_lows +63% at 0.16%,
   −16% at 0.60%).
+- **Branch cleanup (run 21):** `claude/great-bell-6wr1jq` was merged into
+  `features/analog-backtest` (fast-forward). Deleting it locally and on
+  origin was blocked by the permission guard. Ben can delete it:
+  `git branch -d claude/great-bell-6wr1jq && git push origin --delete claude/great-bell-6wr1jq`.

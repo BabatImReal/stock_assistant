@@ -95,17 +95,21 @@ trade mean = Σ n_d m_d / Σ n_d; day mean = Σ m_d / D.
 
 In the holdout description (`research/reports/holdout-2026-09-10-describe.txt`):
 
-| accepted | per-trade sum | basket (one stake a day) | trades/day |
+(Corrected 2026-09-24, run 21: an earlier table put the SUM over all trades,
+one stake per trade, beside one stake per day. That compares different
+amounts of money. The fair comparison is the average per stake:)
+
+| accepted | avg per trade | avg per signal day | signal days |
 | --- | --- | --- | --- |
-| k3 marubozu_red+breadth+rvol | +386% | −2.8% | 3.1 |
-| k5 marubozu_red+ma50rising+rvol | +200% | −117% | 2.7 |
-| k3 higher_lows+breadth+ma50 | +86% | +19.8% | 2.8 |
-| k3 three_black_crows+breadth+rvol | +40% | +4.5% | 1.3 |
-| k3 breakout+volume_dry | +31% | +30.5% | 1.1 |
-| k3 breakout+above_ma50+volume_dry | +15% | +12.6% | 1.0 |
+| k3 breakout+volume_dry | +0.67% | +0.74% | 41 |
+| k3 breakout+above_ma50+volume_dry | +0.44% | +0.38% | 33 |
+| k3 three_black_crows+breadth+rvol | +0.81% | +0.12% | 38 |
+| k3 higher_lows+breadth+ma50 | +0.17% | +0.11% | 180 |
+| k3 marubozu_red+breadth+rvol | +0.77% | −0.02% | 160 |
+| k5 marubozu_red+ma50rising+rvol | +0.27% | −0.43% | 275 |
 
 The two "significant" marubozu accepts earn their edge on CROWDED days (many
-stocks firing together, likely market-wide sell-offs followed by a rebound).
+stocks firing together, and whether those are sell-off-then-rebound days is a GUESS, not checked).
 Followed as one stake a day, one is flat and the other loses more than a
 stake. The breakout ideas (about 1 signal a day when they fire, and rare: 41
 days in 2.7 years) are the ones whose per-trade and per-day results agree.
@@ -114,3 +118,8 @@ days in 2.7 years) are the ones whose per-trade and per-day results agree.
 - **Do NOT** turn "trade marubozu only on crowded days" into a rule and
   trust it: it was seen on the holdout, so it is a NEW hypothesis for data
   not yet used (paper trading).
+- **The extreme trades are real (checked 2026-09-24, run 21, raw prices +
+  factors):** GKM 2024-09-19 (−57.7%: ten −10% floor days on HNX, factor
+  1.0), HVN 2024-07-16 (−30.7%: −7% floors on HOSE, flat factor), NTP
+  2024-05-17 (+36.8%: a real limit-up run), MCO 2024-02-29 (a real
+  rebound). They are not missed corporate actions.

@@ -414,9 +414,31 @@ def test_the_describe_report_says_information_only_and_nothing_re_judged():
     d = pr.describe_holdout(v, p, lg, 0.001, costs=(0.0016, 0.004), paths=20)
     lines = pr.describe_report(d, p, 0.004)
     assert "INFORMATION ONLY" in lines[0] and "nothing is re-judged" in lines[0]
-    assert lines[4].startswith("  k3:hammer_shape: ACCEPT")
-    assert "avg win" in lines[5] and "max drawdown" in lines[6]
-    assert lines[8].startswith("      at 0.16%")
+    assert "in STAKES, not a share of an account" in lines[1]
+    assert "0.16% = a zero-commission broker" in lines[4]
+    assert (
+        lines[6].startswith("  k3:hammer_shape: ACCEPT") and "cash: up to" in lines[6]
+    )
+    assert "avg per trade" in lines[7] and "avg per signal day" in lines[7]
+    assert "avg win" in lines[8] and "basket, in stakes" in lines[9]
+    assert lines[11].startswith("      at 0.16%")
+
+
+def test_describe_names_the_best_and_worst_trade_and_their_exit():
+    v = gated(start="2017-01-02", win=MIXED)
+    p = hproto()
+    v.values.loc[5, f"ret_{K}"] = 0.5  # S00, the 6th session: a hammer day
+    _, lg = holdout_log(v, p)
+    d = pr.describe_holdout(v, p, lg, 0.001, costs=(0.004,), paths=20).iloc[0]
+    assert d["best_trade"] == f"S00 {v.values.loc[5, 'trade_date']}"
+    # A hammer every 5 sessions, sold 4 later: never two stakes at once.
+    assert d["max_open"] == 1
+    occ = pr.occurrences(v, HAMMER, p, "2017-01-01", "2017-12-31")
+    # The exit is the date the outcome resolved (known_on): the sale.
+    sold = occ.merge(v.values, on=["symbol", "trade_date"])
+    assert (sold["exit"] == sold[f"known_on_{K}"]).all() and len(sold) == len(occ)
+    worst = occ.loc[occ["ret"].idxmin()]
+    assert d["worst_trade"] == f"{worst['symbol']} {worst['trade_date']}"
 
 
 def test_describe_runs_after_the_holdout_and_writes_no_log_row(lab):

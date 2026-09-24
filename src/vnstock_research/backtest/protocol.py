@@ -782,9 +782,9 @@ DESCRIBE_WINDOW = 60  # picks: about three months of daily proposals
 
 def occurrences(v, h: Hypothesis, proto: dict, start, end) -> pd.DataFrame:
     """The de-clustered occurrences `evaluate` counts for h on [start, end], as
-    rows (trade_date, symbol, ret, net): the same slice, the same outcome
-    filter, eligibility and de-clustering, so their count and mean NET are
-    evaluate's n_declustered and expectancy."""
+    rows (trade_date, symbol, ret, net, exit = the date it was sold): the same
+    slice, the same outcome filter, eligibility and de-clustering, so their
+    count and mean NET are evaluate's n_declustered and expectancy."""
     values = v.values
     d = pd.to_datetime(values["trade_date"])
     rows = values[(d >= pd.Timestamp(start)) & (d <= pd.Timestamp(end))]
@@ -797,8 +797,8 @@ def occurrences(v, h: Hypothesis, proto: dict, start, end) -> pd.DataFrame:
     o = rows[hit.notna() & (hit == 1.0)]
     keep = declustered(o["trade_date"], o["symbol"], sessions, k)
     return (
-        o[keep][["trade_date", "symbol", f"ret_{k}", f"net_{k}"]]
-        .rename(columns={f"ret_{k}": "ret", f"net_{k}": "net"})
+        o[keep][["trade_date", "symbol", f"ret_{k}", f"net_{k}", f"known_on_{k}"]]
+        .rename(columns={f"ret_{k}": "ret", f"net_{k}": "net", f"known_on_{k}": "exit"})
         .reset_index(drop=True)
     )
 
@@ -850,12 +850,18 @@ def describe_holdout(
             if fee < 0:
                 raise ValueError(f"a round trip of {cost:.2%} is below the sale tax")
             net = net_return(occ["ret"], Costs(fee, tax, True))
+            # Named, so an extreme trade can be checked against the prices.
+            best, worst = occ.loc[net.idxmax()], occ.loc[net.idxmin()]
             out.append(
                 {
                     "hypothesis": hid,
                     "verdict": verdict,
                     "cost": cost,
-                    **risk.describe(occ["trade_date"], net, paths, seed, window),
+                    **risk.describe(
+                        occ["trade_date"], net, occ["exit"], paths, seed, window
+                    ),
+                    "best_trade": f"{best['symbol']} {best['trade_date']}",
+                    "worst_trade": f"{worst['symbol']} {worst['trade_date']}",
                 }
             )
     return pd.DataFrame(out)
@@ -864,41 +870,63 @@ def describe_holdout(
 def describe_report(res: pd.DataFrame, proto: dict, registered: float) -> list[str]:
     sl = proto["registered"]["slices"]["holdout"]
     w = int(res["window"].iloc[0]) if len(res) else DESCRIBE_WINDOW
+    others = ", ".join(
+        f"{c:.2%}" for c in sorted(set(res["cost"])) if not np.isclose(c, registered)
+    )
     lines = [
         f"HOLDOUT {sl['start']} .. {sl['end']}: WHAT FOLLOWING EACH SURVIVOR WOULD "
         "HAVE FELT LIKE | INFORMATION ONLY: every verdict is the logged one, "
         "nothing is re-judged",
-        "every trade is a de-clustered holdout occurrence, NET at the all-in cost "
-        f"shown (registered {registered:.2%}); a fixed stake per signal day, not "
-        "compounding: -25% = a quarter of one stake (25M VND at 100M a trade)",
+        "UNITS: totals and drawdowns are in STAKES, not a share of an account. A "
+        "stake is the money put on one signal day (e.g. 100M VND): -0.25 stakes "
+        "= 25M lost. 'avg' figures are % of the money in the trade.",
+        "avg per trade = the holdout's number (every trade counted once); avg per "
+        "signal day = one stake a day, which is how the daily pick trades. They "
+        "differ when many stocks fire on the same few days.",
         "basket = the day's stake split over every stock that fired; one pick = "
-        f"the stake on ONE of them at random ({DESCRIBE_PATHS} seeded paths: "
-        "median, and a bad path = the worst 5%)",
-        "positions overlap (a 3-5 day hold, a signal most days): the cash needed "
-        "is several stakes; no slippage beyond the costs",
+        f"the stake on ONE of them at random ({DESCRIBE_PATHS} seeded paths: the "
+        "median path, and 'bad' = the worst 5% of paths); a losing streak counts "
+        f"signal days in a row with net <= 0; '{w}-pick stretches below zero' = "
+        f"the share of every {w} picks in a row that ended at or below zero.",
+        f"all-in round-trip costs (both broker fees + the 0.10% sale tax): "
+        f"{registered:.2%} registered; beside it {others} "
+        "(0.16% = a zero-commission broker still passing on the exchange's 0.03% "
+        "a side; 0.60% = 0.25% a side). A cheaper cost can LOWER the avg win: "
+        "small losers become small winners. The holdout report's own fee lines "
+        "use 0.10/0.25/0.40%.",
+        "cash = the most stakes open at once, from the real exit dates (a day's "
+        "stake is busy until its last exit; the T+2 wait for sale money is not "
+        "included). No slippage beyond the costs.",
     ]
     order = {"ACCEPT": 0, "REJECT": 1, "NOT TESTABLE": 2}
     main = res[np.isclose(res["cost"], registered)]
     shown = main.assign(o=main["verdict"].map(order)).sort_values(
-        ["o", "avg_win"], ascending=[True, False]
+        ["o", "per_day"], ascending=[True, False]
     )
 
     def pct(x):
-        return "n/a" if x != x else f"{x:+.1%}"
+        return "n/a" if x != x else f"{x:+.2%}"
+
+    def stakes(x):
+        return "n/a" if x != x else f"{x:+.2f}"
 
     for _, r in shown.iterrows():
         lines += [
             f"  {r['hypothesis']}: {r['verdict']} | {r['trades']} trades on "
-            f"{r['signal_days']} signal days",
-            f"      per trade at {registered:.2%}: avg win {pct(r['avg_win'])} | "
-            f"avg loss {pct(r['avg_loss'])} | payoff {r['payoff']:.2f} | best "
-            f"{pct(r['best'])} | worst {pct(r['worst'])}",
-            f"      basket: total {pct(r['basket_total'])} | max drawdown "
-            f"{pct(r['basket_drawdown'])} | worst losing streak "
-            f"{r['basket_streak']} days",
-            f"      one pick: total {pct(r['pick_total_median'])} (median) | max "
-            f"drawdown {pct(r['pick_drawdown_median'])} median, "
-            f"{pct(r['pick_drawdown_bad'])} bad | losing streak "
+            f"{r['signal_days']} signal days | cash: up to {r['max_open']} stakes "
+            "open at once",
+            f"      at {registered:.2%}: avg per trade {pct(r['avg'])} | avg per "
+            f"signal day {pct(r['per_day'])}",
+            f"      per trade: avg win {pct(r['avg_win'])} | avg loss "
+            f"{pct(r['avg_loss'])} | payoff {r['payoff']:.2f} | best "
+            f"{pct(r['best'])} ({r['best_trade']}) | worst {pct(r['worst'])} "
+            f"({r['worst_trade']})",
+            f"      basket, in stakes: total {stakes(r['basket_total'])} | max "
+            f"drawdown {stakes(r['basket_drawdown'])} | worst losing streak "
+            f"{r['basket_streak']} signal days",
+            f"      one pick, in stakes: total {stakes(r['pick_total_median'])} "
+            f"(median path) | max drawdown {stakes(r['pick_drawdown_median'])} "
+            f"median, {stakes(r['pick_drawdown_bad'])} bad | losing streak "
             f"{r['pick_streak_median']:.0f} median, {r['pick_streak_bad']:.0f} bad"
             + (
                 ""
@@ -911,11 +939,12 @@ def describe_report(res: pd.DataFrame, proto: dict, registered: float) -> list[s
             & ~np.isclose(res["cost"], registered)
         ].iterrows():
             lines.append(
-                f"      at {a['cost']:.2%}: avg win {pct(a['avg_win'])} / loss "
-                f"{pct(a['avg_loss'])} | basket total {pct(a['basket_total'])}, "
-                f"drawdown {pct(a['basket_drawdown'])} | one pick drawdown "
-                f"{pct(a['pick_drawdown_median'])} median, "
-                f"{pct(a['pick_drawdown_bad'])} bad"
+                f"      at {a['cost']:.2%}: avg per trade {pct(a['avg'])}, per "
+                f"signal day {pct(a['per_day'])} | basket total "
+                f"{stakes(a['basket_total'])}, drawdown "
+                f"{stakes(a['basket_drawdown'])} | one pick drawdown "
+                f"{stakes(a['pick_drawdown_median'])} median, "
+                f"{stakes(a['pick_drawdown_bad'])} bad"
             )
     return lines
 
