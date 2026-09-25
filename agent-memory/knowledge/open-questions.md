@@ -780,3 +780,16 @@ Related: [[decisions]] [[data-sources]] [[architecture]]
 - Validate needs no significance: 28 of 151 have validate p < 0.05.
 - Discover's one SUSPICIOUS result (k3 three_black_crows+not_ma_50_rising
   +rvol_high, hit 76.5% on 68) held on validate at a normal 58.4%.
+
+## After batch structural_1 (session 2026-09-23-03, run 26) — for Ben
+- **236 more paper-trading candidates, none materially stronger** than the
+  six or the complements_1 candidates.
+  - Relative strength and stage 2 (an uptrend) carry the structural signal.
+  - Stage 1 (basing) and stage 4 (declining) produced NO candidates:
+    reversal-in-a-downtrend setups do not hold.
+- The structural fingerprint must be rebuilt (`python -m
+  vnstock_research.structural`, ~24 min) whenever build 5 changes, like the
+  registered one. It is not in the daily pipeline.
+- Hypotheses ever tested: 8,442 (1,554 + 3,864 + 3,024). Each batch's FDR
+  is within its own N; across batches there is no correction. That is why
+  every survivor is only a candidate.

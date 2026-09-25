@@ -1,73 +1,78 @@
-# Current state — 2026-09-24 (end of session 2026-09-23-03, run 25)
+# Current state — 2026-09-25 (end of session 2026-09-23-03, run 26)
 
-Rewritten from scratch. Checked this run: `git rev-parse` (main untouched),
-the md5 of the original hypothesis log (unchanged, 16 holdout rows), the batch
-log counts, and pytest.
+Rewritten from scratch. Checked this run: `git rev-parse` (main at `dfabd5b`,
+untouched after the merge Ben chose), the md5 of the original hypothesis log
+(unchanged, 16 holdout rows) and of the complements_1 rows (unchanged), the
+old fingerprint loading, and pytest.
 
 ## Phase
-- **main (`00b3be2`):** everything through the daily scan + paper-trading
-  ledger (daily_scan v2, HOSE first). Untouched; only Ben merges.
-- **`features/new-hypotheses` (the ONE working branch, cut from main):** the
-  new-hypothesis batch `complements_1`. Awaiting Ben's review.
+- **main (`dfabd5b`):** everything through complements_1. `new-hypotheses`
+  was merged at Ben's choice at the start of run 26, then deleted.
+- **`features/structural-features` (the ONE working branch):** the
+  structural features + batch `structural_1`. Awaiting Ben's review.
 
-## Git (features/new-hypotheses)
-1. `68d3fe1`: REGISTER the batch (block, code, tests). Runs nothing.
-2. `c4e6922`: the runs (discover, then validate) + reports.
-3. The run-25 memory commits.
+## Git (features/structural-features)
+1. `1b04481`: structural features + the new fingerprint + tests.
+2. `af8d7bf`: REGISTER batch structural_1. Runs nothing.
+3. `7333818`: the runs + reports (+ the ever-tested count fix).
+4. The run-26 memory commit.
 
-## Batch complements_1 (CANDIDATE GENERATION, not confirmation)
-- **Rule:** each of the 8 registered conditions + its EXACT complement (same
-  measure, other side). 21 triggers × every 1–2 of the 16 with ≥ 1
-  complement and no self pair × k 3, 5 = **N 3,864**. Block hash
-  `e29e367cba78c47f`. Hypotheses ever tested: 5,418.
-- Hit = GROSS > 0 (fee out of scope; net at 0.40% is information only).
-  Discover = BH q 0.10 over 3,864 + abs(edge) ≥ 3 pts; validate = same
-  sign + gross expectancy > 0.
-- **Discover 269** (175 +, 94 −) → **validate 188 held** → **151
-  paper-trading candidates** (edge > 0; 49 families; 28 with validate
-  p < 0.05).
-- **NONE is materially stronger than the best of the six.**
-  - The six's best: 3crows+breadth+rvol, edge +18.2%, gross +2.33%, 11/12
-    years.
-  - The best new one: k5 inverted_hammer+ma_50_rising+not_market_up, edge
-    +10.5%, gross +2.19%, 11/12 years, 1,077 trades.
-- Many candidates are near-duplicates of registered ones (near-universal
-  complements such as not_at_support). The new region is the weak market
-  (not_market_up).
-- The rows are in `research/hypothesis_log_batches.csv` only. The original
-  log is byte-identical, and the holdout has no new rows.
-- Reports: `research/reports/batch-complements_1-{discover,validate}.txt`.
+## Structural features (src/vnstock_research/structural.py)
+- **Measures:**
+  - rs_index_20d/60d/120d (stock minus VN-Index return);
+  - down_day_rs_20d (stock minus index on index-down days);
+  - price_vs_ma_200;
+  - ma_200_slope;
+  - trend_stage 1–4.
+- They follow the full base.py discipline, with a look-ahead test each.
+- **They sit OUTSIDE features/**, so the registered featureset (holdout,
+  neighbours, scan) keeps loading. Their code hash rides in the params.
+- Fingerprint `5_f6181075e5962796` = features.yaml + structural.yaml on
+  build 5. The old one, `5_d51a9d818b0a54de`, still loads; the registered
+  columns are identical.
+- Skipped: base quality (free parameters), sector RS (current-only labels,
+  B3).
 
-## The daily scan + paper trading (on main, unchanged)
-- `daily_scan` v2: the 6 holdout ACCEPTs; HOSE first → validate expectancy →
-  traded value → tier → symbol.
-- `paper_trading`: Ben's pass rule; the forward record starts after
-  2026-09-24; no verdict while the fee is PROVISIONAL.
-- Ledger: 7 days before the freeze; FPT 09-18 is pending; no forward row yet.
+## Batches (candidate generation; the holdout stays sealed)
+- **complements_1** (N 3,864): 151 candidates.
+- **structural_1** (N 3,024, hash `1ff6d6de2472c886`): trigger × ONE of 8
+  structural conditions × (none or ONE registered) × k 3,5.
+  - Discover 295 → validate 260 held → **236 candidates** (63 with
+    validate p < 0.05).
+  - **NONE is materially stronger than the six or complements_1.**
+  - The signal sits in relative strength (rs_60 57 candidates, rs_120 43,
+    rs_20 40, resists 36) and stage 2 (47). Stage 1 and 4 have none.
+- Hypotheses ever tested: 8,442. BH is within each batch, with nothing
+  across batches, so survivors are candidates only.
+- Rows are in `research/hypothesis_log_batches.csv` only; the original log
+  is byte-identical.
 
 ## Verified by running it this run
-- pytest **625 passed, 0 failed, 0 skipped** (DB up); `ruff check .` clean.
+- pytest **657 passed, 0 failed, 0 skipped** (DB up); `ruff check .` clean.
 - Strict proofs:
-  - batch 28/28;
-  - re-run: holdout 33/33, E3 33/33, E4 23/23, describe 14/14, scan 41/41;
-  - earlier and unchanged: E2 46, E1 50, fingerprint 27, universe/breadth 17,
-    sector 23, exchange 15, guards 5, T1 23, T2 36, T3 55, T4 20.
+  - structural 23/23, structural batch 9/9;
+  - re-run: complements 28/28, holdout 33/33, E3 33/33, E4 23/23,
+    describe 14/14, scan 41/41.
+
+## The daily scan + paper trading (unchanged)
+- daily_scan v2 trades the 6 holdout ACCEPTs, HOSE first.
+- The forward record starts after 2026-09-24. There are no forward rows
+  yet, because the pipeline does not run.
 
 ## Blockers / open (open-questions.md)
-- Ben: review the batch design for bias. Should any candidate enter the
-  forward test? That needs a new daily_scan version, BEFORE forward rows
-  exist.
+- Ben: whether any candidate joins the forward test (a new daily_scan
+  version, before forward rows exist).
 - **Data must flow for the forward test.** After each session:
   1. `nightly_update`;
   2. `fingerprint.build` (~20 min);
   3. `forward_returns.build`;
   4. `report.scan`.
 
-  Then `report.paper score`. Nothing is scheduled.
+  The structural fingerprint is a separate ~24-min build. Nothing is
+  scheduled.
 - Ben: the tier-direction wording, the UPCoM/undated exclusion, the real
   broker fee.
-- G20 repair; X4, G19, G18, G2, G10, G11; the limit rounding / UPCoM
-  reference.
+- G20 repair; X4, G19, G18, G2, G10, G11.
 
 ## Ben's standing expectations
 Research reaches 100%; "ready for money" at least 50–60%. Focus HOSE ~85% /
@@ -79,16 +84,16 @@ The market is closed on Saturday, Sunday and public holidays
 weekday the market was open.
 
 ## Next steps
-1. Ben reviews `features/new-hypotheses` and decides on the candidates.
+1. Ben reviews `features/structural-features`.
 2. Run the daily pipeline so the forward record starts.
 
 ## Parked
 TypeSafe / Jev; SSI FastConnect; flag/pause (P7); pattern strength numbers
-(P9); precomputing market/sector per fingerprint build; target-before-stop;
-the "crowded day" idea; moving `pool_before` past 2024.
+(P9); base quality / VCP; sector RS (needs point-in-time labels);
+precomputing market/sector per fingerprint build; target-before-stop.
 
 ## Reading order for the next session
-1. This file. 2. `knowledge/00-index.md`. 3. Runs 22–25 of
+1. This file. 2. `knowledge/00-index.md`. 3. Runs 24–26 of
 `logs/sessions/2026-09-23-session-03.md`. 4. `config/rules/protocol.yaml`
-(`daily_scan`, `paper_trading`, `batches`). 5. Only the code the task touches,
-via `code-map.md`.
+(`batches`), `config/rules/structural.yaml`. 5. Only the code the task
+touches, via `code-map.md`.
