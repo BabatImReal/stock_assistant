@@ -1,0 +1,29 @@
+# STRUCTURAL measures (Ben, 2026-09-25): how a stock behaves RELATIVE TO THE
+# MARKET and to its own long trend, rather than the shape of its candles.
+#
+# A separate file on purpose. features.yaml defines the REGISTERED featureset,
+# which the holdout, the neighbours and the daily scan depend on; its
+# FeatureSet fingerprint must not move. The structural featureset is
+# features.yaml + this file, stored as its OWN fingerprint on the same build.
+#
+# Every value is a CHOICE fixed before measuring (doc §3.5, §8.1).
+measures:
+  # Relative strength vs the VN-Index: the stock's return minus the index's
+  # over the last N sessions, both known at T (doc §5.3 regime, made
+  # stock-specific).
+  rs_index_20d:  {enabled: true, window_days: 20}
+  rs_index_60d:  {enabled: true, window_days: 60}
+  rs_index_120d: {enabled: true, window_days: 120}
+  # "Resists on down days" (Ben's own definition of strength): over the last
+  # 20 sessions, the mean of (stock return - index return) on the sessions the
+  # index FELL. Fewer than min_down_days such sessions: not judged.
+  down_day_rs_20d: {enabled: true, window_days: 20, min_down_days: 3}
+  # The long trend.
+  price_vs_ma_200: {enabled: true, window_days: 200}
+  ma_200_slope:    {enabled: true, window_days: 200, slope_days: 20}
+  # A stage read (1-4) from the 50/200 alignment and the 200-day slope:
+  #   2 advancing  close > MA50 > MA200 and the MA200 rising
+  #   4 declining  close < MA50 < MA200 and the MA200 falling
+  #   3 topping    MA200 rising, not stage 2
+  #   1 basing     MA200 not rising, not stage 4
+  trend_stage: {enabled: true, fast_days: 50, slow_days: 200, slope_days: 20}
