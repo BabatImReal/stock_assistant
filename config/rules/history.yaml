@@ -1,0 +1,71 @@
+# PATTERN HISTORY: a DESCRIPTIVE study (Ben, 2026-09-25). INFORMATION ONLY.
+#
+# How did each pattern behave, year by year and month by month, 2012-2025?
+# This is NOT a hypothesis test: nothing here is logged, nothing enters N, no
+# p-value is computed, and nothing may be read as an edge. It describes
+# history so Ben can understand it. Any idea it suggests is a NEW hypothesis
+# for data no run has used yet (the forward paper-trading ledger).
+#
+# Every value below was written before the study was run on real data.
+study:
+  version: 1
+  written_on: "2026-09-25"
+  start: "2012-01-01"
+  # 2026 is EXCLUDED ENTIRELY: incomplete, and a single-regime downtrend.
+  # backtest/history.py refuses an end in 2026 or later, and each period's
+  # outcomes must be known before the next period starts (the gate), so no
+  # outcome known in 2026 enters either.
+  end: "2025-12-31"
+  horizons: [3, 5]
+  # Hit = the GROSS forward return is strictly above zero (the fee is out of
+  # scope; an unchanged price is not "up").
+  # The market regime ON THE SIGNAL DAY (known at its close): 1 = the VN-Index
+  # above its 50-session average (up market), 0 = below (down market).
+  regime: index_above_ma_50
+
+  # The labels shown beside every number. Each period is gated on its own:
+  # an outcome counts only if it is known before the NEXT period starts (the
+  # same purge the protocol applies to its slices).
+  periods:
+    discover: {start: "2012-01-01", end: "2019-12-31"}
+    validate: {start: "2020-01-01", end: "2023-12-31"}
+    # The registered holdout (2024-01-01 onward) was run ONCE and is spent.
+    # Shown here for understanding only, NOT for forming new tests. This study
+    # has no holdout path: it never calls the protocol's holdout loader and
+    # writes nothing to any log.
+    holdout_spent: {start: "2024-01-01", end: "2025-12-31"}
+
+  # The signals. The 21 patterns are the registered triggers, read from
+  # protocol.yaml (`registered.triggers`) so the two lists cannot drift.
+  # The structural strength signals are the SAME fixed comparisons the
+  # structural_1 batch registered (features/structural-features), copied
+  # here unchanged: no threshold was chosen for this study.
+  structural:
+    rs_20_strong: {rs_index_20d: ">0"}
+    rs_60_strong: {rs_index_60d: ">0"}
+    rs_120_strong: {rs_index_120d: ">0"}
+    resists_down_days: {down_day_rs_20d: ">0"}
+    stage_1_basing: {trend_stage: 1}
+    stage_2_advancing: {trend_stage: 2}
+    stage_3_topping: {trend_stage: 3}
+    stage_4_declining: {trend_stage: 4}
+
+  # The SUMMARY's fixed rules (descriptive labels, not verdicts):
+  summary:
+    # A year counts toward consistency only with at least this many
+    # de-clustered fires; below it the year is "too thin to judge".
+    min_declustered_year: 10
+    # A signal enters the ranking only with at least this many de-clustered
+    # fires over 2012-2025 (the project's minimum sample, protocol
+    # min_declustered).
+    min_declustered_total: 30
+    # "Leans on a few years": with its best `drop_years` years removed (the
+    # years contributing the most excess wins, fires x edge), the pooled edge
+    # falls to at most `lean_share` of what it was (or turns negative).
+    drop_years: 2
+    lean_share: 0.5
+    # Up vs down markets "differ" when the two pooled edges are at least this
+    # far apart (points of hit rate; the project's 3-point edge floor).
+    regime_gap: 0.03
+    # How many signals the ranking shows per horizon.
+    top: 10
