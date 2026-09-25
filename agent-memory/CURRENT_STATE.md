@@ -1,73 +1,84 @@
-# Current state — 2026-09-24 (end of session 2026-09-23-03, run 25)
+# Current state — 2026-09-25 (end of session 2026-09-25-01, run 1)
 
-Rewritten from scratch. Checked this run: `git rev-parse` (main untouched),
-the md5 of the original hypothesis log (unchanged, 16 holdout rows), the batch
-log counts, and pytest.
+Rewritten from scratch. Checked this run: `git rev-parse origin/main`
+(`dfabd5b`, untouched), the md5 of all four research/*.csv logs (identical
+before and after), `git diff origin/main --stat` (only new files + the
+cherry-pick), pytest and ruff. This was a cloud session with NO database.
 
 ## Phase
-- **main (`00b3be2`):** everything through the daily scan + paper-trading
-  ledger (daily_scan v2, HOSE first). Untouched; only Ben merges.
-- **`features/new-hypotheses` (the ONE working branch, cut from main):** the
-  new-hypothesis batch `complements_1`. Awaiting Ben's review.
+- **main (`dfabd5b`):** everything through complements_1 (run 25).
+  Untouched; only Ben merges.
+- **`features/structural-features` (`49614c6`, from another session, run
+  26):** structural features + batch structural_1. Still awaiting Ben.
+  Its memory (run 26) is on that branch, not on main.
+- **`claude/design-system-pattern-history-aqbkd8` (THIS session's one
+  branch, cut from main):** the pattern-history study. Ben asked for
+  `features/pattern-history`; the cloud harness pins the session to this
+  name. Rename, merge or delete: Ben's call.
 
-## Git (features/new-hypotheses)
-1. `68d3fe1`: REGISTER the batch (block, code, tests). Runs nothing.
-2. `c4e6922`: the runs (discover, then validate) + reports.
-3. The run-25 memory commits.
+## Git (claude/design-system-pattern-history-aqbkd8)
+1. `961dff9`: cherry-pick of 1b04481 (structural.py, structural.yaml,
+   test_structural.py). Code + tests only: no batch, no log rows.
+2. `0726d88`: the pattern-history study + tests.
+3. The memory commit for this run.
 
-## Batch complements_1 (CANDIDATE GENERATION, not confirmation)
-- **Rule:** each of the 8 registered conditions + its EXACT complement (same
-  measure, other side). 21 triggers × every 1–2 of the 16 with ≥ 1
-  complement and no self pair × k 3, 5 = **N 3,864**. Block hash
-  `e29e367cba78c47f`. Hypotheses ever tested: 5,418.
-- Hit = GROSS > 0 (fee out of scope; net at 0.40% is information only).
-  Discover = BH q 0.10 over 3,864 + abs(edge) ≥ 3 pts; validate = same
-  sign + gross expectancy > 0.
-- **Discover 269** (175 +, 94 −) → **validate 188 held** → **151
-  paper-trading candidates** (edge > 0; 49 families; 28 with validate
-  p < 0.05).
-- **NONE is materially stronger than the best of the six.**
-  - The six's best: 3crows+breadth+rvol, edge +18.2%, gross +2.33%, 11/12
-    years.
-  - The best new one: k5 inverted_hammer+ma_50_rising+not_market_up, edge
-    +10.5%, gross +2.19%, 11/12 years, 1,077 trades.
-- Many candidates are near-duplicates of registered ones (near-universal
-  complements such as not_at_support). The new region is the weak market
-  (not_market_up).
-- The rows are in `research/hypothesis_log_batches.csv` only. The original
-  log is byte-identical, and the holdout has no new rows.
-- Reports: `research/reports/batch-complements_1-{discover,validate}.txt`.
-
-## The daily scan + paper trading (on main, unchanged)
-- `daily_scan` v2: the 6 holdout ACCEPTs; HOSE first → validate expectancy →
-  traded value → tier → symbol.
-- `paper_trading`: Ben's pass rule; the forward record starts after
-  2026-09-24; no verdict while the fee is PROVISIONAL.
-- Ledger: 7 days before the freeze; FPT 09-18 is pending; no forward row yet.
+## Pattern history (INFORMATION ONLY; built, NOT run on real data)
+- `backtest/history.py` + `config/rules/history.yaml`:
+  - 21 registered patterns + 8 structural signals (structural_1's
+    comparisons, unchanged);
+  - 2012-01..2025-12, 2026 refused;
+  - k 3 and 5, GROSS;
+  - per month / year / period / all, × regime (index vs MA50 on the signal
+    day): fires raw + de-clustered, mean / median / hit (gross > 0),
+    base on every judged liquid day, edge;
+  - the market itself as `ALL_LIQUID`.
+- Point in time: each period (discover 2012-19, validate 2020-23,
+  holdout_spent 2024-25) through `evidence.validated` with before = the
+  next period's start.
+- Summary: fixed rules (years beating the base, LEANS on the best 2 years,
+  up vs down ≥ 3 pts, per period) + a coin-flip yardstick for luck.
+- Writes ONLY `research/reports/pattern-history.{txt,csv}`. No log row, no
+  p-value, no holdout path.
+- **Ben runs it:** `uv run python -m vnstock_research.backtest.history`
+  (needs the structural fingerprint `5_f6181075e5962796` on build 5 and
+  the returns). About 2-3 min expected (synthetic smoke: 325k liquid rows
+  in 50 s).
+- No top patterns are known yet: nothing was run on real data.
 
 ## Verified by running it this run
-- pytest **625 passed, 0 failed, 0 skipped** (DB up); `ruff check .` clean.
-- Strict proofs:
-  - batch 28/28;
-  - re-run: holdout 33/33, E3 33/33, E4 23/23, describe 14/14, scan 41/41;
-  - earlier and unchanged: E2 46, E1 50, fingerprint 27, universe/breadth 17,
-    sector 23, exchange 15, guards 5, T1 23, T2 36, T3 55, T4 20.
+- pytest **658 passed, 0 failed, 24 skipped** (the skips are DB tests; no
+  DB in this container); `ruff check .` clean.
+- Strict mutation proof on history.py: **32/32 genuine**.
+- Earlier proof scripts are not in the repo (they lived in old scratchpads),
+  so they were NOT re-run. No existing file changed, and the suite passes.
+- research/hypothesis_log.csv, hypothesis_log_batches.csv,
+  neighbours_log.csv, paper_ledger.csv: byte-identical.
+
+## Batches so far (candidate generation; the holdout stays sealed)
+- complements_1 (main): N 3,864 → 151 candidates.
+- structural_1 (features/structural-features only): N 3,024 → 236.
+- NONE materially stronger than the six holdout ACCEPTs.
+
+## The daily scan + paper trading (on main, unchanged)
+- daily_scan v2 trades the 6 holdout ACCEPTs, HOSE first.
+- The forward record starts after 2026-09-24. There are no forward rows
+  yet, because the pipeline does not run.
 
 ## Blockers / open (open-questions.md)
-- Ben: review the batch design for bias. Should any candidate enter the
-  forward test? That needs a new daily_scan version, BEFORE forward rows
-  exist.
+- Ben: run the pattern-history study; the branch name.
+- Ben: review features/structural-features; whether any candidate joins the
+  forward test (a new daily_scan version, before forward rows exist).
 - **Data must flow for the forward test.** After each session:
   1. `nightly_update`;
   2. `fingerprint.build` (~20 min);
   3. `forward_returns.build`;
   4. `report.scan`.
 
-  Then `report.paper score`. Nothing is scheduled.
+  The structural fingerprint is a separate ~24-min build. Nothing is
+  scheduled.
 - Ben: the tier-direction wording, the UPCoM/undated exclusion, the real
   broker fee.
-- G20 repair; X4, G19, G18, G2, G10, G11; the limit rounding / UPCoM
-  reference.
+- G20 repair; X4, G19, G18, G2, G10, G11.
 
 ## Ben's standing expectations
 Research reaches 100%; "ready for money" at least 50–60%. Focus HOSE ~85% /
@@ -79,16 +90,16 @@ The market is closed on Saturday, Sunday and public holidays
 weekday the market was open.
 
 ## Next steps
-1. Ben reviews `features/new-hypotheses` and decides on the candidates.
-2. Run the daily pipeline so the forward record starts.
+1. Ben runs the pattern-history study and reads its summary.
+2. Ben reviews features/structural-features and this branch.
+3. Run the daily pipeline so the forward record starts.
 
 ## Parked
 TypeSafe / Jev; SSI FastConnect; flag/pause (P7); pattern strength numbers
-(P9); precomputing market/sector per fingerprint build; target-before-stop;
-the "crowded day" idea; moving `pool_before` past 2024.
+(P9); base quality / VCP; sector RS (needs point-in-time labels);
+precomputing market/sector per fingerprint build; target-before-stop.
 
 ## Reading order for the next session
-1. This file. 2. `knowledge/00-index.md`. 3. Runs 22–25 of
-`logs/sessions/2026-09-23-session-03.md`. 4. `config/rules/protocol.yaml`
-(`daily_scan`, `paper_trading`, `batches`). 5. Only the code the task touches,
-via `code-map.md`.
+1. This file. 2. `knowledge/00-index.md`. 3.
+`logs/sessions/2026-09-25-session-01.md`. 4. `config/rules/history.yaml`.
+5. Only the code the task touches, via `code-map.md`.

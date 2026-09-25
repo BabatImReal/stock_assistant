@@ -780,3 +780,18 @@ Related: [[decisions]] [[data-sources]] [[architecture]]
 - Validate needs no significance: 28 of 151 have validate p < 0.05.
 - Discover's one SUSPICIOUS result (k3 three_black_crows+not_ma_50_rising
   +rvol_high, hit 76.5% on 68) held on validate at a normal 58.4%.
+
+## After the pattern-history study (session 2026-09-25-01) — for Ben
+- **Run it on your machine** (it was built and tested in a cloud session
+  with no DB): `uv run python -m vnstock_research.backtest.history`. It needs
+  the stored STRUCTURAL fingerprint (`python -m vnstock_research.structural`
+  if it is missing or stale) and the returns. Writes
+  `research/reports/pattern-history.{txt,csv}` and nothing else.
+- Branch name: the work is on `claude/design-system-pattern-history-aqbkd8`,
+  not `features/pattern-history`. Rename, merge or delete: your call.
+- It carries the structural-feature commit (cherry-picked). Merge order vs
+  `features/structural-features` is your call; same content, no conflict
+  expected.
+- Anything the study makes look good is a NEW idea: it would need a new
+  registered batch/scan version tested only forward (paper trading).
+  2024-2025 is spent.

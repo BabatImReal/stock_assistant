@@ -123,3 +123,13 @@ days in 2.7 years) are the ones whose per-trade and per-day results agree.
   1.0), HVN 2024-07-16 (−30.7%: −7% floors on HOSE, flat factor), NTP
   2024-05-17 (+36.8%: a real limit-up run), MCO 2024-02-29 (a real
   rebound). They are not missed corporate actions.
+
+## Pattern history: description, not evidence (session 2026-09-25-01)
+`backtest/history.py` describes all 21 patterns + 8 structural signals by
+year × month × regime, 2012-2025 (2026 excluded), at k 3/5, GROSS, against the
+base rate (doc §8.3 "stability by year and by market regime"). It is the
+§8.1 regime-change defence made visible, NOT a test: no log, no p-value, no N.
+Its summary uses fixed rules and a coin-flip yardstick because "beat the base
+in 10 of 14 years" happens by luck for about 2-3 of 29 signals. Every idea it
+suggests is a new hypothesis for forward data only. (Not yet run on real
+data as of this session.)
