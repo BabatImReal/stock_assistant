@@ -276,3 +276,45 @@ batches:
     # basis, a higher edge AND a higher gross expectancy than the best of the
     # six holdout ACCEPTs, AND at least as many walk-forward years positive.
     stronger_than_six: [edge, gross, years_positive]
+  structural_1:
+    version: 1
+    registered_on: "2026-09-25"
+    # STRUCTURAL features (src/vnstock_research/structural.py): how a stock
+    # behaves relative to the market and its long trend. Candidate generation,
+    # as for complements_1; the holdout stays sealed.
+    rule: structural
+    # Read from the STRUCTURAL fingerprint: features.yaml + structural.yaml on
+    # the same build 5 (the registered featureset is untouched).
+    featureset: structural
+    # THE RULE THAT DEFINES THE SET: every registered trigger x exactly ONE
+    # structural condition x (no other condition, or ONE registered
+    # condition) x every registered horizon.
+    # 21 triggers x 8 structural x (1 + 8) x 2 horizons:
+    n: 3024
+    max_conditions: 2
+    # Each is a FIXED comparison on one structural measure. Relative strength
+    # is taken on its strong side only (the hypothesis is strength, Ben's
+    # definition); the test itself is two-sided, and the stage read covers
+    # both directions of the long trend. price_vs_ma_200 and ma_200_slope are
+    # measured but enter only through the stage, so N stays small.
+    structural_conditions:
+      rs_20_strong: {rs_index_20d: ">0"}
+      rs_60_strong: {rs_index_60d: ">0"}
+      rs_120_strong: {rs_index_120d: ">0"}
+      resists_down_days: {down_day_rs_20d: ">0"}
+      stage_1_basing: {trend_stage: 1}
+      stage_2_advancing: {trend_stage: 2}
+      stage_3_topping: {trend_stage: 3}
+      stage_4_declining: {trend_stage: 4}
+    hit: gross
+    discover:
+      fdr_q: 0.10              # Benjamini-Hochberg over THIS batch's N
+      min_abs_edge: 0.03
+    validate:
+      same_sign: true
+      min_gross_expectancy: 0.0
+    # "Materially stronger" (on validate, gross basis): a higher edge AND a
+    # higher gross expectancy than the best of the six holdout ACCEPTs AND the
+    # best complements_1 candidate, AND at least as many walk-forward years
+    # positive as the best of them.
+    stronger_than: [six, complements_1]

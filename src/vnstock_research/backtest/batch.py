@@ -108,8 +108,11 @@ def conditions(proto: dict) -> dict:
 def enumerate_batch(proto: dict, name: str) -> list[BatchHypothesis]:
     """The batch's rule, in a fixed order: every trigger x 1..max_conditions
     of the 16 x horizon, holding at least one complement and never a
-    condition with its own complement."""
+    condition with its own complement. A batch registered with
+    `rule: structural` has its own rule (`enumerate_structural`)."""
     block = proto["batches"][name]
+    if block.get("rule") == "structural":
+        return enumerate_structural(proto, block)
     reg = proto["registered"]
     table = conditions(proto)
     names = sorted(table)
@@ -125,6 +128,32 @@ def enumerate_batch(proto: dict, name: str) -> list[BatchHypothesis]:
                     spec = tuple(item for c in combo for item in table[c].items())
                     out.append(BatchHypothesis(trigger, combo, int(k), spec))
     return out
+
+
+def enumerate_structural(proto: dict, block: dict) -> list[BatchHypothesis]:
+    """Every trigger x exactly ONE structural condition x (no other
+    condition, or ONE registered condition) x horizon."""
+    reg = proto["registered"]
+    new = block["structural_conditions"]
+    table = {**reg["conditions"], **new}
+    out = []
+    for k in reg["horizons"]:
+        for trigger in reg["triggers"]:
+            for s in sorted(new):
+                for partner in [None, *sorted(reg["conditions"])]:
+                    combo = tuple(sorted(c for c in (s, partner) if c))
+                    spec = tuple(item for c in combo for item in table[c].items())
+                    out.append(BatchHypothesis(trigger, combo, int(k), spec))
+    return out
+
+
+def all_conditions(proto: dict, block: dict) -> dict:
+    """Every condition a batch may read: the registered ones, plus the
+    batch's own structural conditions."""
+    return {
+        **proto["registered"]["conditions"],
+        **block.get("structural_conditions", {}),
+    }
 
 
 def batch_vocabulary(proto: dict, name: str) -> list[BatchHypothesis]:
@@ -279,10 +308,15 @@ def run(
         hyps = discover_survivors(log, name, hyps)
     start, end, before = _slice(proto, slice_name)
 
-    build, fs = fpm.expected(conn)
+    if block.get("featureset") == "structural":
+        from .. import structural
+
+        build, fs = structural.expected(conn)  # its own fingerprint, same build
+    else:
+        build, fs = fpm.expected(conn)
     columns = sorted(
         {h.trigger for h in hyps}
-        | {c for x in reg["conditions"].values() for c in x}
+        | {c for x in all_conditions(proto, block).values() for c in x}
         | {reg["regime"]}
     )
     fp = fpm.load(build, fs, columns=columns, end=end)
@@ -326,6 +360,11 @@ def run(
             validated(fp6, gross_rt, uni, before=before), six_h, proto, start, end
         )
         six["walk_forward"] = walk_forward(fp6, gross_rt, uni, six_h, proto, years)
+        for other in block.get("stronger_than", []):
+            if other != "six":
+                six = pd.concat(
+                    [six, earlier_candidates(other, out)], ignore_index=True
+                )
 
     run_id = append(res, name, slice_name, proto, build, log_path)
     d = Path(out) / run_id.replace(":", "_")
@@ -338,6 +377,16 @@ def run(
         encoding="utf-8",
     )
     return path
+
+
+def earlier_candidates(name: str, out: Path = OUT) -> pd.DataFrame:
+    """Another batch's paper-trading candidates, from its stored validate
+    results (the same gross basis), labelled with the batch name."""
+    runs = sorted(Path(out).glob(f"{name}_validate-*/results.parquet"))
+    if not runs:
+        raise ValueError(f"no stored validate results for batch `{name}`")
+    c = candidates(pd.read_parquet(runs[-1]))
+    return c.assign(hypothesis=f"{name}: " + c["hypothesis"])
 
 
 def _accepted_ids(log: pd.DataFrame) -> list:
@@ -399,10 +448,19 @@ def report(res, name, slice_name, proto, manifest, run_id, six=None) -> list[str
     if six is not None:
         cand = candidates(res)
         lines += [
-            "THE SIX HOLDOUT ACCEPTS, same validate slice, same GROSS basis "
-            "(recomputed for comparison; nothing logged):"
+            "THE BENCHMARK, same validate slice, same GROSS basis (the six holdout "
+            "ACCEPTs recomputed, plus any earlier batch's candidates; nothing "
+            "logged). The best of each, then every one:"
         ]
-        for _, r in six.sort_values("edge", ascending=False).iterrows():
+        for label, g in six.groupby(
+            six["hypothesis"].str.extract(r"^(\w+): ")[0].fillna("six")
+        ):
+            lines.append(
+                f"  best of {label}: edge {g['edge'].max():+.1%} | gross "
+                f"{g['gross'].max():+.2%} | years positive "
+                f"{g['walk_forward'].map(years_positive).max()}"
+            )
+        for _, r in six.sort_values("edge", ascending=False).head(12).iterrows():
             lines.append(
                 f"  {r['hypothesis']}: edge {r['edge']:+.1%} gross {r['gross']:+.2%}"
                 f" | walk-forward {years_positive(r['walk_forward'])}/"
@@ -410,9 +468,22 @@ def report(res, name, slice_name, proto, manifest, run_id, six=None) -> list[str
             )
         s = stronger(cand, six) if len(cand) else pd.Series(dtype=bool)
         lines.append(
-            "MATERIALLY STRONGER than the best of the six (higher edge AND higher "
-            "gross AND at least as many years positive): "
+            "MATERIALLY STRONGER than the best of the benchmark (higher edge AND "
+            "higher gross AND at least as many years positive): "
             + (", ".join(cand.loc[s, "hypothesis"]) if s.any() else "NONE")
+        )
+    new = block.get("structural_conditions", {})
+    if new:
+        keep = res[res["survived"].astype(bool)]
+        if slice_name == "validate":
+            keep = candidates(res)
+        parts = keep["hypothesis"].str.split("+").str[1:]
+        counts = {c: int(parts.map(lambda x, c=c: c in x).sum()) for c in sorted(new)}
+        lines.append(
+            "BY STRUCTURAL CONDITION ("
+            + ("passed discovery" if slice_name == "discover" else "candidates")
+            + "): "
+            + ", ".join(f"{c} {n}" for c, n in counts.items())
         )
     return lines
 

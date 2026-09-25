@@ -249,3 +249,69 @@ def test_years_positive_counts_positive_years_only():
 def test_gross_keeps_the_returns_manifest():
     rt = Returns(pd.DataFrame({"ret_3": [0.1], "net_3": [0.0]}), {"horizons": [3]})
     assert dataclasses.asdict(batch.gross(rt))["manifest"] == {"horizons": [3]}
+
+
+# --- the structural batch ----------------------------------------------------
+
+STRUCT = PROTO["batches"]["structural_1"]
+
+
+def test_the_registered_structural_block():
+    assert STRUCT["rule"] == "structural" and STRUCT["featureset"] == "structural"
+    assert STRUCT["n"] == 3024
+    assert STRUCT["stronger_than"] == ["six", "complements_1"]
+    assert set(STRUCT["structural_conditions"]) == {
+        "rs_20_strong",
+        "rs_60_strong",
+        "rs_120_strong",
+        "resists_down_days",
+        "stage_1_basing",
+        "stage_2_advancing",
+        "stage_3_topping",
+        "stage_4_declining",
+    }
+
+
+def test_the_structural_batch_is_exactly_its_rule():
+    hyps = batch.enumerate_batch(PROTO, "structural_1")
+    reg, new = PROTO["registered"], set(STRUCT["structural_conditions"])
+    assert len(hyps) == STRUCT["n"] == len(reg["triggers"]) * 8 * 9 * 2
+    for h in hyps:
+        mine = [c for c in h.conditions if c in new]
+        others = [c for c in h.conditions if c not in new]
+        assert len(mine) == 1 and len(others) <= 1, h.id
+        assert all(c in reg["conditions"] for c in others), h.id
+    assert len({h.id for h in hyps}) == len(hyps)
+
+
+def test_a_structural_batch_reads_the_structural_featureset(monkeypatch, tmp_path):
+    from vnstock_research import structural
+
+    def refuse(conn):
+        raise LookupError("structural featureset asked for")
+
+    monkeypatch.setattr(structural, "expected", refuse)
+    fails_with(
+        LookupError,
+        "structural featureset",
+        batch.run,
+        None,
+        "structural_1",
+        "discover",
+        log_path=tmp_path / "b.csv",
+    )
+
+
+def test_earlier_candidates_are_the_held_positive_ones_labelled(tmp_path):
+    d = tmp_path / "complements_1_validate-x"
+    d.mkdir()
+    pd.DataFrame(
+        {
+            "hypothesis": ["a", "b", "c"],
+            "survived": [True, True, False],
+            "edge": [0.05, -0.05, 0.09],
+            "gross": [0.01, 0.01, 0.01],
+        }
+    ).to_parquet(d / "results.parquet")
+    got = batch.earlier_candidates("complements_1", tmp_path)
+    assert got["hypothesis"].tolist() == ["complements_1: a"]
