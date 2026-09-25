@@ -315,3 +315,11 @@ def test_earlier_candidates_are_the_held_positive_ones_labelled(tmp_path):
     ).to_parquet(d / "results.parquet")
     got = batch.earlier_candidates("complements_1", tmp_path)
     assert got["hypothesis"].tolist() == ["complements_1: a"]
+
+
+def test_the_count_ever_tested_includes_every_batch_that_ran(tmp_path):
+    path = tmp_path / "b.csv"
+    log([row(name="complements_1")]).to_csv(path, index=False)
+    registered = len(set(protocol.read_log()["hypothesis"]))
+    got = batch.tested_ever(PROTO, "structural_1", path)
+    assert got == registered + 3864 + 3024

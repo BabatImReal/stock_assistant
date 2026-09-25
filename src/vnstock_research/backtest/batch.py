@@ -389,6 +389,15 @@ def earlier_candidates(name: str, out: Path = OUT) -> pd.DataFrame:
     return c.assign(hypothesis=f"{name}: " + c["hypothesis"])
 
 
+def tested_ever(proto: dict, name: str, log_path: Path = BATCH_LOG) -> int:
+    """Every hypothesis ever tested: the registered run's, plus the full N of
+    every batch that has run (an untestable one still counts), this one
+    included."""
+    ran = set(read_batch_log(log_path)["batch"]) | {name}
+    registered = len(set(read_log(LOG)["hypothesis"]))
+    return registered + sum(int(proto["batches"][b]["n"]) for b in ran)
+
+
 def _accepted_ids(log: pd.DataFrame) -> list:
     last = _latest(log, "holdout")
     return list(last.loc[last["survived"].astype(str) == "True", "hypothesis"])
@@ -397,7 +406,7 @@ def _accepted_ids(log: pd.DataFrame) -> list:
 def report(res, name, slice_name, proto, manifest, run_id, six=None) -> list[str]:
     block, reg = proto["batches"][name], proto["registered"]
     n = int(block["n"])
-    total = len(set(read_log(LOG)["hypothesis"])) + n
+    total = tested_ever(proto, name)
     net = " | NET PROVISIONAL" if manifest["net_provisional"] else ""
     lines = [
         f"{run_id} | BATCH {name} (hash {batch_hash(block)}) | {slice_name} "
