@@ -275,3 +275,38 @@ def test_four_horizon_research_uses_the_existing_return_core():
             pd.testing.assert_series_equal(full[f"{name}_{k}"], old[f"{name}_{k}"])
     assert full["exit_offset_20"].iloc[0] == 21
     assert full["known_on_20"].iloc[0] == bars.trade_date.iloc[21]
+
+
+def test_build_uses_one_calendar_date_across_exchanges(monkeypatch, tmp_path):
+    from vnstock_research.features import bars
+
+    class Connection:
+        def execute(self, sql, params):
+            if "trading_day" in sql:
+                dates = [("2020-01-02",), ("2020-01-03",)]
+                return self if "DISTINCT" in sql else Rows(dates * 2)
+            return Rows([("AAA",)])
+
+        def fetchall(self):
+            return [("2020-01-02",), ("2020-01-03",)]
+
+    class Rows:
+        def __init__(self, rows):
+            self.rows = rows
+
+        def fetchall(self):
+            return self.rows
+
+    seen = []
+    monkeypatch.setattr(bars, "current_build", lambda conn: 7)
+    monkeypatch.setattr(
+        bars, "load_many", lambda *args, **kwargs: iter([("AAA", double_bottom())])
+    )
+    monkeypatch.setattr(
+        chart,
+        "assemble",
+        lambda frames, calendar: seen.extend(calendar) or (None, None, None),
+    )
+    monkeypatch.setattr(chart, "write_artifact", lambda *args, **kwargs: tmp_path)
+    chart.build(Connection())
+    assert seen == ["2020-01-02", "2020-01-03"]

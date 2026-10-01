@@ -548,7 +548,8 @@ def build(conn, start: str = "2012-01-01", root: Path | None = None) -> Path:
     calendar = [
         row[0]
         for row in conn.execute(
-            "SELECT trade_date FROM trading_day WHERE trade_date >= %s ORDER BY 1",
+            "SELECT DISTINCT trade_date FROM trading_day "
+            "WHERE trade_date >= %s ORDER BY 1",
             (start,),
         ).fetchall()
     ]
