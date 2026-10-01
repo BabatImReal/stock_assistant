@@ -1,0 +1,37 @@
+# Research registration v1, before any Vietnamese chart-family outcome census.
+# Every threshold is a design choice from reports/Vietnam chart rules and
+# horizons.md, not a value selected from this project's historical returns.
+# This file is deliberately separate from patterns.yaml and protocol.yaml:
+# changing either would stale the frozen production scan and its evidence.
+version: 1
+status: research_only
+primary_horizon: 10
+horizons: [3, 5, 10, 20]
+variants: [double_top, double_bottom, symmetric_triangle, ascending_triangle, descending_triangle]
+registered_trial_count: 20   # five price-only variants x four horizons
+baseline: all_eligible_stock_days_with_pit_tier_fallback
+# Equal opportunity to observe the longest 120-session formation plus its
+# two-right-session pivot; early rows after listing or a gap stay unknown.
+eligible_history_sessions: 125
+anchor: adjusted_close
+pivot_radius: 2
+pivot_separation: 3
+breakout_margin: 0.005
+failure_sessions: 10
+repeated_level:
+  separation_min: 22
+  separation_max: 120
+  level_tolerance: 0.015
+  swing_depth_min: 0.05
+  candidate_expiry: 30
+  prior_trend_sessions: 60
+  prior_trend_change: 0.15
+triangle:
+  span_min: 15
+  span_max: 90
+  middle_touch_tolerance: 0.01
+  width_initial_min: 0.05
+  width_final_min: 0.015
+  width_final_initial_max: 0.75
+  flat_drift_max: 0.01
+  candidate_expiry: 20
