@@ -12,12 +12,19 @@ from pathlib import Path
 import pandas as pd
 from scripts.audit_chart_patterns import AUDIT_END, render, sample
 
+from vnstock_research import chart_research as v1
 from vnstock_research import chart_research_v2 as chart
 from vnstock_research import store
 from vnstock_research.data import db
 from vnstock_research.features import bars
 
 OUT = Path(__file__).resolve().parents[1] / "data" / "reports" / "chart_audit_v2"
+
+
+def new_sample(v2_events: pd.DataFrame, v1_events: pd.DataFrame) -> pd.DataFrame:
+    """Hash-select fresh v2 cases after excluding the fixed v1 audit roster."""
+    seen = set(sample(v1_events).episode_id)
+    return sample(v2_events[~v2_events.episode_id.isin(seen)])
 
 
 def replay(selected: pd.DataFrame, conn) -> None:
@@ -42,6 +49,19 @@ def replay(selected: pd.DataFrame, conn) -> None:
 
 
 def main() -> None:
+    old = store.PROCESSED / "chart_research" / f"5_{v1.rules_hash()}_{v1.code_hash()}"
+    prior, _ = store.load(
+        old / "events",
+        "chart v1 events",
+        "5",
+        {
+            "build_id": 5,
+            "chart_rules": v1.rules_hash(),
+            "chart_code": v1.code_hash(),
+            "source_code": v1.source_code_hash(),
+        },
+        end=AUDIT_END,
+    )
     root = (
         store.PROCESSED
         / "chart_research_v2"
@@ -50,7 +70,7 @@ def main() -> None:
     events, _ = store.load(
         root / "events", "chart v2 events", "5", chart._basis(5), end=AUDIT_END
     )
-    selected = sample(events)
+    selected = new_sample(events, prior)
     assert len(selected) == 25, "the stratified v2 sample is incomplete"
     with db.connect() as conn:
         replay(selected, conn)
