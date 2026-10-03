@@ -34,3 +34,53 @@ def test_v2_sample_excludes_the_fixed_v1_roster():
     selected = new_sample(events, events)
     assert len(selected) == 5
     assert set(selected.episode_id).isdisjoint(sample(events).episode_id)
+
+
+def test_expired_case_fills_a_stratum_with_no_new_late_case():
+    rows = []
+    for side in ("up", "down"):
+        for i in range(4):
+            rows.append(
+                {
+                    "episode_id": f"double_top:{side}:{i}",
+                    "variant": "double_top",
+                    "side": side,
+                    "state": f"confirmed_{side}",
+                    "candidate_on": "2020-01-01",
+                    "signal_on": "2020-01-02",
+                }
+            )
+    rows.append(
+        {
+            "episode_id": "double_top:late",
+            "variant": "double_top",
+            "side": None,
+            "state": "late_or_unobservable",
+            "candidate_on": "2020-01-01",
+            "signal_on": None,
+        }
+    )
+    old = pd.DataFrame(rows)
+    new = pd.concat(
+        [
+            old,
+            pd.DataFrame(
+                [
+                    {
+                        "episode_id": "double_top:expired",
+                        "variant": "double_top",
+                        "side": None,
+                        "state": "expired",
+                        "candidate_on": "2020-01-01",
+                        "signal_on": None,
+                    }
+                ]
+            ),
+        ],
+        ignore_index=True,
+    )
+    selected = new_sample(new, old)
+    assert len(selected) == 5
+    assert selected[selected.sample_kind == "expired"].episode_id.tolist() == [
+        "double_top:expired"
+    ]

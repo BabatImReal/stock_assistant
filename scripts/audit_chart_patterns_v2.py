@@ -22,9 +22,22 @@ OUT = Path(__file__).resolve().parents[1] / "data" / "reports" / "chart_audit_v2
 
 
 def new_sample(v2_events: pd.DataFrame, v1_events: pd.DataFrame) -> pd.DataFrame:
-    """Hash-select fresh v2 cases after excluding the fixed v1 audit roster."""
+    """Hash-select fresh cases; use expired if no unseen late case exists."""
     seen = set(sample(v1_events).episode_id)
-    return sample(v2_events[~v2_events.episode_id.isin(seen)])
+    fresh = v2_events[~v2_events.episode_id.isin(seen)].copy()
+    selected = sample(fresh)
+    missing = set(fresh.variant) - set(
+        selected.loc[selected.sample_kind == "late", "variant"]
+    )
+    expired = fresh[fresh.variant.isin(missing) & fresh.state.eq("expired")].copy()
+    expired["selection_hash"] = expired.episode_id.map(
+        lambda value: hashlib.sha256(str(value).encode()).hexdigest()
+    )
+    expired["sample_kind"] = "expired"
+    fallback = expired.sort_values("selection_hash").groupby("variant").head(1)
+    return pd.concat([selected, fallback], ignore_index=True).sort_values(
+        ["variant", "sample_kind", "side", "selection_hash"]
+    )
 
 
 def replay(selected: pd.DataFrame, conn) -> None:
