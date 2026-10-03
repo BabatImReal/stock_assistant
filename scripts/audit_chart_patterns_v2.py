@@ -22,22 +22,10 @@ OUT = Path(__file__).resolve().parents[1] / "data" / "reports" / "chart_audit_v2
 
 
 def new_sample(v2_events: pd.DataFrame, v1_events: pd.DataFrame) -> pd.DataFrame:
-    """Hash-select fresh cases; use expired if no unseen late case exists."""
+    """Hash-select fresh cases without reclassifying later-known states."""
     seen = set(sample(v1_events).episode_id)
     fresh = v2_events[~v2_events.episode_id.isin(seen)].copy()
-    selected = sample(fresh)
-    missing = set(fresh.variant) - set(
-        selected.loc[selected.sample_kind == "late", "variant"]
-    )
-    expired = fresh[fresh.variant.isin(missing) & fresh.state.eq("expired")].copy()
-    expired["selection_hash"] = expired.episode_id.map(
-        lambda value: hashlib.sha256(str(value).encode()).hexdigest()
-    )
-    expired["sample_kind"] = "expired"
-    fallback = expired.sort_values("selection_hash").groupby("variant").head(1)
-    return pd.concat([selected, fallback], ignore_index=True).sort_values(
-        ["variant", "sample_kind", "side", "selection_hash"]
-    )
+    return sample(fresh)
 
 
 def replay(selected: pd.DataFrame, conn) -> None:
@@ -84,7 +72,7 @@ def main() -> None:
         root / "events", "chart v2 events", "5", chart._basis(5), end=AUDIT_END
     )
     selected = new_sample(events, prior)
-    assert len(selected) == 25, "the stratified v2 sample is incomplete"
+    assert len(selected) == 24, "the fresh v2 audit sample is incomplete"
     with db.connect() as conn:
         replay(selected, conn)
     for path in render(selected, OUT):

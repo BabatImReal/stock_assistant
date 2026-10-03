@@ -36,7 +36,7 @@ def test_v2_sample_excludes_the_fixed_v1_roster():
     assert set(selected.episode_id).isdisjoint(sample(events).episode_id)
 
 
-def test_expired_case_fills_a_stratum_with_no_new_late_case():
+def test_expired_case_does_not_fill_a_missing_late_stratum():
     rows = []
     for side in ("up", "down"):
         for i in range(4):
@@ -80,7 +80,5 @@ def test_expired_case_fills_a_stratum_with_no_new_late_case():
         ignore_index=True,
     )
     selected = new_sample(new, old)
-    assert len(selected) == 5
-    assert selected[selected.sample_kind == "expired"].episode_id.tolist() == [
-        "double_top:expired"
-    ]
+    assert len(selected) == 4
+    assert "double_top:expired" not in selected.episode_id.tolist()
