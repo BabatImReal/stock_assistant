@@ -417,6 +417,30 @@ def main() -> int:
             state["recorded"].append(f"{day}: {what}")
             log(f"recorded {day}: {what}")
 
+    def chart_forward():
+        """Shadow track (registration chart-forward-v3). Never fails the main record."""
+        try:
+            from vnstock_research import chart_forward as cf
+
+            with conn.cursor() as cur:
+                cur.execute("SELECT DISTINCT trade_date FROM trading_day ORDER BY 1")
+                all_days = [r[0] for r in cur.fetchall()]
+            missing = cf.missing_days(all_days, cf.read())
+            msg = "chart forward: up to date"
+            if missing:
+                done = cf.record_days(conn, missing)
+                msg = f"chart forward recorded {done}"
+            if date.today().weekday() == 4:  # Friday: the weekly report
+                report = cf.evaluate(conn)
+                out = cf.REPORTS / f"chart-forward-{date.today():%Y%m%d}.txt"
+                out.write_text("\n".join(report) + "\n", encoding="utf-8")
+                msg += f"; weekly report {out.name}"
+            return msg
+        except Exception as e:  # noqa: BLE001 - a shadow track must not stop the ledger
+            log(f"WARNING chart forward step failed: {type(e).__name__}: {e}")
+            notify("Stock research", f"chart forward track failed: {type(e).__name__}")
+            return "chart forward: FAILED (see log); the main record is unaffected"
+
     def score():
         for line in paper.run_score(conn):
             log(line)
@@ -436,6 +460,7 @@ def main() -> int:
         ("rebuild if days are unrecorded", rebuild),
         ("regression guard", regression),
         ("scan and record", record),
+        ("chart forward (shadow)", chart_forward),
         ("score", score),
         ("prune old fingerprints", prune),
     ]

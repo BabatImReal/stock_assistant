@@ -1,4 +1,4 @@
-# Current state — 2026-10-05 (session 2026-10-05-01, run 12, 22:00)
+# Current state — 2026-10-05 (session 2026-10-05-01, run 13, 23:00)
 
 ## Purpose and boundary
 - Private end-of-day Vietnamese stock research for Ben: HOSE, HNX, UPCoM. Goal: ONE
@@ -80,6 +80,17 @@
 - The schedule is loaded. The first SCHEDULED run (21:36 on 10-05) exited 0: no_new_data, regression
   guard identical, scored on build 6. A heal of a lagging VNINDEX row now forces a fingerprint
   rebuild (the stored copy would otherwise keep NaN regime columns). pytest 746 passed.
+
+## Chart-formation forward track v3 (frozen 2026-10-05 22:39, commit 027df73)
+- Shadow track beside the registered scan; never alters it. Frozen: `config/rules/chart_forward_v3.yaml`;
+  text: `docs/preregistration/chart-forward-v3.md`. Log: `research/chart_forward_log.csv` (append-only,
+  created at the first forward day, 2026-10-06). Code: `src/vnstock_research/chart_forward.py`; runs as
+  the "chart forward (shadow)" step of the daily cycle (non-fatal) and writes a Friday report.
+- H1 up-break excess and H2 down-break AVOID vs the same signal day's liquid cross-section; looks at
+  60/120/240 resolved events, alpha 0.008 each; no p shown below n=60. ~40 events/yr per side, so only
+  LARGE effects settle within 1-2 years (MDE table in the registration). Pooled spent-history numbers
+  that motivated H2 are NOT evidence.
+- Gate passed: wrapper == frozen census for 2026-01-01..09-21 (176/176). pytest 760 passed.
 
 ## Open problems (decisions for Ben)
 - Check the first scheduled evening run (21:30) in

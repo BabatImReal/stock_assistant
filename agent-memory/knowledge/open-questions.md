@@ -851,3 +851,8 @@ Related: [[decisions]] [[data-sources]] [[architecture]]
 ## Update 2026-10-05 ~20:00
 - The 10-05 VNINDEX/HNX-INDEX rows are FILLED (CafeF published them in the afternoon; the daily run healed them). The 10-05 scan row in the ledger was still recorded without the regime (append-only; no signal uses it).
 - Why the 5 rescale refusals: PSE and VCC only lack 2023-08-25 (a flagged date-shift) and will be accepted by the next rescale; ADP and PDV were restated by CafeF only for their recent years (ADP from 2023-07-28, PDV from 2025-11-19: ratio 0.9714 / 0.9334 there, 1.0 before) so no single ratio fits; LPT has one odd day (2023-06-13, ratio 0.813 vs 0.870). ADP, PDV and LPT remain excluded; nothing was done about them.
+
+## Chart forward track v3: expectations (2026-10-05, registration docs/preregistration/chart-forward-v3.md)
+- ~40 usable events/yr per side (2014-2025 average, after liquidity/resolution gates). Detectable effect (80% power, alpha 0.008, sd 8.2%): n=60 ~3.4% mean / 21 pts hit (~1.5 yr), n=120 ~2.4% / 15 pts (~3 yr), n=240 ~1.7% / 10 pts (~6 yr). So the track settles only LARGE effects within 1-2 years.
+- Disclosure: H2 was chosen after viewing pooled spent-history outcomes through 2026-09 (up hit 46.3% vs base 46.8%, +0.38% mean; down hit 40.8%, -1.18% mean). Not evidence; never cite.
+- Faster routes to "meaningful" (not built, need Ben's decision): (a) a daily cross-sectional score on the whole liquid universe (hundreds of observations a day) instead of rare events; (b) more event families as a NEW forward-only registration; (c) the registered engine's ledger matures first (~Jan 2027).
