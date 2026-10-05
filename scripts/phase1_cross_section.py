@@ -123,7 +123,12 @@ def main() -> int:
         ok = d["mean"] > 0 and v["mean"] > 0
         say(
             f"\nPHASE 1 RULE (12.4): development excess {d['mean']:+.4%} and validation "
-            f"{v['mean']:+.4%} -> {'both positive: PASS to Phase 2' if ok else 'NOT both positive: the score is DROPPED, not tuned'}"
+            f"{v['mean']:+.4%} -> "
+            + (
+                "both positive: PASS to Phase 2"
+                if ok
+                else "NOT both positive: the score is DROPPED, not tuned"
+            )
         )
     say("These are spent-history DEVELOPMENT numbers, not evidence of a forward edge.")
     rep = Path(__file__).resolve().parent.parent / "research" / "reports"

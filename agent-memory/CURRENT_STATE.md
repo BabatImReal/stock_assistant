@@ -1,4 +1,4 @@
-# Current state — 2026-10-05 (session 2026-10-05-01, run 13, 23:00)
+# Current state — 2026-10-05 (session 2026-10-05-01, run 14, 23:40)
 
 ## Purpose and boundary
 - Private end-of-day Vietnamese stock research for Ben: HOSE, HNX, UPCoM. Goal: ONE
@@ -91,6 +91,19 @@
   LARGE effects settle within 1-2 years (MDE table in the registration). Pooled spent-history numbers
   that motivated H2 are NOT evidence.
 - Gate passed: wrapper == frozen census for 2026-01-01..09-21 (176/176). pytest 760 passed.
+
+## Strategy status (Amendment 1, docs section 12)
+- Ben approved a daily cross-sectional ranking and the document was amended (da7881d; corrections in 12.4a).
+- Phase 1 development run, CORRECTED: the score (52-week-high proximity + 1-month abnormal turnover) earned
+  +0.51% per 5-session trade over the day's liquid stocks in 2012-2019 (t 5.56) but ~0 in 2020-2023 (t -0.02)
+  and +0.16% in 2024-26 (t 1.25). Frozen rule -> DROPPED, not tuned, no Phase 2. The first, flawed run had
+  "passed"; both runs are in `research/reports/` and were taken to Ben.
+- So far NOTHING tested has shown a usable forward-looking edge in recent years on liquid stocks: the registered
+  engine (weak per signal day), chart formations (about the market), the cross-sectional score (zero since 2020).
+  The forward logs (engine ledger, chart track v3) keep running at no cost.
+- Candidate next experiments (need Ben's go-ahead, none started): shares outstanding to build the 12-month
+  turnover factor (the paper's strongest, VN-3 t -4.94, but concentrated in small/illiquid stocks); foreign flow
+  (CafeF file exists, not loaded or reconciled); fundamentals (earnings-to-price, profitability).
 
 ## Open problems (decisions for Ben)
 - Check the first scheduled evening run (21:30) in

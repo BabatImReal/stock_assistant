@@ -1,0 +1,24 @@
+PHASE 1 CORRECTED RERUN (docs 12.4a) | build 6 | k=5 | run 2026-10-05 23:27:25
+feature rows 2,665,986; with both features 1,326,234
+liquid ranked stock-days 787,352 over 3667 days; median stocks ranked per day 177
+
+DEVELOPMENT 2012-01-01..2019-12-31 | 1988 days | universe/day 128 | top decile/day 14
+  top decile excess net_5 per stock: mean +0.5056%  NW se 0.0910%  t +5.56  | positive days 60.0%
+  hit-rate gap (top - universe): +4.21% (t +7.15)
+  DESCRIPTIVE top-3 stocks: +0.5020% (t +2.63) | top-1 stock: +0.3414% (t +1.29)  [one pick a day is noisy]
+  by year (mean top-decile excess): 2012 -0.24%, 2013 +0.81%, 2014 +0.24%, 2015 +1.07%, 2016 +0.70%, 2017 +0.41%, 2018 +0.59%, 2019 +0.48%
+
+VALIDATION 2020-01-01..2023-12-31 | 994 days | universe/day 247 | top decile/day 26
+  top decile excess net_5 per stock: mean -0.0029%  NW se 0.1639%  t -0.02  | positive days 50.6%
+  hit-rate gap (top - universe): -1.16% (t -1.42)
+  DESCRIPTIVE top-3 stocks: -0.0829% (t -0.25) | top-1 stock: +0.1675% (t +0.31)  [one pick a day is noisy]
+  by year (mean top-decile excess): 2020 +0.09%, 2021 +0.36%, 2022 -0.12%, 2023 -0.35%
+
+INSPECTED_2024_ON 2024-01-01..2026-09-21 | 667 days | universe/day 261 | top decile/day 26
+  top decile excess net_5 per stock: mean +0.1597%  NW se 0.1277%  t +1.25  | positive days 55.0%
+  hit-rate gap (top - universe): +1.13% (t +1.23)
+  DESCRIPTIVE top-3 stocks: +0.2691% (t +0.72) | top-1 stock: -0.1817% (t -0.31)  [one pick a day is noisy]
+  by year (mean top-decile excess): 2024 +0.17%, 2025 +0.22%, 2026 +0.06%
+
+PHASE 1 RULE (12.4): development excess +0.5056% and validation -0.0029% -> NOT both positive: the score is DROPPED, not tuned
+These are spent-history DEVELOPMENT numbers, not evidence of a forward edge.
