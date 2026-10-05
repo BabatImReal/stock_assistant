@@ -23,6 +23,12 @@ So, per Ben's decision of 2026-10-05 (keep build 5, exclude the restated):
     sized like repair_missed_actions.py sizes one, so no feature or return is
     computed across the seam. It re-enters research when the build is rebuilt.
 
+A symbol is compared on ITS OWN last stored day, not on the database's last day:
+thin stocks skip sessions, and one that skipped the last day but was restated since
+would otherwise get new-basis bars with no flag and no window (9 such symbols were
+found after the first run). Symbols already inside an active restated window are
+skipped, so VPB is not re-flagged every night against its old-basis tail.
+
 Never use load_history.py for this: it truncates the derived tables and would
 undo the verified repairs layered on since (date-shift deletes, inferred
 factors, excluded windows, backfills).
@@ -52,23 +58,6 @@ TOLERANCE = 1e-3
 REASON = "restated by CafeF: corporate action after the last loaded session"
 
 
-def restated_symbols(
-    stored: pd.Series, upto: pd.Series, tol: float = TOLERANCE
-) -> pd.Series:
-    """Symbols whose factor on the last stored day differs in the new file.
-
-    Both inputs are indexed by symbol. A symbol missing from either side is not
-    comparable (new listing, or resuming after a suspension) and is NOT flagged:
-    the nightly job already gives a resumed symbol a fresh span. Returns the
-    relative change for the flagged symbols.
-    """
-    both = pd.concat(
-        [stored.rename("stored"), upto.rename("upto")], axis=1, join="inner"
-    )
-    rel = (both["upto"] / both["stored"] - 1).abs()
-    return rel[rel > tol]
-
-
 def event_date(
     factor_by_date: pd.Series, base: float, tol: float = TOLERANCE
 ) -> date | None:
@@ -79,6 +68,35 @@ def event_date(
     """
     moved = factor_by_date[(factor_by_date / base - 1).abs() > tol].sort_index()
     return None if moved.empty else moved.index[0]
+
+
+def event_or_next(factor_by_date: pd.Series, base: float) -> date:
+    """The action date, or, if no step was observed yet, the day after the last bar.
+
+    A symbol restated on a day it has not traded since still has to be excluded:
+    its NEXT bar will be on the new basis. So the window opens the day after the
+    last row we hold, never later.
+    """
+    ev = event_date(factor_by_date, base)
+    return ev if ev is not None else max(factor_by_date.index) + timedelta(days=1)
+
+
+def flag_restated(
+    anchors: pd.DataFrame, up: pd.DataFrame, tol: float = TOLERANCE
+) -> pd.DataFrame:
+    """Symbols whose factor on their OWN last stored day differs in the new file.
+
+    anchors: symbol, anchor_day, stored.  up: symbol, trade_date, factor.
+    Returns symbol-indexed rows (anchor_day, stored, new, rel) with rel > tol.
+    """
+    m = anchors.merge(
+        up.rename(columns={"trade_date": "anchor_day", "factor": "new"})[
+            ["symbol", "anchor_day", "new"]
+        ],
+        on=["symbol", "anchor_day"],
+    )
+    m["rel"] = (m["new"] / m["stored"] - 1).abs()
+    return m[m["rel"] > tol].set_index("symbol")
 
 
 def exclusion_span(event: date) -> tuple[date, date]:
@@ -138,12 +156,24 @@ def main(upto_dir: Path, apply: bool, since: date | None = None) -> int:
                 "ORDER BY build_id DESC LIMIT 1"
             )
             (build,) = cur.fetchone()
+            # Each symbol's OWN last stored factor, at most ~25 sessions back (older
+            # means it was suspended and resumes as a new span, as nightly_update does).
             cur.execute(
-                "SELECT symbol, factor FROM adjustment_factor "
-                "WHERE build_id = %s AND trade_date = %s",
-                (build, have),
+                "SELECT DISTINCT ON (symbol) symbol, trade_date, factor "
+                "FROM adjustment_factor WHERE build_id = %s AND trade_date <= %s "
+                "AND trade_date > %s ORDER BY symbol, trade_date DESC",
+                (build, have, have - timedelta(days=35)),
             )
-            stored = pd.Series(dict(cur.fetchall()), dtype=float)
+            anchors = pd.DataFrame(
+                cur.fetchall(), columns=["symbol", "anchor_day", "stored"]
+            )
+            anchors["stored"] = anchors["stored"].astype(float)
+            cur.execute(
+                "SELECT symbol FROM excluded_window "
+                "WHERE reason = %s AND event_date <= %s",
+                (REASON, have),
+            )
+            handled = {r[0] for r in cur.fetchall()}
         print(f"database through {have}, build {build}")
 
         up = cafef.stocks(upto_dir)
@@ -167,13 +197,16 @@ def main(upto_dir: Path, apply: bool, since: date | None = None) -> int:
             f"new sessions: {len(dates)} ({dates[0]} .. {dates[-1]}), {len(new):,} bars"
         )
 
-        last = up[up["trade_date"] == have].dropna(subset=["factor"])
-        flagged = restated_symbols(
-            stored, last.set_index("symbol")["factor"].astype(float)
+        todo = anchors[
+            anchors["symbol"].isin(set(new["symbol"]))
+            & ~anchors["symbol"].isin(handled)
+        ]
+        flagged = flag_restated(todo, up.dropna(subset=["factor"]))
+        print(
+            f"restated symbols: {len(flagged)} of {len(todo)} compared "
+            f"({len(handled)} already handled, skipped)"
         )
-        print(f"restated symbols: {len(flagged)} of {len(stored)} compared")
 
-        ratio = last.set_index("symbol")["factor"].astype(float).to_dict()
         events = {}
         for sym in flagged.index:
             fs = (
@@ -181,13 +214,20 @@ def main(upto_dir: Path, apply: bool, since: date | None = None) -> int:
                 .dropna(subset=["factor"])
                 .set_index("trade_date")["factor"]
             )
-            events[sym] = event_date(
-                fs.astype(float), float(last.set_index("symbol")["factor"][sym])
+            if fs.empty:
+                continue
+            events[sym] = event_or_next(
+                fs.astype(float), float(flagged.loc[sym, "new"])
             )
+        for sym, ev in sorted(events.items(), key=lambda kv: kv[1]):
+            print(
+                f"  restated {sym}: factor {flagged.loc[sym, 'stored']:.4f} -> "
+                f"{flagged.loc[sym, 'new']:.4f}, action {ev}"
+            )
+        stored = flagged["stored"]
+        last = flagged["new"]
         raw_rows = new
-        adj_rows = factors_to_insert(
-            new, events, stored, last.set_index("symbol")["factor"].astype(float)
-        )
+        adj_rows = factors_to_insert(new, events, stored, last)
 
         with conn.cursor() as cur:
             for r in raw_rows.itertuples():
@@ -227,6 +267,14 @@ def main(upto_dir: Path, apply: bool, since: date | None = None) -> int:
                         int(r.volume),
                     ),
                 )
+            for sym in events:  # replace what an earlier run put after the anchor
+                anchor = flagged.loc[sym, "anchor_day"]
+                for table in ("bar_adjusted", "adjustment_factor"):
+                    cur.execute(
+                        f"DELETE FROM {table} WHERE build_id = %s AND symbol = %s "
+                        "AND trade_date > %s",
+                        (build, sym, anchor),
+                    )
             for r in adj_rows.itertuples():
                 cur.execute(
                     "INSERT INTO adjustment_factor"
@@ -257,13 +305,7 @@ def main(upto_dir: Path, apply: bool, since: date | None = None) -> int:
                 (have,),
             )
             for sym, ev in events.items():
-                if ev is None:
-                    continue
                 lo, hi = exclusion_span(ev)
-                cur.execute(  # re-running replaces this script's own window
-                    "DELETE FROM excluded_window WHERE symbol = %s AND reason = %s",
-                    (sym, REASON),
-                )
                 cur.execute(
                     "INSERT INTO excluded_window (symbol, valid_from, valid_to, reason,"
                     " event_date, detail) VALUES (%s,%s,%s,%s,%s,%s::jsonb) "
@@ -274,7 +316,13 @@ def main(upto_dir: Path, apply: bool, since: date | None = None) -> int:
                         hi,
                         REASON,
                         ev,
-                        json.dumps({"factor_ratio": ratio[sym]}),
+                        json.dumps(
+                            {
+                                "anchor_day": str(flagged.loc[sym, "anchor_day"]),
+                                "stored": float(flagged.loc[sym, "stored"]),
+                                "new": float(flagged.loc[sym, "new"]),
+                            }
+                        ),
                     ),
                 )
 
@@ -283,10 +331,7 @@ def main(upto_dir: Path, apply: bool, since: date | None = None) -> int:
         for c in results:
             if not c.passed:
                 print(f"  [{c.severity.upper()}] {c.name}: {c.observed}")
-        print(
-            f"events: {sum(e is not None for e in events.values())} windows, "
-            f"blocking failures: {len(blocking)}"
-        )
+        print(f"events: {len(events)} windows, blocking failures: {len(blocking)}")
 
         if blocking or not apply:
             conn.rollback()

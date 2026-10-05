@@ -17,22 +17,54 @@ def series(**kw):
     return pd.Series(kw, dtype=float)
 
 
-def test_a_changed_factor_on_the_last_day_is_a_restatement():
-    stored = series(AAA=1.0, VPB=1.0)
-    upto = series(AAA=1.0, VPB=0.7934)  # CafeF re-adjusted VPB's whole past
-    out = cu.restated_symbols(stored, upto)
-    assert list(out.index) == ["VPB"]
+def _anchors(**kw):
+    # symbol -> (anchor_day, stored factor)
+    return pd.DataFrame(
+        [{"symbol": k, "anchor_day": v[0], "stored": v[1]} for k, v in kw.items()]
+    )
 
 
-def test_float_noise_is_not_a_restatement():
-    out = cu.restated_symbols(series(AAA=0.9), series(AAA=0.9 + 1e-9))
+def _up(rows):
+    return pd.DataFrame(rows, columns=["symbol", "trade_date", "factor"])
+
+
+D = dt.date
+
+
+def test_a_changed_factor_on_the_anchor_day_is_a_restatement():
+    anchors = _anchors(AAA=(D(2026, 9, 21), 1.0), VPB=(D(2026, 9, 21), 1.0))
+    up = _up([("AAA", D(2026, 9, 21), 1.0), ("VPB", D(2026, 9, 21), 0.7934)])
+    assert list(cu.flag_restated(anchors, up).index) == ["VPB"]
+
+
+def test_a_symbol_that_skipped_the_last_day_is_compared_on_its_own_last_day():
+    # GLT did not trade on 09-21 (its last stored day is 09-18) but CafeF restated
+    # it since. Comparing only on the database's last day never saw it.
+    anchors = _anchors(GLT=(D(2026, 9, 18), 1.0))
+    up = _up([("GLT", D(2026, 9, 18), 0.7576), ("GLT", D(2026, 9, 21), 1.0)])
+    out = cu.flag_restated(anchors, up)
+    assert list(out.index) == ["GLT"]
+    assert out.loc["GLT", "anchor_day"] == D(2026, 9, 18)
+
+
+def test_rounding_wobble_alone_is_not_a_restatement():
+    anchors = _anchors(TPB=(D(2026, 9, 21), 0.839400))
+    out = cu.flag_restated(anchors, _up([("TPB", D(2026, 9, 21), 0.839397)]))
     assert out.empty
 
 
-def test_a_symbol_missing_from_either_side_is_not_flagged():
-    # new listing / resumption: the nightly job gives these a fresh span
-    out = cu.restated_symbols(series(OLD=1.0), series(NEW=0.5))
+def test_a_symbol_absent_from_the_new_file_on_its_anchor_is_not_flagged():
+    out = cu.flag_restated(
+        _anchors(OLD=(D(2026, 9, 21), 1.0)), _up([("NEW", D(2026, 9, 21), 0.5)])
+    )
     assert out.empty
+
+
+def test_no_step_yet_still_opens_a_window_the_day_after_the_last_bar():
+    # restated, but it has not traded since the action: its NEXT bar is the seam
+    f = pd.Series([0.8, 0.8], index=[D(2026, 9, 22), D(2026, 9, 23)])
+    assert cu.event_date(f, 0.8) is None
+    assert cu.event_or_next(f, 0.8) == D(2026, 9, 24)
 
 
 def test_event_date_is_the_first_day_the_factor_leaves_the_base():
@@ -103,7 +135,3 @@ def test_rounding_wobble_before_an_action_is_not_the_event():
         index=[dt.date(2026, 9, d) for d in (22, 23, 24, 25)],
     )
     assert cu.event_date(f, 0.839400) == dt.date(2026, 9, 25)
-
-
-def test_wobble_alone_is_not_a_restatement():
-    assert cu.restated_symbols(series(TPB=0.839400), series(TPB=0.839397)).empty
