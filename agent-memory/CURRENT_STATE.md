@@ -1,11 +1,11 @@
-# Current state — 2026-10-05 (session 2026-10-05-01, run 14, 23:40)
+# Current state — 2026-10-05 (session 2026-10-05-01, run 15)
 
 ## Purpose and boundary
 - Private end-of-day Vietnamese stock research for Ben: HOSE, HNX, UPCoM. Goal: ONE
   or TWO well-evidenced stocks, not a list. Research, not prediction; Ben decides.
 - Deterministic code measures prices, patterns and returns; LLMs coordinate and
   explain. "Nothing strong today" is valid.
-- Source of truth: `docs/knowledge/pattern-research-knowledge.md` (never edit).
+- Source of truth: `docs/knowledge/pattern-research-knowledge.md` (sections 1-11 never rewritten; changes only as dated amendments in section 12 on Ben's decision).
 - Phase: research-only chart formations beyond the original phase roadmap; no chart
   family is approved for recommendation or production promotion.
 - Branch: `claude/design-system-pattern-history-aqbkd8` (the only working branch), pushed to
@@ -92,6 +92,15 @@
   that motivated H2 are NOT evidence.
 - Gate passed: wrapper == frozen census for 2026-01-01..09-21 (176/176). pytest 760 passed.
 
+## Daily brief (built run 15, wired into the daily cycle)
+- `src/vnstock_research/report/brief.py` -> `research/reports/brief-<day>.txt`; non-fatal step "daily brief" after score in
+  `daily_run.py`; its headline is the notification. Label rule (decisions 2026-10-05): WEAK / UNPROVEN / STRONG from the
+  holdout's net PER SIGNAL DAY plus the forward record; "NOTHING STRONG TODAY" unless STRONG. 10-05: TAL = WEAK
+  (+0.27% per trade, -0.43% per signal day). The scorecard lists AAA 09-28, VNM 10-02, TAL 10-05, all pending.
+- BUG FOUND AND FIXED this run: after build 6 `describe_holdout` refuses, which would have crashed any proposal day's scan.
+  `scan.daily_scan` now reads the saved description (`research/reports/holdout-2026-09-10-describe.txt`) when the build differs.
+- Not yet run in a scheduled cycle with a new day (first: 10-06 21:30). Excess vs the same-day universe is not in the brief yet.
+
 ## Strategy status (Amendment 1, docs section 12)
 - Ben approved a daily cross-sectional ranking and the document was amended (da7881d; corrections in 12.4a).
 - Phase 1 development run, CORRECTED: the score (52-week-high proximity + 1-month abnormal turnover) earned
@@ -101,9 +110,8 @@
 - So far NOTHING tested has shown a usable forward-looking edge in recent years on liquid stocks: the registered
   engine (weak per signal day), chart formations (about the market), the cross-sectional score (zero since 2020).
   The forward logs (engine ledger, chart track v3) keep running at no cost.
-- Candidate next experiments (need Ben's go-ahead, none started): shares outstanding to build the 12-month
-  turnover factor (the paper's strongest, VN-3 t -4.94, but concentrated in small/illiquid stocks); foreign flow
-  (CafeF file exists, not loaded or reconciled); fundamentals (earnings-to-price, profitability).
+- Closed out (docs 12.6): the score is dropped, no Phase 2. Ben (10-05): drop efforts without positive results. The
+  shares-outstanding / foreign-flow / fundamentals experiments are NOT started; available only if Ben asks.
 
 ## Open problems (decisions for Ben)
 - Check the first scheduled evening run (21:30) in
@@ -129,7 +137,7 @@
   (`docs/evals/report-faithfulness-eval.md`), no LLM surface exists.
 
 ## Next action and guardrails
-1. Ben: prune policy; look at tonight's scheduled run.
+1. Watch the 10-06 21:30 run: first real new-day load, first chart-track day, first brief and notification.
 2. Each trading day: let the daily cycle record the day; never score before recording;
    do not read a proposal as a recommendation.
 3. Restatements of FUTURE corporate actions are flagged and excluded by the daily load; run

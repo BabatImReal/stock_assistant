@@ -494,3 +494,27 @@ def test_a_stuck_stake_withholds_the_verdict():
     )
     o = paper.outcomes(ledger(days), rt, CAL)
     assert verdict(None, o=o).startswith("WITHHELD")
+
+
+def test_the_saved_holdout_description_reproduces_what_the_live_scan_printed():
+    # 10-05's scan was written on build 5 by the live describe_holdout. Parsing the
+    # saved
+    # description must give those very lines, or the fallback on build 6 would lie.
+    text = scan.HOLDOUT_DESCRIPTION.read_text(encoding="utf-8")
+    d = scan.frozen_description(text, "k5:marubozu_red+ma_50_rising+rvol_high", 0.004)
+    printed = (scan.HOLDOUT_DESCRIPTION.parents[0] / "scan-2026-10-05.txt").read_text()
+    lines = scan.described(d)
+    assert all(line in printed for line in lines), lines
+    assert d["per_day"] == -0.0043
+
+
+def test_a_signal_missing_from_the_saved_description_is_an_error():
+    text = scan.HOLDOUT_DESCRIPTION.read_text(encoding="utf-8")
+    fails_with(
+        ValueError,
+        "not in the saved",
+        scan.frozen_description,
+        text,
+        "k9:nothing+here",
+        0.004,
+    )

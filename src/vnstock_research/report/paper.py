@@ -344,7 +344,8 @@ def score_report(sc: Scorecard, ledger: pd.DataFrame, proto, fee_provisional) ->
     return lines
 
 
-def run_score(conn, path: Path = LEDGER) -> list[str]:
+def scorecard(conn, path: Path = LEDGER):
+    """The scored ledger: (build, ledger, proto, fee_provisional, Scorecard)."""
     from ..backtest import forward_returns as fr
     from ..backtest.protocol import load_protocol
     from ..patterns import fingerprint as fpm
@@ -368,24 +369,9 @@ def run_score(conn, path: Path = LEDGER) -> list[str]:
     )
     costs = fr.load_costs()
     sc = score(ledger, returns, calendar, proto, costs.provisional)
-    return [
-        f"scored on build {build}",
-        *score_report(sc, ledger, proto, costs.provisional),
-    ]
+    return build, ledger, proto, costs.provisional, sc
 
 
-if __name__ == "__main__":
-    import sys
-
-    from ..data import db
-    from .scan import pick
-
-    with db.connect() as conn:
-        if sys.argv[1] == "record":
-            for day in sys.argv[2:]:
-                row = record(pick(conn, day))
-                print(day, row["outcome"], row["symbol"], row["hypothesis"])
-        elif sys.argv[1] == "score":
-            print("\n".join(run_score(conn)))
-        else:
-            raise SystemExit("use: record DAY [DAY ...] | score")
+def run_score(conn, path: Path = LEDGER) -> list[str]:
+    build, ledger, proto, provisional, sc = scorecard(conn, path)
+    return [f"scored on build {build}", *score_report(sc, ledger, proto, provisional)]

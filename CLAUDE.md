@@ -9,8 +9,9 @@ strong today". This is research, not prediction. Ben makes every decision.
 
 Source of truth: docs/knowledge/pattern-research-knowledge.md. The original text
 (sections 1-11) is never rewritten; changes are dated amendments in section 12,
-made only on Ben's decision. Amendment 1 (2026-10-05) changed the method to a daily
-cross-sectional ranking; section 12 governs where it differs from the original.
+made only on Ben's decision. Amendment 1 (2026-10-05) tried a daily cross-sectional
+ranking; its score was dropped by the frozen rule (12.6), so the registered engine and
+forward tracks remain the method. Section 12 governs where it differs from the original.
 
 ## Memory system: follow in EVERY session
 Purpose: never scan the codebase to understand the project. Read your own

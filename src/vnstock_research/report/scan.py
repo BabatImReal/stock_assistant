@@ -32,7 +32,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import dataclass
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -369,6 +371,66 @@ def described(d: pd.Series) -> list[str]:
     ]
 
 
+HOLDOUT_DESCRIPTION = Path(__file__).resolve().parents[3] / (
+    "research/reports/holdout-2026-09-10-describe.txt"
+)
+
+
+def frozen_description(text: str, hid: str, round_trip: float) -> pd.Series:
+    """The saved holdout description of one signal, at the registered cost (pure).
+
+    describe_holdout refuses to run on any build but the one the holdout judged
+    (build 5), by design. Since the build-6 rescale the daily scan therefore reads the
+    description Ben already saw instead of re-deriving it: the trades it describes are
+    history and cannot change. Parsed from the saved report, not recomputed.
+    """
+    block = text.split(f"  {hid}: ", 1)
+    if len(block) != 2:
+        raise ValueError(f"{hid} is not in the saved holdout description")
+    body = block[1].split("\n  k", 1)[0]
+    cost = f"{round_trip:.2%}"
+    num = r"([+-]?\d+(?:\.\d+)?)"
+
+    def grab(pattern: str) -> tuple:
+        m = re.search(pattern, body)
+        if not m:
+            raise ValueError(f"{hid}: '{pattern}' not found in the saved description")
+        return m.groups()
+
+    (days,) = grab(r"trades on (\d+) signal days")
+    (open_,) = grab(r"up to (\d+) stakes open")
+    avg, per_day = grab(
+        rf"at {re.escape(cost)}: avg per trade {num}% \| avg per signal day {num}%"
+    )
+    win, loss, best, best_t, worst, worst_t = grab(
+        rf"avg win {num}% \| avg loss {num}% \| payoff \S+ \| best {num}% \((.+?)\)"
+        rf" \| worst {num}% \((.+?)\)"
+    )
+    dd_m, dd_b, st_m, st_b = grab(
+        rf"one pick, in stakes: total \S+ \(median path\) \| "
+        rf"max drawdown {num} median, "
+        rf"{num} bad \| losing streak {num} median, {num} bad"
+    )
+    return pd.Series(
+        {
+            "avg": float(avg) / 100,
+            "per_day": float(per_day) / 100,
+            "signal_days": int(days),
+            "avg_win": float(win) / 100,
+            "avg_loss": float(loss) / 100,
+            "best": float(best) / 100,
+            "best_trade": best_t,
+            "worst": float(worst) / 100,
+            "worst_trade": worst_t,
+            "pick_drawdown_median": float(dd_m),
+            "pick_drawdown_bad": float(dd_b),
+            "pick_streak_median": float(st_m),
+            "pick_streak_bad": float(st_b),
+            "max_open": int(open_),
+        }
+    )
+
+
 def daily_scan(conn, day) -> tuple[Pick, list[str]]:
     """The evidence report for `day` (doc §7.4): the proposal and its honest
     context, or NOTHING STRONG TODAY."""
@@ -410,8 +472,20 @@ def daily_scan(conn, day) -> tuple[Pick, list[str]]:
     # trades reproduce the logged ones), at the registered cost only.
     v = _holdout_gated(conn, proto, [h])
     one = log[(log["slice"] == "holdout") & (log["hypothesis"] == h.id)]
-    d = describe_holdout(v, proto, one, costs.sale_tax_rate, costs=(costs.round_trip,))
-    lines += described(d.iloc[0])
+    judged = {str(b) for b in one["build_id"]}
+    if judged == {str(v.manifest["build_id"])}:
+        d = describe_holdout(
+            v, proto, one, costs.sale_tax_rate, costs=(costs.round_trip,)
+        ).iloc[0]
+    else:  # a later build cannot re-derive the holdout: the saved description stands
+        d = frozen_description(
+            HOLDOUT_DESCRIPTION.read_text(encoding="utf-8"), h.id, costs.round_trip
+        )
+        lines += [
+            f"  (the holdout was judged on build {sorted(judged)}; this is the saved "
+            f"description Ben saw, not recomputed on build {v.manifest['build_id']})"
+        ]
+    lines += described(d)
 
     # The base rate: every outcome known before T, through the gate.
     build, fs = fpm.expected(conn)

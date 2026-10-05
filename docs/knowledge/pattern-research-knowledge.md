@@ -569,3 +569,7 @@ The first Phase 1 run (kept unchanged as `research/reports/phase1-cross-section-
 
 **Handling:** the corrected rerun runs once. The original output stays in the record. The frozen pass rule (development and validation both positive) is applied to the corrected run. If the two runs disagree on pass or fail, both go to Ben and neither is chosen. Excluding 2018, using quintiles or testing single features would be choosing from the data and is not done.
 
+
+### 12.6 Outcome of Amendment 1 (2026-10-05, Ben's decision)
+
+The corrected Phase 1 run failed the frozen rule (12.4): development 2012-2019 +0.51% per trade over the day's liquid stocks, validation 2020-2023 -0.003%. The score is **dropped, not tuned, and there is no Phase 2**. Ben accepted this and asked that effort without positive results be dropped (the shares-outstanding, foreign-flow and fundamentals experiments of 12.5 phase 4 are not started; they stay available on his request). What remains in force: the registered engine and the chart-formation forward track v3 run as shadow evidence; the product is the registered engine's scan, labelled by the strength rule in the decisions log, and "nothing strong today" is the expected normal answer until a forward record says otherwise. The code (`cross_section.py`) and both Phase 1 reports are kept as the audit trail.

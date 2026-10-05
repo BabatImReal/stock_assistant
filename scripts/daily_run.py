@@ -445,6 +445,20 @@ def main() -> int:
         for line in paper.run_score(conn):
             log(line)
 
+    def brief():
+        """One-screen summary for Ben. Read-only and non-fatal: the record is done."""
+        if not state["recorded"]:
+            return "no new day, no brief"
+        try:
+            from vnstock_research.report import brief as daily_brief
+
+            head, out = daily_brief.write(conn, str(state["todo"][-1]))
+            state["headline"] = head
+            return f"brief written: {out.name}"
+        except Exception as e:  # noqa: BLE001 - the ledger is already safe
+            log(f"WARNING brief step failed: {type(e).__name__}: {e}")
+            return "brief: FAILED (see log); the record is unaffected"
+
     def prune():
         ledger = paper.read(paper.LEDGER)
         registered = set(ledger["featureset"].astype(str)) if len(ledger) else set()
@@ -462,6 +476,7 @@ def main() -> int:
         ("scan and record", record),
         ("chart forward (shadow)", chart_forward),
         ("score", score),
+        ("daily brief", brief),
         ("prune old fingerprints", prune),
     ]
     code = run_pipeline(steps, log, notify)
@@ -479,7 +494,7 @@ def main() -> int:
     except Exception as e:  # noqa: BLE001
         log(f"WARNING: heartbeat not written ({type(e).__name__}: {e})")
     if state["recorded"] and not code:
-        notify("Stock research", " | ".join(state["recorded"]))
+        notify("Stock research", state.get("headline") or " | ".join(state["recorded"]))
     (REPORTS / f"daily-{datetime.now():%Y%m%d-%H%M}.txt").write_text(
         "\n".join(lines) + "\n", encoding="utf-8"
     )

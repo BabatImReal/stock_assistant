@@ -200,3 +200,4 @@ PostgreSQL 16.15 + timescaledb 2.30.1, healthy, named volume created.
 | `scripts/.gitkeep` | Placeholder from Phase 2 |
 | `data/reports/` | Git-ignored probe and reconciliation reports |
 | `notebooks/.gitkeep` | Placeholder for exploration notebooks |
+| `report/brief.py` | **The one-screen daily brief.** `strength` (WEAK / UNPROVEN / STRONG rule, decisions 2026-10-05), `headline`, `scorecard_lines`, `market_line`, `brief`/`write` -> `research/reports/brief-<day>.txt`. Read-only; reuses `scan.pick`, `paper.scorecard`, `scan.frozen_description`. Run as the non-fatal "daily brief" step of `scripts/daily_run.py`; its headline is the macOS notification. Tests: `tests/test_brief.py` (3 mutants caught) |
