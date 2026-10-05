@@ -41,7 +41,9 @@ def main() -> int:
 
     conn = db.connect()
     build = bars.current_build(conn)
-    say(f"PHASE 1 (development) | build {build} | k={K} | run {datetime.now():%F %T}")
+    say(
+        f"PHASE 1 CORRECTED RERUN (docs 12.4a) | build {build} | k={K} | run {datetime.now():%F %T}"
+    )
     symbols = [
         r[0]
         for r in conn.execute(
@@ -126,7 +128,7 @@ def main() -> int:
     say("These are spent-history DEVELOPMENT numbers, not evidence of a forward edge.")
     rep = Path(__file__).resolve().parent.parent / "research" / "reports"
     rep.mkdir(parents=True, exist_ok=True)
-    (rep / f"phase1-cross-section-{datetime.now():%Y%m%d}.txt").write_text(
+    (rep / f"phase1-cross-section-{datetime.now():%Y%m%d}-corrected.txt").write_text(
         "\n".join(out) + "\n", encoding="utf-8"
     )
     conn.close()

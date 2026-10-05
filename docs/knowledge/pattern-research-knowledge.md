@@ -559,3 +559,13 @@ Phase 1 is a single pre-specified run labelled DEVELOPMENT, not proof.
 
 0. Literature check and fixed signs (done; sources in 12.1). 1. Development run (12.4). 2. A forward-only registration of the score, with one primary hypothesis, fixed looks and a minimum-detectable-effect table, frozen before the first forward day. 3. Daily paper-traded top picks beside the registered engine. 4. Only after forward evidence: consider foreign flow, shares outstanding (12-month turnover), news vetoes (an LLM task) and pattern filters.
 
+### 12.4a Correction 1 to the development protocol (2026-10-05, before any rerun)
+
+The first Phase 1 run (kept unchanged as `research/reports/phase1-cross-section-20261005-original-flawed.txt`: development +0.56%, validation +0.19%, inspected +0.18%) did not measure what 12.4 intended. Two diagnostics, run before anything was frozen, showed:
+- **Coverage hole.** The rule "no skipped session anywhere in the 250-session window" lets one market-wide event blank most stocks for a year. 2018-01-25 (the HOSE halt of 01-23/24: 75% of liquid stocks resumed after a skip), 2023-01-13 (69%, a 6-session gap that looks like a data hole), and smaller events in 2014, 2022 and 2025. As a result only 15 of 250 days in 2018, 123 of 248 in 2015, 105 of 252 in 2020 and 57 of 249 in 2023 produced a ranking (fewer than 50 stocks), and in 2023 the ranked universe was only 10% HOSE. The strong 2018 figure (+3.34%) came from about 15 days of January 2018.
+- **Unadjustable volume.** About 2% of ranked stock-days (8,570) had a row in the window whose volume cannot be inverse-adjusted for splits, which the project's rule (decision 2026-09-22) says is unknown, not a signal.
+
+**Corrected rule (fixed before the rerun):** a 250-session window is valid with at most 12 skipped sessions in total and no single skip longer than 10; no excluded row; matched volume on every day; and `abn_vol` additionally needs every row's volume to be adjustable. The 12 and 10 were chosen knowing the 2018 and 2023 events exist and are fixed now; they are not tuned to any result. Everything else in 12.4 is unchanged.
+
+**Handling:** the corrected rerun runs once. The original output stays in the record. The frozen pass rule (development and validation both positive) is applied to the corrected run. If the two runs disagree on pass or fail, both go to Ben and neither is chosen. Excluding 2018, using quintiles or testing single features would be choosing from the data and is not done.
+

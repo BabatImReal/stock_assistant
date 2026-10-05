@@ -25,6 +25,7 @@ def bars(n=300, price=None, vol=None, gap_at=None, excl_at=None, sym="AAA"):
             "matched_volume": vol,
             "gap_before": gap,
             "excluded": exc,
+            "volume_is_adjustable": True,
         }
     )
 
@@ -45,13 +46,45 @@ def test_a_recent_volume_surge_raises_abnormal_volume_above_one():
     assert f["abn_vol"].iloc[-21] == pytest.approx(1.0)
 
 
-def test_a_gap_inside_the_250_session_window_blanks_the_value_and_leaving_it_restores():
-    # window for row i is rows i-249..i. A skipped session at row 20 is inside it for
-    # i <= 269 and outside it from i = 270.
-    f = cs.features(bars(n=300, gap_at=20))
-    assert f["high52"].iloc[249:270].isna().all()
-    assert f["high52"].iloc[270:].notna().all()
-    assert (f["high52"].dropna() > 0).all()  # blanked, never a zero
+def test_a_short_market_wide_gap_does_not_blank_the_window():
+    # the 2018 HOSE halt skipped 2 sessions; that must not blank a year of values
+    f = cs.features(bars(n=300, gap_at=20))  # gap_before = 3 at row 20 (<= 10)
+    assert f["high52"].iloc[249:].notna().all()
+
+
+def test_a_long_suspension_inside_the_window_blanks_it_and_leaving_it_restores():
+    b = bars(n=300)
+    b.loc[20, "gap_before"] = 30  # a real suspension
+    f = cs.features(b)
+    assert f["high52"].iloc[249:270].isna().all()  # window still contains row 20
+    assert f["high52"].iloc[270:].notna().all()  # window has moved past it
+
+
+def test_one_gap_just_over_the_single_limit_blanks_even_under_the_total_limit():
+    b = bars(n=300)
+    b.loc[20, "gap_before"] = cs.MAX_SINGLE_GAP + 1  # 11: under the total cap of 12
+    assert cs.features(b)["high52"].iloc[249:270].isna().all()
+    b.loc[20, "gap_before"] = cs.MAX_SINGLE_GAP  # exactly at the limit is allowed
+    assert cs.features(b)["high52"].iloc[249:].notna().all()
+
+
+def test_too_many_skipped_sessions_in_total_blank_the_window():
+    b = bars(n=300)
+    b.loc[[30, 60, 90, 120, 150], "gap_before"] = 3  # 15 skipped in total (> 12)
+    f = cs.features(b)
+    # window of row i is i-249..i: all five gaps (15 skipped) are inside it up to
+    # row 279; from row 280 the first has left and 12 remain (the limit): valid again
+    assert f["high52"].iloc[249:280].isna().all()
+    assert f["high52"].iloc[280:].notna().all()
+
+
+def test_unadjustable_volume_blanks_abnormal_volume_but_not_the_price_feature():
+    b = bars(n=300)
+    b["volume_is_adjustable"] = True
+    b.loc[100, "volume_is_adjustable"] = False
+    f = cs.features(b)
+    assert f["abn_vol"].iloc[249:].isna().all()
+    assert f["high52"].iloc[249:].notna().all()
 
 
 def test_an_excluded_row_inside_the_window_blanks_the_value_the_same_way():

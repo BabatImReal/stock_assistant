@@ -25,32 +25,49 @@ import pandas as pd
 LONG = 250  # sessions: the 52-week window
 SHORT = 20  # sessions: the "1-month" window
 MIN_RANKED = 50  # a day with fewer ranked stocks produces no ranking
+# Correction 1 (docs section 12.4a). A skipped session that hit most of the market at
+# once (the 2018-01-23/24 HOSE halt, a 6-session data hole in 2023-01) is not a
+# symbol-specific suspension, and under a strict no-gap rule it blanked every stock
+# for a year. A window stays valid with at most this many skipped sessions in total
+# (about 5% of 250) and no single skip longer than MAX_SINGLE_GAP.
+MAX_SKIPPED = 12
+MAX_SINGLE_GAP = 10
 
 
 def features(bars: pd.DataFrame) -> pd.DataFrame:
     """high52 and abn_vol for ONE symbol, oldest first (pure).
 
-    A value exists only where the whole 250-session window is complete: no skipped
-    session (gap_before > 0), no excluded row, and a matched volume on every day.
+    A value exists only where the 250-session window is usable: at most MAX_SKIPPED
+    skipped sessions with none longer than MAX_SINGLE_GAP, no excluded row, a matched
+    volume on every day and, for abn_vol, volume that can be inverse-adjusted.
     Anything else is NaN, never zero, so a bad window cannot rank.
     """
     close = bars["close"].astype(float)
     high = bars["high"].astype(float)
     vol = bars["matched_volume"].astype(float)
-    gap = (bars["gap_before"].fillna(0) > 0).astype(int)
+    skipped = bars["gap_before"].fillna(0).clip(lower=0)
     exc = bars["excluded"].fillna(False).astype(int)
-    clean = (gap.rolling(LONG).sum() == 0) & (exc.rolling(LONG).sum() == 0)
+    clean = (
+        (skipped.rolling(LONG).sum() <= MAX_SKIPPED)
+        & (skipped.rolling(LONG).max() <= MAX_SINGLE_GAP)
+        & (exc.rolling(LONG).sum() == 0)
+    )
+    # The project's rule (decision 2026-09-22): volume on a span that cannot be
+    # inverse-adjusted for splits is unknown, never a signal. It blanks abn_vol only.
+    adj = bars["volume_is_adjustable"].fillna(True).astype(bool)
+    vol_adjustable = (~adj).astype(int).rolling(LONG).sum() == 0
     full_vol = vol.rolling(LONG, min_periods=LONG).count() == LONG
     top = high.rolling(LONG, min_periods=LONG).max()
     long_mean = vol.rolling(LONG, min_periods=LONG).mean()
     short_mean = vol.rolling(SHORT, min_periods=SHORT).mean()
     ok = clean & full_vol
+    ok_vol = ok & vol_adjustable
     out = pd.DataFrame(
         {
             "symbol": bars["symbol"].to_numpy(),
             "trade_date": bars["trade_date"].to_numpy(),
             "high52": (close / top).where(ok),
-            "abn_vol": (short_mean / long_mean).where(ok & (long_mean > 0)),
+            "abn_vol": (short_mean / long_mean).where(ok_vol & (long_mean > 0)),
         }
     )
     return out
