@@ -847,3 +847,7 @@ Related: [[decisions]] [[data-sources]] [[architecture]]
 - VNINDEX and HNX-INDEX rows for 2026-10-05 are MISSING (CafeF's Index file still ended 10-02 when the stock files had 10-05). The 10-05 scan was recorded without the market regime; the six accepted signals use only stock-level inputs, so TAL is not affected. `fill_index` should heal it on the next run once CafeF publishes; check that `index_covers_every_trading_session` shows only 2018-01-23/24 afterwards.
 - IRC, VHF, PIS differ from CafeF's file on older dates; not investigated (not part of the rescale).
 - `describe-holdout` refuses on build 6 by design; the build-5 description is frozen in git.
+
+## Update 2026-10-05 ~20:00
+- The 10-05 VNINDEX/HNX-INDEX rows are FILLED (CafeF published them in the afternoon; the daily run healed them). The 10-05 scan row in the ledger was still recorded without the regime (append-only; no signal uses it).
+- Why the 5 rescale refusals: PSE and VCC only lack 2023-08-25 (a flagged date-shift) and will be accepted by the next rescale; ADP and PDV were restated by CafeF only for their recent years (ADP from 2023-07-28, PDV from 2025-11-19: ratio 0.9714 / 0.9334 there, 1.0 before) so no single ratio fits; LPT has one odd day (2023-06-13, ratio 0.813 vs 0.870). ADP, PDV and LPT remain excluded; nothing was done about them.

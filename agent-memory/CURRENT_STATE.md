@@ -1,4 +1,4 @@
-# Current state — 2026-10-05 (session 2026-10-05-01, run 11)
+# Current state — 2026-10-05 (session 2026-10-05-01, run 12, 22:00)
 
 ## Purpose and boundary
 - Private end-of-day Vietnamese stock research for Ben: HOSE, HNX, UPCoM. Goal: ONE
@@ -69,15 +69,17 @@
   6: not the trades it judged"). By design; the description is frozen on build 5 in git.
 - Ledger rows 09-11..10-05 carry build 5; new rows carry build 6. All 17 recorded days
   re-derive identically on build 6; scoring runs on build 6. pytest 741 passed.
-- Index rows for 2026-10-05 are missing (CafeF's Index file lagged); the loader now fills the
-  last 10 days, so the next run should heal it. The 10-05 scan was recorded without the
-  regime; the six accepted signals do not use the index.
+- Index rows for 2026-10-05 were missing (CafeF's Index file lagged) and are now FILLED (daily run,
+  19:55). The 10-05 scan row was recorded without the regime (append-only); the six accepted
+  signals do not use the index. The daily run re-fetches the Index file whenever VNINDEX lags.
 - Fingerprint pruning runs as the last daily step (current build's daily series only,
   newest 3 kept). The `5_*` artifacts (~700 MB) are the rollback for build 6 and can be
   deleted by hand once Ben is satisfied.
 - Extra backups (git-ignored): `data/backups/pre-rescale-20261005-1751.dump` (241 MB),
   `data/backups/artifacts-pre-rescale/` (806 MB), `data/reports/rescale-windows-removed.json`.
-- The schedule is loaded and was verified through launchd on build 6 (exit 0).
+- The schedule is loaded. The first SCHEDULED run (21:36 on 10-05) exited 0: no_new_data, regression
+  guard identical, scored on build 6. A heal of a lagging VNINDEX row now forces a fingerprint
+  rebuild (the stored copy would otherwise keep NaN regime columns). pytest 746 passed.
 
 ## Open problems (decisions for Ben)
 - Check the first scheduled evening run (21:30) in
@@ -90,7 +92,9 @@
 - UPCoM price-limit date conflict (2013-01-15 in `market_rules.yaml` vs 2015-07-01 per
   the SSC notice) and early exchange bands remain unresolved.
 - The structural feature set `5_f6181075e5962796` was not rebuilt (lacks 09-22..10-05).
-- Refused by the rescale and still excluded: ADP, LPT, PDV, PSE, VCC (not investigated).
+- Refused by the rescale and still excluded: ADP, LPT, PDV (CafeF restated only part of their
+  history, or one odd day: no single ratio) and PSE, VCC (only a flagged date-shifted day is
+  missing; the rule now accepts that, so the next rescale takes them).
 
 ## Research status (carried forward from run 5, not re-verified)
 - Codex's v1/v2 chart detectors claim NO validated edge; v2 census 3,172 episodes; only

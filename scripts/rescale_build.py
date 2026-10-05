@@ -51,18 +51,28 @@ TOLERANCE = 1e-3  # CafeF rounds adjusted prices (~1e-5); real actions are perce
 
 
 def plan_symbol(
-    stored: pd.Series, current: pd.Series, event: date, tol: float = TOLERANCE
+    stored: pd.Series,
+    current: pd.Series,
+    event: date,
+    tol: float = TOLERANCE,
+    shifted: frozenset = frozenset(),
 ) -> dict:
     """Can this symbol's history before `event` be rescaled by one constant?
 
     stored: build-N factor by date.  current: CafeF's factor now, by date.
     Returns {ok, ratio, max_dev, reason}. ok only if every stored day before the
     event exists in CafeF's file and current/stored is the same ratio on all of them.
+
+    `shifted` are days the database marks as date-shifted repairs (CafeF dated a
+    whole session on a Saturday and the project moved it back). CafeF's file has no
+    bar on the corrected date, so such a day may be absent; any OTHER absent day
+    still refuses the symbol, and every day that is present must fit the ratio.
     """
     pre = stored[[d for d in stored.index if d < event]]
     if pre.empty:
         return {"ok": False, "ratio": np.nan, "max_dev": np.nan, "reason": "no history"}
-    missing = [d for d in pre.index if d not in current.index]
+    missing = [d for d in pre.index if d not in current.index and d not in shifted]
+    pre = pre[[d for d in pre.index if d in current.index]]
     if missing:
         return {
             "ok": False,
@@ -103,11 +113,19 @@ def make_plans(cur, old: int, events: dict, upto_dir: Path):
     )
     f_old = pd.DataFrame(cur.fetchall(), columns=["symbol", "trade_date", "factor"])
     f_old["factor"] = f_old["factor"].astype(float)
+    cur.execute(
+        "SELECT symbol, trade_date FROM bar_raw "
+        "WHERE date_shifted AND symbol = ANY(%s)",
+        (list(events),),
+    )
+    shifted: dict[str, set] = {}
+    for s_, d_ in cur.fetchall():
+        shifted.setdefault(s_, set()).add(d_)
     plans, passed, failed = {}, [], []
     for sym, ev in sorted(events.items()):
         st = f_old[f_old.symbol == sym].set_index("trade_date")["factor"]
         cu = up[up.symbol == sym].set_index("trade_date")["factor"].astype(float)
-        p = plan_symbol(st, cu, ev)
+        p = plan_symbol(st, cu, ev, shifted=frozenset(shifted.get(sym, ())))
         plans[sym] = p
         (passed if p["ok"] else failed).append(sym)
         print(

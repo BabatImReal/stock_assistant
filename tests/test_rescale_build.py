@@ -67,3 +67,21 @@ def test_only_days_before_the_action_are_judged():
 def test_no_history_is_refused():
     p = rb.plan_symbol(s([], []), s([], []), D(2026, 9, 10))
     assert not p["ok"]
+
+
+def test_a_date_shifted_day_may_be_absent_from_cafef_but_nothing_else():
+    idx = days(4)
+    stored = s([1.0] * 4, idx)
+    current = s([0.9] * 3, idx[:3])  # CafeF has no bar on the 4th day (the shifted one)
+    ev = D(2026, 9, 10)
+    assert rb.plan_symbol(stored, current, ev, shifted=frozenset({idx[3]}))["ok"]
+    refused = rb.plan_symbol(stored, current, ev, shifted=frozenset({D(2020, 1, 1)}))
+    assert not refused["ok"] and "absent" in refused["reason"]
+
+
+def test_the_days_that_are_present_must_still_fit_one_ratio_around_a_shifted_gap():
+    idx = days(4)
+    stored = s([1.0] * 4, idx)
+    current = s([0.9, 0.9, 0.8], idx[:3])  # a shifted day is absent AND the rest drifts
+    p = rb.plan_symbol(stored, current, D(2026, 9, 10), shifted=frozenset({idx[3]}))
+    assert not p["ok"]

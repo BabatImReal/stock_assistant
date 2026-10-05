@@ -193,3 +193,31 @@ def test_pruning_keeps_everything_when_the_series_is_short(tmp_path):
     _fp_dir(tmp_path, "6_aaa", 1)
     assert dr.prune_fingerprints(tmp_path, 6, {"aaa"}, keep=3) == []
     assert (tmp_path / "6_aaa").exists()
+
+
+def test_the_index_file_is_refreshed_over_a_stale_copy(tmp_path):
+    import io
+    import zipfile
+
+    def blob(text):
+        b = io.BytesIO()
+        with zipfile.ZipFile(b, "w") as z:
+            z.writestr("idx.csv", text)
+        return b.getvalue()
+
+    (tmp_path / "idx.csv").write_text("stale")
+    assert dr.refresh_index({"index": "u"}, tmp_path, lambda u: blob("fresh"))
+    assert (tmp_path / "idx.csv").read_text() == "fresh"  # not skipped by a marker
+
+
+def test_an_unserved_index_file_is_not_ready_not_a_failure(tmp_path):
+    def getter(url):
+        raise _http_error(404)
+
+    assert dr.refresh_index({"index": "u"}, tmp_path, getter) is False
+
+
+def test_healing_an_index_row_forces_a_rebuild_even_with_no_new_days():
+    assert dr.needs_rebuild([], index_healed=True)
+    assert dr.needs_rebuild(["2026-10-06"], index_healed=False)
+    assert not dr.needs_rebuild([], index_healed=False)

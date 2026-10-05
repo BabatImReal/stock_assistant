@@ -164,6 +164,41 @@ def prune_fingerprints(
     return [d.name for d in gone]
 
 
+def needs_rebuild(unrecorded_days: list, index_healed: bool) -> bool:
+    """Rebuild when days are unrecorded OR index rows were just filled.
+
+    The fingerprint stores the market-regime columns (index_above_ma_50, ...). If a
+    VNINDEX row was missing when it was built and is healed later, the stored copy
+    keeps NaN for that day until it is rebuilt, and the stored-vs-fresh test fails.
+    """
+    return bool(unrecorded_days) or index_healed
+
+
+def refresh_index(links: dict[str, str], dest: Path, getter) -> bool:
+    """Re-download the small Index file (always, no marker) into `dest`.
+
+    CafeF's Index file lags its stock files: a day's VNINDEX row can appear hours
+    after its stock bars. The run that loaded the stock bars therefore may have a
+    stale Index file, and a later run with no new bars must fetch it again. False if
+    CafeF lists it but cannot serve it yet (404 = not ready).
+    """
+    import io
+    import zipfile
+
+    import requests
+
+    dest.mkdir(parents=True, exist_ok=True)
+    try:
+        blob = getter(links["index"])
+    except requests.HTTPError as e:
+        if e.response is not None and e.response.status_code == 404:
+            return False
+        raise
+    with zipfile.ZipFile(io.BytesIO(blob)) as z:
+        z.extractall(dest)  # overwrites the stale copy
+    return True
+
+
 def run_pipeline(steps, log, notify) -> int:
     """Run (name, fn) steps in order; the first failure stops the rest and notifies.
 
@@ -262,6 +297,7 @@ def notify(title: str, message: str) -> None:
 
 def main() -> int:
     import nightly_update as nu
+    from catch_up_upto import fill_index
     from catch_up_upto import main as catch_up
     from vnstock_research.backtest import forward_returns as fr
     from vnstock_research.data import db
@@ -289,6 +325,30 @@ def main() -> int:
         conn = db.connect()  # a refused connection means Docker is not up
         return "database ok"
 
+    def heal_index(have, offered, links) -> str:
+        """Fill VNINDEX rows missing for days we already hold (see refresh_index)."""
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT max(trade_date) FROM index_bar WHERE symbol = 'VNINDEX'"
+            )
+            (idx_max,) = cur.fetchone()
+        if idx_max is not None and idx_max >= have:
+            return ""
+        state["index_before"] = idx_max
+        dest = UPTO_ROOT / offered.isoformat()
+        if not refresh_index(links, dest, lambda u: nu.get(u, binary=True)):
+            return "; index file not served yet"
+        with conn.cursor() as cur:
+            n = fill_index(cur, dest, have)
+        conn.commit()
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT max(trade_date) FROM index_bar WHERE symbol = 'VNINDEX'"
+            )
+            (after,) = cur.fetchone()
+        state["index_healed"] = after is not None and after != idx_max
+        return f"; index checked ({n} rows offered), VNINDEX now through {after}"
+
     def load():
         with conn.cursor() as cur:
             cur.execute("SELECT max(trade_date) FROM bar_raw")
@@ -300,7 +360,8 @@ def main() -> int:
         if status != "new":
             if status == "stale_source":
                 notify("Stock research", f"CafeF has nothing newer than {have}")
-            return f"{status}: CafeF offers {offered}, database holds {have}"
+            healed = heal_index(have, offered, links)
+            return f"{status}: CafeF offers {offered}, database holds {have}{healed}"
         dest = UPTO_ROOT / offered.isoformat()
         if not fetch_set(links, dest, lambda u: nu.get(u, binary=True)):
             state["status"] = "not_ready"
@@ -326,9 +387,11 @@ def main() -> int:
     def rebuild():
         days = todo_days()
         state["todo"] = days
-        if not days:
+        if not needs_rebuild(days, state.get("index_healed", False)):
             return "ledger is up to date; nothing to rebuild"
-        log(f"{len(days)} unrecorded day(s): {', '.join(days)}")
+        log(f"{len(days)} unrecorded day(s): {', '.join(days) or '-'}")
+        if state.get("index_healed"):
+            log("index rows were filled: rebuilding so the regime columns are current")
         log(f"fingerprint -> {fpm.build(conn)}")
         log(f"returns -> {fr.build(conn)}")
 
