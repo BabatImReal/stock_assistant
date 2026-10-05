@@ -105,3 +105,71 @@ manifest, schema from the registries), the G5 interface (`query` now;
 `encode`/`neighbours` after G5), and tranches T1–T6. Awaiting P1–P9. No code.
 
 Related: [[money-flow]] [[context-vietnam]] [[validation]] [[funnel-and-scale]]
+
+## 2026-09-30 research design, not implementation
+`reports/Vietnam chart pattern rulebook.md` groups the user-provided chart
+names into seven observable geometry families: repeated levels, three-extrema
+reversals, converging bounds, parallel/flat bounds, broadening bounds, rounded
+turns, and boundary events. Direction, prior trend, scale, pole, handle, and
+breakout side are explicit attributes; nested names can co-fire in one
+stock-day fingerprint. A pivot is usable only after its causal confirmation;
+the crossing signal is dated when observable, never at a later-drawn peak.
+Price-only geometry and matched-volume confirmation are distinct hypotheses.
+No new family is implemented or shown reliable for Vietnam by this document.
+
+`reports/Vietnam chart rules and horizons.md` (run 3) proposes one numerical
+first tranche: causal close pivots (two right-side sessions), repeated levels,
+triangles, rectangles, and pole-conditioned flag/pennant overlays, with
+separate forming/confirmed/failed states and one episode ID. Every number is
+a candidate pre-registration choice, not a Vietnamese optimum. Ben approved
+the 3/5/10/20 outcome scope in run 3; he approved a two-family pilot on
+2026-10-01. Rectangles and flag/pennant overlays remain design-stage.
+
+## 2026-10-01 chart pilot (doc §3, §8)
+`config/rules/chart_research.yaml` fixes five price-only variants before the
+whole-market census: double top/bottom and symmetric/ascending/descending
+triangles. `chart_research.detect` dates two-right-session confirmed pivots,
+candidate creation, first observed break, expiry and later failure; adjusted
+data gaps cut formations. The observed first-break side is an attribute, not
+implied by a name. `signal_frame` marks days before 125 clean sessions unknown.
+The separate artifact for promoted build 5 has 3,965 candidate episodes,
+2,770 confirmed first breaks, 844 symbols with candidates; the full panel has
+2,511,070 symbol-days. The 2012–2023 k=10 comparisons in
+`reports/chart-pattern-pilot-2026-10-01.md` are descriptive only. In
+particular, pooled direction hides frequent opposite-side breaks; do not
+describe any named pattern as an established Vietnamese predictive signal.
+
+## 2026-10-01 fixed-sample geometry audit (doc §3.6)
+An outcome-blind SHA-256 sample of 25 v1 events (four confirmed per variant,
+one late per variant; 2012–2023 only) was plotted only through its event date.
+All 25 reappeared on causal replay of truncated bars. Three of 20 confirmed
+triangles exceeded their eventual frozen boundary during formation: VAT
+(13.46%), NAB (2.10%), DVP (1.56%) against the existing 1% triangle
+diagnostic band. V1 checks only from its last anchor to candidate confirmation,
+so anchor-defined triangles can encompass earlier out-of-wall moves. Some
+double-level examples resemble trading ranges rather than clean two-turn
+reversals; that label ambiguity remains for broker review. This is not a
+whole-market defect rate. Ben chose whole-formation containment before the
+direction-aware v2 registration.
+
+## 2026-10-02 contained, observed-side v2 census (doc §3.6, §8)
+The separate `chart_research_v2.py` requires every adjusted close from first
+through last anchor to lie inside its eventually frozen walls, using the
+existing 1.5% repeated-level / 1% triangle tolerances. The stricter v1
+0.5% last-anchor-to-candidate first-cross check remains. Invalid candidates
+are rejected before they can suppress later valid episodes. Up and down
+first breaks are distinct flags; a down break is still evaluated as a
+long-only return, not a short trade. Config commit `03c5105` registered
+5 variants × 2 sides × 4 horizons = 40 cells before side-specific outcomes.
+Build 5 produced 3,172 candidates on 796 symbols and 2,300 confirmed
+breaks (1,133 up / 1,167 down). The full signal panel has 2,511,070
+stock-days. `reports/chart-pattern-v2-2026-10-02.md` records the old-period
+primary-horizon description; none is predictive validation. V1 is unchanged.
+
+## 2026-10-02 AI broker-style review (doc §3.6)
+`reports/Vietnam chart pattern broker review.md` distinguishes contained
+close-based geometry from textbook chart calls. No outcome-blind *v2* chart
+sample was inspected in this review. Repeated-high/low cases need a prior-trend
+and range-versus-reversal rubric; a first 0.5% wall cross is an observed event,
+not a buy or short order. This AI critique is not licensed broker certification
+or evidence that a formation predicts stock strength.

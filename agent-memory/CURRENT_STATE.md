@@ -1,108 +1,85 @@
-# Current state — 2026-09-26 (session 2026-09-26-01, run 1)
+# Current state — 2026-10-02 (session 2026-10-01-01, run 4)
 
-Rewritten from scratch. Checked this run on Ben's machine (DB up): the four
-research CSVs' md5 (all byte-identical to the expected values after the
-history run), that the report wrote ONLY the txt + csv (`git status`), and
-the three report sanity checks. Did NOT re-run pytest this run (report-only
-run); the branch's last suite was 658 passed / 24 skipped (cloud session).
+## Purpose and boundary
+- Private end-of-day Vietnamese stock research for Ben: HOSE, HNX, UPCoM.
+- Deterministic code measures prices, patterns and returns; LLMs coordinate
+  and explain. "Nothing strong today" is valid. This chart branch does not
+  deliver an individual-stock report or change the existing daily scanner.
+- Source of truth: `docs/knowledge/pattern-research-knowledge.md` (never edit).
+- Phase: research-only chart formations beyond the original phase roadmap;
+  no chart family is approved for recommendation or production promotion.
 
-## Phase
-- **main (`dfabd5b`):** everything through complements_1 (run 25). Untouched.
-- **`features/structural-features` (`49614c6`):** structural features + batch
-  structural_1. Awaiting Ben's review.
-- **`claude/design-system-pattern-history-aqbkd8` (checked out now):** the
-  pattern-history descriptive study, built by the 2026-09-25 cloud session and
-  RUN on real data this run. HEAD now adds the report + CSV + this memory.
-  NOT merged. Rename/merge/delete: Ben's call.
+## Branch and approvals
+- Branch `codex/pattern-research-next-step` was cut from
+  `claude/design-system-pattern-history-aqbkd8` at `0e00a1f`. Only Ben merges.
+- Ben approved a five-variant price-only pilot, a fixed v1 visual audit,
+  separate observed up/down hypotheses, and v2 full-formation containment.
+- V1 registration/detector/calendar/report commits: `0bfdf5a`, `5a931f6`,
+  `d7b980f`, `74de8de`; fixed audit commits: `e8e4ff5`, `95cc733`.
+- V2 registration `03c5105` preceded side-specific outcome inspection;
+  detector/test `1772550` preceded the census; report `746f419` followed it.
+- Preserve unrelated dirty/untracked files. Production scan/E3, `.env`, and
+  the source document were not modified by the chart research or AI review.
 
-## What this branch is (pattern history, INFORMATION ONLY)
-- `backtest/history.py` + `config/rules/history.yaml`: an exploratory
-  DESCRIPTION of how all 21 patterns + 8 structural signals behaved by
-  year × month × regime, 2012–2025 (2026 refused). Per-period gate
-  (discover 2012–19, validate 2020–23, holdout_spent 2024–25 shown for
-  understanding only). De-clustered stats vs the judged base; tidy CSV +
-  readable report + a fixed-rule SUMMARY with a coin-flip yardstick.
-- **NOT an edge.** No hypothesis-log rows; holdout stays sealed. Many signals
-  × years × months × regimes were looked at with no correction. A "consistent"
-  signal here is at most an idea for a NEW registered test on the forward
-  ledger — 2024–2025 is spent.
-- Ran in ~2 min. Fingerprint `5_f6181075e5962796` (structural featureset)
-  loaded fine; the ~24-min structural build was NOT needed.
+## Chart research measured so far
+- V1 rules: double top/bottom and symmetric/ascending/descending triangles,
+  k=10 primary and 3/5/20 secondary. Promoted build 5 has 2,511,070
+  stock-days across 1,705 symbols and 3,965 candidate episodes on 844
+  symbols; 2,770 confirmed breaks. Artifact:
+  `data/processed/chart_research/5_714965cdc639e7ac_f019f46d9336aa38/`.
+- The fixed, event-return-blind 25-chart v1 audit replayed all 25 causally;
+  3 of 20 confirmed triangles exceeded their eventual formation wall.
+  `reports/chart-pattern-geometry-audit-2026-10-01.md` explains the sample
+  limitation and range-like double-level ambiguity.
+- V2 requires every first-through-last-anchor adjusted close inside its
+  frozen walls at the existing family tolerance (1.5% repeated levels,
+  1% triangles); v1's 0.5% last-anchor-to-candidate no-early-break check
+  remains. Ten variant×side signals across four horizons make 40 registered
+  trials. A down break remains a long-only risk hypothesis, not a short.
+- V2 artifact:
+  `data/processed/chart_research_v2/5_92c387181435be5a_9ef457b528d8d70f/`.
+  Its manifests record 2,511,070 signal rows / 1,705 symbols and 3,172
+  candidate episodes / 796 symbols. The v2 report records 1,133 confirmed
+  up and 1,167 confirmed down breaks. It reuses version-checked v1 returns;
+  v1 and the production scanner remain unchanged.
+- `reports/chart-pattern-v2-2026-10-02.md` describes all ten primary-horizon
+  side cells over already-seen 2012–2019 and 2020–2023 periods. The
+  attractive-looking later descending-triangle/up cell has only 14 eligible
+  cases. These periods are spent and **not** fresh predictive validation.
+  Already-computed 2024–2026 outcomes cannot become a new holdout by renaming.
 
-## Report findings (research/reports/pattern-history.{txt,csv})
-- **Most consistent k=3:** three_black_crows (13/14 yrs, +5.9 pts, hit
-  54.4% vs base 48.5%, 2,528 fires) > higher_lows (13/14, +3.2, 6,577) >
-  marubozu_red (13/14, +2.2, 33,212) > tight_range (12/14, +2.5) >
-  inverted_hammer (12/14, +1.4).
-- **Most consistent k=5:** higher_lows (13/14, +3.4, 6,327) >
-  three_black_crows (13/14, +3.1, 2,473) > inverted_hammer (13/14, +1.7) >
-  marubozu_red (13/14, +1.6) > tight_range (12/14, +1.9).
-- **#1 vs luck:** a coin flip beats the base ≥13/14 yrs only 0.1% of the time
-  → ≈0.0 of 29 signals by chance on the consistency axis. Real on that axis,
-  but months × regimes uncorrected → a lead, not an edge.
-- **Regime/years:** three_black_crows stronger in DOWN markets (k3 down +9.0
-  vs up +3.5), holds across all periods incl. spent holdout (D+4.8 V+8.3
-  H*+3.5), leans on 2023/2022 but survives their removal (+4.0). higher_lows
-  even across regimes, holds without 2017/2025. marubozu_red widest sample
-  (33k), steady +2.2.
-- **Structural:** rs_60 #10 (k3), rs_120 #6 / rs_60 #7 (k5); +0.8..+1.1,
-  concentrated in UP markets (down ≈0 / negative). NOT materially stronger
-  than the candlestick/trend patterns (matches run 26).
-- **LEAN on 1–2 years:** k3 — bearish_engulfing, evening_star,
-  three_white_soldiers, three_inside_down, rs_20_strong; k5 adds
-  inside_day_run, stage_3_topping. 17/29 positive pooled edge at each k.
+## Run 4 AI broker-style review
+- Ben has no broker reviewer and requested a subagent critique. The
+  source-linked `reports/Vietnam chart pattern broker review.md` examines
+  chart semantics, causal breaks, Vietnam execution, pooled statistics, and
+  next research gates. Notes are at
+  `research_notes/Vietnam chart pattern broker review/reviewer.md`.
+- This is **not** a licensed broker's opinion, investment advice, a blind v2
+  chart-sample audit, new outcome test, or stock-strength verdict. The
+  reviewer did not inspect 2024–2026 returns or edit code/config.
+- Geometry containment fixes a known v1 flaw but does not establish prior-
+  trend reversal labels or fillable trades. A first 0.5% wall cross is an
+  observed event. The 40-trial, small-count, pooled spent-history table
+  cannot measure an individual stock's strength or justify a recommendation.
 
-## Report sanity checks (all PASS)
-1. `not_yet_known` small (k3 662/1009/1072; k5 higher at period ends, as the
-   longer window expects). fill_flagged (~17% of liquid stock-days) and
-   window_gap are the expected gate exclusions (limit-locked/unresolved fills;
-   windows over a trading gap — forbidden by the non-negotiables), not defects.
-2. ALL_LIQUID grid: 2018 (−0.2/−0.3) and 2022 (−0.8/−1.2) are the weak years,
-   as expected.
-3. No pooled edge above 75%: the 156 hit>75% cells (n≥100) are month×regime
-   splits (mostly 2021 down-regime months) where the base is equally high —
-   market/regime, not signal (edge −5..+23 pts, median +3; no full-year
-   signal on n≥200 exceeds +15 pts).
+## Next action and guardrails
+1. Hash-select and assess a fixed *v2* event-date-only chart sample using a
+   documented rubric: recognizable/range-like/ambiguous geometry, prior
+   trend, wall containment, break significance and matched-volume context.
+   Disclose that an AI rubric is not independent broker certification.
+2. On spent history only, produce an execution/attrition ledger by side,
+   exchange and year: candidate → confirmed → liquid → model-fillable →
+   resolved. Surface ceiling rejects, floor-held/unresolved exits, intended
+   order size/slippage and actual fee sensitivity; verify dated VN rules.
+3. Freeze any justified correction as v3 before inspecting revised effects.
+   Timestamp new days prospectively, then evaluate the whole registered
+   family with multiplicity, costs, stock→tier→market fallback and one-pick-
+   per-day/no-signal behavior. No v2 scan promotion now.
+- UPCoM historical price-limit dating/fillability and actual broker fees
+  remain unresolved. Rectangles, flags, matched-volume combinations, and
+  individual stock reports remain separately approved future work.
 
-## Batches so far (candidate generation; the holdout stays sealed)
-- complements_1 (main): N 3,864 → 151 candidates.
-- structural_1 (features/structural-features only): N 3,024 → 236.
-- NONE materially stronger than the six holdout ACCEPTs.
-
-## The daily scan + paper trading (on main, unchanged)
-- daily_scan v2 trades the 6 holdout ACCEPTs, HOSE first. No forward rows yet
-  (the pipeline does not run).
-
-## Blockers / open (open-questions.md)
-- Ben: whether any pattern-history lead becomes a NEW registered forward test.
-- Ben: review features/structural-features; the pattern-history branch name.
-- **Data must flow for the forward test.** After each session: nightly_update
-  → fingerprint.build (~20 min) → forward_returns.build → report.scan. The
-  structural fingerprint is a separate ~24-min build. Nothing is scheduled.
-- Ben: the tier-direction wording, the UPCoM/undated exclusion, the real
-  broker fee.
-- G20 repair; X4, G19, G18, G2, G10, G11.
-
-## Ben's standing expectations
-Research reaches 100%; "ready for money" at least 50–60%. Focus HOSE ~85% /
-HNX ~12% / UPCoM ~3%.
-
-## Rule to remember when judging missing data
-The market is closed on Saturday, Sunday and public holidays
-(`config/rules/holidays.yaml`). A missing day is only a defect when it is a
-weekday the market was open.
-
-## Next steps
-1. Ben reads the pattern-history report; decides on any new forward test.
-2. Ben reviews features/structural-features and this branch.
-3. Run the daily pipeline so the forward record starts.
-
-## Parked
-TypeSafe / Jev; SSI FastConnect; flag/pause (P7); pattern strength numbers
-(P9); base quality / VCP; sector RS (needs point-in-time labels);
-precomputing market/sector per fingerprint build; target-before-stop.
-
-## Reading order for the next session
-1. This file. 2. `knowledge/00-index.md`. 3.
-`logs/sessions/2026-09-26-session-01.md`. 4. `config/rules/history.yaml`.
-5. Only the code the task touches, via `code-map.md`.
+## Session discipline
+- Read this file, `knowledge/00-index.md`, then task-relevant notes/code.
+- Log each run, rewrite this file from scratch, and verify numbers against
+  git and stored manifests before replying.

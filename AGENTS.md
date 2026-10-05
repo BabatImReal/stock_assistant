@@ -43,7 +43,7 @@ Knowledge files are your own understanding in your own words, not copies.
 Reference the doc section, e.g. "(doc §4.3)". Keep them concise and condense
 them when they grow.
 
-Session file format (one file per Claude Code conversation):
+Session file format (one file per Codex conversation):
   # Session YYYY-MM-DD-NN
   ## Session summary        UPSERT: rewrite after every run so it always
                             covers all runs so far

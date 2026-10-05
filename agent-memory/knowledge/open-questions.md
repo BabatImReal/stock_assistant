@@ -795,3 +795,35 @@ Related: [[decisions]] [[data-sources]] [[architecture]]
 - Anything the study makes look good is a NEW idea: it would need a new
   registered batch/scan version tested only forward (paper trading).
   2024-2025 is spent.
+
+## Chart-pattern pilot (2026-10-01)
+- RESOLVED: Ben approved the first two-family numerical pilot, k=10 primary,
+  k=3/5/20 secondary, and the isolated research artifact. The config was
+  committed before the full census; other chart families remain unregistered.
+- PARTLY RESOLVED: The fixed 25-event chart audit replayed 25/25 at the
+  causal event date, but 3/20 confirmed cases exceeded their eventual
+  triangle wall (`reports/chart-pattern-geometry-audit-2026-10-01.md`).
+  Which range-like or otherwise invalid shapes would the broker friend reject?
+- RESOLVED 2026-10-02: Ben approved registering *observed break side* as a
+  separate v2 condition and whole-formation containment. The v2 protocol
+  was committed before side-specific returns, then the build-5 census ran;
+  old-period cells are exploratory, not new validation.
+- OPEN: Ben has no broker reviewer. An AI broker-style critique was written
+  (`reports/Vietnam chart pattern broker review.md`), but it did **not**
+  inspect a fixed, outcome-blind *v2* chart sample or certify the labels.
+  Apply a documented blind rubric to contained v2 formations, including
+  range-like double levels, before any v3 correction. Then require genuinely
+  prospective evidence and multiplicity control before promotion.
+- OPEN: Produce an execution/attrition ledger by side, exchange and year:
+  candidate → confirmed → liquid → next-open model-fillable → resolved;
+  expose ceiling rejects, floor-held unresolved cases, intended order size,
+  slippage and actual broker fee before interpreting net strength.
+- Should bearish formations be measured only as long-only risk/avoid evidence?
+  No short-trading action is in the current project scope.
+- Confirm the actual all-in broker fee before claiming net strength; the
+  registered fee is provisional. Old descriptive rows are not a new holdout.
+- Review `reports/Vietnam chart rules and horizons.md` for any *later* family:
+  rectangles and flag/pennant overlays were not implemented in this pilot.
+- Reconcile UPCoM's price-limit effective date: contemporaneous SSC/HNX
+  sources say 2015-07-01 for ±15%; current market config says 2013-01-15.
+  Quarantine affected price-limit-dependent outcomes until resolved.

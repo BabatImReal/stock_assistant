@@ -133,3 +133,69 @@ Its summary uses fixed rules and a coin-flip yardstick because "beat the base
 in 10 of 14 years" happens by luck for about 2-3 of 29 signals. Every idea it
 suggests is a new hypothesis for forward data only. (Not yet run on real
 data as of this session.)
+
+## New chart-formation research scope (2026-09-30)
+Ben approved researching k=3/5/10/20 outcomes. The existing return core can
+compute those explicitly, but its standard stored table and frozen E3/scan
+remain k=3/5. A proposed separate artifact would register every
+variant/context/direction/horizon trial; preserve `known_on`, unresolved and
+floor-deferred outcomes; and compare with the identical eligible base at each
+horizon. A 10-session date block from the original 3/5 study is not assumed
+adequate for k=20 plus deferrals. Old 2012–2023 rows can develop/temporally
+replicate rules but are not pristine after prior inspection; 2024–2026
+holdout is spent. Fresh confirmation begins only after a fixed forward rule.
+The first two-family numerical pilot and isolated artifact were approved on
+2026-10-01; rectangles/flags and a new statistical acceptance rule were not.
+
+## Chart pilot measurement boundary (2026-10-01; doc §8)
+Registration commit `0bfdf5a` preceded the Vietnamese outcome census; the
+causal detector/return reuse and a proven calendar fix were committed before
+the full run. The isolated artifact records k=3/5/10/20 and `known_on`; the
+existing gate applies PIT liquidity, fillability and outcome censoring. The
+20 registered variant×horizon cells are described separately over already
+seen 2012–2019 and 2020–2023; no FDR/p-value, untouched holdout verdict, or
+production acceptance was issued. `reports/chart-pattern-pilot-2026-10-01.md`
+has the primary k=10 table and important direction-mixing caveat. Side-specific
+conditioning needs its own registration; never pick it after inspecting this
+table and call the result confirmation. UPCoM outcomes
+remain fill-flagged and excluded; fee remains provisional. Next: blind visual
+event audit, preregister any v2 direction/geometry trials, then forward-only
+confirmation on data not used to choose them.
+
+## Pre-v2 geometry audit boundary (2026-10-01)
+The 25-event sample was fixed by event-ID hash, stratified by five variants,
+observed up/down sides and late rejects, before individual charts were
+inspected. The audit script accessed no forward returns; all 25 cases replayed
+with identical candidate/signal dates on bars truncated at the event date.
+Three of 20 confirmed sample triangles breached an eventual wall by more
+than the existing 1% touch tolerance during formation. The v1 descriptive
+effect table cannot validate any corrected detector; any containment rule
+changes the event population and needs new registration and prospective
+confirmation. The sample is a geometry diagnostic, not a performance test
+or a market-wide defect estimate.
+
+## V2 measurement boundary (2026-10-02; doc §8)
+Ben approved full-formation containment and separate observed up/down breaks.
+`chart_research_v2.yaml` was committed (`03c5105`) before side-conditioned
+returns: 5 variants × 2 sides × 4 horizons = 40 registered trials, k=10
+primary. A failing-before synthetic geometry check and implementation were
+committed (`1772550`) before the whole-market run. The 2012–2019 and
+2020–2023 comparisons in `reports/chart-pattern-v2-2026-10-02.md` are
+**spent-period descriptions**, not new discover/validate evidence. The
+apparently favourable descending-triangle/up cell has only 14 eligible
+occurrences in 2020–2023; no side is promoted. No multiplicity-adjusted
+test or fresh forward observation was run. The 2024–2026 outcome artifact
+exists but was not summarized in this v2 run. UPCoM fillability and the
+provisional broker fee still constrain any strength claim.
+
+## AI broker-style review boundary (2026-10-02; doc §8)
+The independent AI review in `reports/Vietnam chart pattern broker review.md`
+examined the existing v1 fixed audit, v2 spent-history census, detector, return
+gate and Vietnamese trading rules. It performed **no new v2 chart sample or
+outcome test** and did not inspect 2024–2026 returns. Its finding is that
+geometry recognizability, historical hit-rate association, model fillability,
+and an individual-stock strength claim remain distinct gates. The v2 pooled
+market table does not supply a same-stock/regime counterfactual or one-pick-per-
+day result; 40 registered cells, small counts and already-seen periods forbid
+promotion. Next checks: fixed outcome-blind v2 chart rubric, execution/attrition
+ledger on spent data, then a frozen rule and genuinely prospective evaluation.
