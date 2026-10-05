@@ -1,4 +1,4 @@
-# Current state — 2026-10-05 (session 2026-10-05-01, run 9)
+# Current state — 2026-10-05 (session 2026-10-05-01, run 10)
 
 ## Purpose and boundary
 - Private end-of-day Vietnamese stock research for Ben: HOSE, HNX, UPCoM. Goal: ONE
@@ -8,11 +8,8 @@
 - Source of truth: `docs/knowledge/pattern-research-knowledge.md` (never edit).
 - Phase: research-only chart formations beyond the original phase roadmap; no chart
   family is approved for recommendation or production promotion.
-- Branch: `claude/design-system-pattern-history-aqbkd8` (the only working branch).
-  Commit 6de16f6 is local, NOT pushed. UNCOMMITTED at the end of run 9: the runner
-  and the repair (scripts/daily_run.py, scripts/catch_up_upto.py, both test files),
-  research/paper_ledger.csv, research/neighbours_log.csv, research/reports/scan-2026-10-05.txt
-  and the agent-memory files.
+- Branch: `claude/design-system-pattern-history-aqbkd8` (the only working branch), pushed to
+  origin at the end of run 10. Only Ben merges.
 
 ## The forward log is running (verified this run)
 - bar_raw = 2,894,845 rows through 2026-10-05. Ledger `research/paper_ledger.csv`: 17
@@ -47,20 +44,25 @@
 - Backups to keep until Ben says all is well (git-ignored): `data/backups/pre-catchup-20261005-1121.dump`
   (241 MB DB), `data/backups/artifacts-pre-catchup/` (592 MB), `data/backups/artifacts-after-first-rebuild/`.
 
-## The daily cycle (built, tested, NOT scheduled)
+## The daily cycle (built, tested, INSTALLED 2026-10-05)
 - `scripts/daily_run.py` does: lock, DB check, load via `Upto` + catch_up, industry
   snapshot, rebuild fingerprint + returns when ledger days are missing (~16 min), regression
   guard, scan + record each missing day, score, heartbeat, log, macOS notification.
   A listed-but-404 file means "not ready". `nightly_update.py`'s price append is
   superseded and must not be scheduled with it. First live run: 10-05, recorded TAL.
-- launchd draft (`uv run python scripts/daily_run.py --print-plist`, lints OK): weekdays
-  21:30 and a 23:30 retry, Vietnam time, absolute paths, logs to data/reports/. NOT
-  installed; needs Ben's yes to the exact file. Docker Desktop must be running.
+- launchd job `com.vnstock.daily-run` is loaded for user `apple`
+  (`~/Library/LaunchAgents/com.vnstock.daily-run.plist`): weekdays 21:30 and a 23:30
+  retry, Vietnam time. Verified by a kickstart through launchd: exit 0, empty stderr,
+  heartbeat `no_new_data`, ledger unchanged. Logs: `data/reports/daily-*.txt`,
+  `daily-launchd.out.log`, `daily-launchd.err.log`. Needs Docker Desktop running and
+  the Mac awake (launchd runs a missed slot on wake). To stop it:
+  `launchctl bootout gui/$(id -u)/com.vnstock.daily-run`.
 - Disk: the fingerprint directory changes daily (sector snapshot date is in the
   feature-set hash), ~213 MB/day, nothing prunes it (317 GB free).
 
 ## Open problems (decisions for Ben)
-- Approve (or change) the launchd file; decide on a fingerprint prune policy.
+- Decide on a fingerprint prune policy; check the first scheduled evening run (21:30) in
+  `data/reports/daily-*.txt` and the heartbeat rows (`job_run`, job = 'daily_run').
 - G2: `nightly_update.py:295` still hardcodes `restated = False` (the daily runner
   does not use it). IRC, VHF and PIS differ from CafeF's file on older dates and were
   not investigated. Symbols excluded after a corporate action return only at a rebuild
@@ -79,7 +81,7 @@
   (`docs/evals/report-faithfulness-eval.md`), no LLM surface exists.
 
 ## Next action and guardrails
-1. Ben: push? approve launchd file? prune policy?
+1. Ben: prune policy; look at tonight's scheduled run.
 2. Each trading day: let the daily cycle record the day; never score before recording;
    do not read a proposal as a recommendation.
 3. Next data work: rebuild with rescale so restated names return; G2 detection is
