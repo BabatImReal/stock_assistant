@@ -7,7 +7,10 @@ price and volume behaviour with what historically happened after similar
 behaviour (2012 to now), and proposes ONE stock with evidence, or "nothing
 strong today". This is research, not prediction. Ben makes every decision.
 
-Source of truth: docs/knowledge/pattern-research-knowledge.md (never edit).
+Source of truth: docs/knowledge/pattern-research-knowledge.md. The original text
+(sections 1-11) is never rewritten; changes are dated amendments in section 12,
+made only on Ben's decision. Amendment 1 (2026-10-05) changed the method to a daily
+cross-sectional ranking; section 12 governs where it differs from the original.
 
 ## Memory system: follow in EVERY session
 Purpose: never scan the codebase to understand the project. Read your own

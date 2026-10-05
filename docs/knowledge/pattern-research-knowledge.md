@@ -2,6 +2,8 @@
 
 2026-09-22 · @Someone
 
+> **Amended 2026-10-05, by Ben's decision: see section 12.** Sections 1-11 are the original text, kept unchanged for the record. Where section 12 and an earlier section disagree, section 12 governs.
+
 ## 1. What this document is
 
 This is the knowledge foundation for a **pattern-research tool for the Vietnamese stock market** (HOSE, HNX, UPCoM). It is written so that Ben can understand the whole idea *before* anything is built. No implementation happens until this document makes sense.
@@ -520,3 +522,40 @@ Much of what an experienced broker knows is intuition he cannot fully put into w
 ### 11.5 Relationship to the earlier platform brief
 
 The earlier v0.1 brief covered the live data pipeline (SSI streaming, Redis, TimescaleDB, hosting at \~$6/month). That remains the data foundation. Two updates apply: the message broker is removed (go direct, with Redis pub/sub as a seam), and the product is now this pattern researcher rather than a dashboard. For pattern research, **daily end-of-day data is enough to start** — the real-time streaming layer can come later.
+
+## 12. Amendment 1 (2026-10-05): change of method
+
+Decided by Ben on 2026-10-05, after the evidence below. This section governs where it differs from sections 1-11; those sections stay as written.
+
+### 12.1 Why the method changes
+
+- **The rare-pattern funnel (sections 3, 7.1, 7.2) has not produced a usable edge.** The registered engine's best signal is positive per trade (+0.27%) but negative per signal day (-0.43%) after costs in the one-shot holdout. The multiweek chart formations behave like the market in pooled history (up-breaks hit 46.3% against a 46.8% base). 2012-2023 and the 2024-2026 holdout are now spent for those ideas.
+- **The arithmetic of proof is against rare events.** With about 40 usable events a year per side, a modest effect needs six years to settle (registration docs/preregistration/chart-forward-v3.md). A method that scores every liquid stock every day gathers evidence far faster, although far fewer observations are independent than the stock count suggests: stocks move together on a day, and 5-day returns overlap.
+- **The Vietnamese literature points elsewhere.** Huang, Liu & Shu (2023, Pacific-Basin Finance Journal 82:102176; 720 firms, weekly returns, 2007-2022) find: stocks close to their 52-week high earn more (weekly spread +0.35% unconditional, t 2.23; +0.33% size-neutral, t 2.49); stocks with a recent volume surge earn more (1-month abnormal turnover, +0.31%, t 2.94; +0.24% size-neutral, t 2.70); heavily and persistently traded stocks earn less (12-month turnover, VN-3 alpha t = -4.94); short-term reversal is NOT robust (its sign flips once size is controlled) and momentum is not significant. Earlier Vietnamese momentum studies disagree with each other. Their premiums are concentrated in small, illiquid, low-institutional-ownership stocks (limits to arbitrage), are gross of costs, and use all stocks including ones we cannot trade, so the premium in our liquid, tradable universe may be much smaller or absent.
+
+### 12.2 What changes
+
+1. **The unit of evidence** becomes a daily cross-sectional ranking of every point-in-time liquid stock, tested forward as: does the top group beat the same day's liquid cross-section after costs? The statistic is the daily excess return of the top decile, with errors that allow for overlapping 5-day holds.
+2. **The horizon** is 5 trading sessions after entry (next open to the close five sessions later), matching the weekly returns in the literature and the registered engine.
+3. **The score** is built only from features with documented Vietnamese evidence, with their signs fixed from that evidence and never from our data: 52-week-high proximity (higher is better) and 1-month abnormal turnover (higher is better), each ranked across the liquid stocks that day and averaged with equal weights. No fitted weights and no model training (section 10.2 stands).
+4. **Left out of version 1, on purpose:** short-term reversal and momentum (not robust in Vietnam); size and illiquidity (they are the premium for stocks we cannot trade); 12-month turnover (needs shares outstanding, which the database does not hold; a data project for later); foreign flow (a CafeF file exists but is not loaded or reconciled).
+5. **The product** is the top one or two stocks by score each day, paper-traded and reported with their rank among the liquid stocks, what the score is, and the avoid-list checks (a down-break formation, a ceiling open, Ben's news veto). "No recommendation today" stays valid when fewer than the minimum number of stocks have a complete score.
+6. **"Good" is redefined, honestly.** No method on daily prices reliably picks winners. The target is that the top picks beat the same day's liquid cross-section after costs, measured on future days, reported with an interval, never with a promised probability.
+
+### 12.3 What stays
+
+Section 2 (rule, detect, measure; always against the base rate), 4.3 (matched volume only), 5.6 (Vietnamese trading rules: price limits, T+2, fees, 0.1% sale tax), section 8 (validation discipline: no look-ahead, parameters fixed before testing, discover/validate/holdout, costs always modelled), the honesty rules, and the registered engine and chart tracks, which keep running as shadow evidence. Patterns become, at most, filters or avoid-lists, admitted only after forward evidence.
+
+### 12.4 Development protocol, frozen before any result is seen
+
+Phase 1 is a single pre-specified run labelled DEVELOPMENT, not proof.
+- **Score:** rank-average of (a) adjusted close divided by the highest adjusted high of the past 250 sessions and (b) mean matched volume of the past 20 sessions divided by that of the past 250 sessions. Both need a complete, gap-free, unexcluded 250-session window.
+- **Universe:** point-in-time liquid stocks (the existing tiers), with a resolved, unflagged 5-session net return (the existing returns table, costs 0.15% per side plus 0.1% sale tax).
+- **Statistic:** per day, mean net return of the top decile minus the mean net return of that day's whole universe; Newey-West standard error with 5 lags; also the hit-rate gap, and, descriptively, the top-1 and top-3 stocks.
+- **Periods:** 2012-2019 first, then 2020-2023 as validation, then 2024-01 to 2026-09 reported separately and labelled already inspected. One run per period. No variant, weight, threshold or window is changed after seeing results; feature-alone numbers are diagnostics and decide nothing.
+- **Pass to Phase 2** only if the 2012-2019 excess is positive and the 2020-2023 excess is positive with the same sign. Otherwise the score is dropped, not tuned.
+
+### 12.5 Phases
+
+0. Literature check and fixed signs (done; sources in 12.1). 1. Development run (12.4). 2. A forward-only registration of the score, with one primary hypothesis, fixed looks and a minimum-detectable-effect table, frozen before the first forward day. 3. Daily paper-traded top picks beside the registered engine. 4. Only after forward evidence: consider foreign flow, shares outstanding (12-month turnover), news vetoes (an LLM task) and pattern filters.
+
