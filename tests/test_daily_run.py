@@ -169,32 +169,6 @@ def _fp_dir(root, name, age):
     return d
 
 
-def test_pruning_removes_only_old_daily_series_dirs_of_the_current_build(tmp_path):
-    reg = {"aaa", "bbb", "ccc", "ddd", "eee"}
-    for i, h in enumerate(["aaa", "bbb", "ccc", "ddd", "eee"]):
-        _fp_dir(tmp_path, f"6_{h}", 1000 + i)  # oldest .. newest
-    _fp_dir(tmp_path, "6_structural", 10)  # same build, hash never in the ledger
-    _fp_dir(tmp_path, "5_aaa", 5)  # another build's directory
-    (tmp_path / "6_unknown_file").write_text("x")  # not a directory
-    gone = dr.prune_fingerprints(tmp_path, 6, reg, keep=3)
-    assert sorted(gone) == ["6_aaa", "6_bbb"]  # the two oldest of the series only
-    left = sorted(p.name for p in tmp_path.iterdir())
-    assert left == [
-        "5_aaa",
-        "6_ccc",
-        "6_ddd",
-        "6_eee",
-        "6_structural",
-        "6_unknown_file",
-    ]
-
-
-def test_pruning_keeps_everything_when_the_series_is_short(tmp_path):
-    _fp_dir(tmp_path, "6_aaa", 1)
-    assert dr.prune_fingerprints(tmp_path, 6, {"aaa"}, keep=3) == []
-    assert (tmp_path / "6_aaa").exists()
-
-
 def test_the_index_file_is_refreshed_over_a_stale_copy(tmp_path):
     import io
     import zipfile
@@ -215,9 +189,3 @@ def test_an_unserved_index_file_is_not_ready_not_a_failure(tmp_path):
         raise _http_error(404)
 
     assert dr.refresh_index({"index": "u"}, tmp_path, getter) is False
-
-
-def test_healing_an_index_row_forces_a_rebuild_even_with_no_new_days():
-    assert dr.needs_rebuild([], index_healed=True)
-    assert dr.needs_rebuild(["2026-10-06"], index_healed=False)
-    assert not dr.needs_rebuild([], index_healed=False)

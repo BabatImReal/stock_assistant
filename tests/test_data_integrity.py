@@ -371,42 +371,6 @@ def test_a_flagged_exchange_day_lands_in_the_gates_flagged_count(conn):
         assert dated2 > dated1 and flagged2 == flagged1
 
 
-def test_g3_fillability_on_real_dpg_is_quarantined_before_its_listing(conn):
-    """End to end on real bars: raw DPG, the resolved exchange, G3
-    fillability, then the quarantine gate. Blank exactly before 2018-05-22."""
-    import datetime as dt
-
-    import pandas as pd
-
-    from vnstock_research.backtest import forward_returns as fr
-    from vnstock_research.data import exchanges
-    from vnstock_research.features import quarantine_flagged
-
-    with conn.cursor() as cur:
-        cur.execute(
-            "SELECT trade_date, open, close, exchange, source FROM bar_raw "
-            "WHERE symbol = 'DPG' AND trade_date BETWEEN '2018-01-01' AND "
-            "'2018-12-31' ORDER BY 1"
-        )
-        bars = pd.DataFrame(
-            cur.fetchall(), columns=["trade_date", "open", "close", "filed", "source"]
-        )
-    bars[["open", "close"]] = bars[["open", "close"]].astype(float)
-    r = exchanges.resolve(
-        exchanges.load(conn),
-        "DPG",
-        bars["trade_date"],
-        bars["filed"],
-        bars["source"] == "vnstock",
-    )
-    bars["exchange"] = r["exchange"].to_numpy()
-    bars["exchange_unknown"] = r["exchange_unknown"].to_numpy()
-    clean = quarantine_flagged(fr.fillability(bars), fr.FILLABILITY)
-    before = (bars["trade_date"] < dt.date(2018, 5, 22)).to_numpy()
-    assert clean["limit"][before].isna().all()
-    assert clean["limit"][~before].notna().all()
-
-
 def test_rebuild_drops_a_kbs_span_the_cafef_filing_contradicts(conn):
     """Rule A, run for real and rolled back: MHL is filed HNX 2009-2023 while
     KBS says "UPCoM since 2009", so its KBS span must not survive the rebuild."""

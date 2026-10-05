@@ -1,17 +1,20 @@
-# VN Stock Pattern Researcher
+# VN Stock Researcher
 
 ## Project
-A research tool for the Vietnamese stock market (HOSE, HNX, UPCoM). Ben is
-the only end user. Every day it scans every stock code, compares recent
-price and volume behaviour with what historically happened after similar
-behaviour (2012 to now), and proposes ONE stock with evidence, or "nothing
-strong today". This is research, not prediction. Ben makes every decision.
+A research tool for the Vietnamese stock market (HOSE, HNX, UPCoM). Ben is the only
+end user. Goal: recommend ONE (at most TWO) stocks that have a tested, evidenced reason
+to rise, or say "nothing strong today". Research, not prediction. Ben makes every
+decision.
 
-Source of truth: docs/knowledge/pattern-research-knowledge.md. The original text
-(sections 1-11) is never rewritten; changes are dated amendments in section 12,
-made only on Ben's decision. Amendment 1 (2026-10-05) tried a daily cross-sectional
-ranking; its score was dropped by the frozen rule (12.6), so the registered engine and
-forward tracks remain the method. Section 12 governs where it differs from the original.
+STATUS (2026-10-06): the candle/pattern-matching method and everything built on it
+(fingerprints, hypothesis log, paper ledger, chart tracks, cross-sectional score, daily
+scan and brief) were RETIRED and deleted on Ben's decision. Git history keeps them. What
+remains is the data layer (prices, adjustment, reconciliation, daily load). A new method
+is being designed; until it passes its own pre-registered test, NOTHING is recommended.
+
+Ben's constraints: no purchased data, no real-time data, no broker. Free end-of-day data
+only (CafeF bulk files, vnstock community). Any new method must be testable on that, and
+must show a good result BEFORE Ben considers spending anything.
 
 ## Memory system: follow in EVERY session
 Purpose: never scan the codebase to understand the project. Read your own
@@ -25,13 +28,9 @@ Structure:
     knowledge/
       00-index.md          One line per knowledge file: what it covers
       project.md           Goal, user, framing, scope
-      patterns.md          Pattern catalogue + fingerprint idea (doc §3)
       money-flow.md        Volume, matched vs deal, foreign flow (doc §4)
       context-vietnam.md   Trend, regime, sector, news, VN rules (doc §5)
-      research-findings.md What studies say about reliability (doc §6)
-      funnel-and-scale.md  Funnel, per-stock stats, scaling (doc §7)
       validation.md        How we avoid fooling ourselves (doc §8)
-      architecture.md      Agents, code vs LLM split, data layer (doc §9-10)
       data-sources.md      SSI endpoints and fields; confirmed vs unconfirmed
       data-model.md        Approved Phase 4 design: tables, pipeline,
                            re-adjustment policy, data-quality checks
@@ -88,37 +87,23 @@ showing the changed values). After editing, verify the edit applied; formatters
 can change the text you matched on.
 
 ## Non-negotiable principles
-- Deterministic code detects patterns and computes every number. LLMs only
-  coordinate, read news and explain. No vision models. No ML training for
-  now.
-- Every pattern statistic is compared against the stock's base rate.
-- Statistics are measured per stock, with fallback to group, then to the
-  whole market, when samples are small.
-- Real charts are layered: many patterns and cases fire at once. Each
-  stock-day gets a full fingerprint (doc §3.6).
+- Deterministic code computes every number. LLMs only coordinate, read news and explain.
+  No vision models. No ML training for now.
+- Validation: no look-ahead bias; every rule, factor and sign fixed and written down
+  BEFORE testing (pre-registration, committed to git first); discover / validate /
+  holdout split; a kill rule that stops the method if it fails; no sweeping thousands of
+  variants; costs and VN rules (price limits, T+2, 0.15%/side fee, 0.1% sale tax) always
+  modelled. Count every test run and correct for it.
 - Money flow uses MATCHED volume only, never negotiated/deal volume.
-- Every dataset is reconciled against a second source before use.
-  Mismatches beyond tolerance are flagged and excluded until explained.
-- History window: 2012 to now. Prices adjusted for stock dividends and
-  rights.
-- Validation (doc §8): no look-ahead bias; parameters fixed before testing;
-  discover/validate/holdout split; costs and VN rules (price limits, T+2,
-  fees, 0.1% sale tax) always modelled.
-- No pattern window or forward-return window may span a gap in trading.
-- "No recommendation today" is a valid output.
+- Every dataset is reconciled against a second source before use. Mismatches beyond
+  tolerance are flagged and excluded until explained.
+- History window: 2012 to now. Prices adjusted for stock dividends and rights.
+- No window or forward-return window may span a gap in trading.
+- "No recommendation today" is a valid output. Never inflate readiness or evidence.
 
 ## Working rules
-- Explain the "why" in code comments. Ben is learning and must own this
-  system.
-- Ask Ben before any architectural decision.
-- Never put secrets in code, memory files or git. Credentials live in .env
-  only.
-- Do only what the current phase allows (current phase: agent-memory/CURRENT_STATE.md).
-
-## Roadmap
-  Phase 1  Understand the doc, build memory
-  Phase 2  Project skeleton (uv, ruff, pytest, Docker with Timescale)
-  Phase 3  Free-source probe (CafeF + vnstock) with reconciliation
-  Later    Schema + full download, price adjustment, features, pattern
-           rules, backtest, daily scan, report, agents, real-time layer.
-  The current phase is recorded in CURRENT_STATE.md.
+- Explain the "why" in code comments. Ben is learning and must own this system.
+- Ask Ben before any architectural decision, and before spending money or effort on a
+  direction that is not clearly tied to the goal. Ben dislikes work without a result.
+- Never put secrets in code, memory files or git. Credentials live in .env only.
+- Do only what the current phase allows (agent-memory/CURRENT_STATE.md).

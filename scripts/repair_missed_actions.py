@@ -54,7 +54,6 @@ from vnstock_research.data import checks, db  # noqa: E402
 REPO = Path(__file__).resolve().parent.parent
 REPORTS = REPO / "data" / "reports"
 UNIVERSE = REPO / "config" / "rules" / "universe.yaml"
-PATTERNS = REPO / "config" / "rules" / "patterns.yaml"
 DELAY = 1.3
 
 # Stock-dividend and split rates seen in this market. The factor is 1/(1+rate).
@@ -82,28 +81,12 @@ def exclusion_window() -> tuple[int, int]:
     is wrong if E falls in [D+1, D+F], i.e. for D in [E-F, E-1]. So the whole
     contaminated span is [E-F, E+L].
 
-    L has a floor of 60 sessions. config/rules/patterns.yaml currently tops out
-    at 20, but the context measures in the doc -- the 50-day moving average
-    (§5.1) and the 60-day support/resistance lookback (§5.2) -- are not in
-    config yet, so 20 would be a promise the feature set does not keep.
+    These were derived from the retired pattern config (lookback floor 60 sessions,
+    longest forward horizon 5 + 1). They are fixed here so every window already
+    stored stays the same; any new method must keep its lookbacks <= 60 sessions
+    or widen these deliberately.
     """
-    cfg = yaml.safe_load(PATTERNS.read_text())
-    lookbacks = [60]
-    forwards = [1]
-
-    def walk(node):
-        if isinstance(node, dict):
-            for key, value in node.items():
-                if isinstance(value, (int, float)) and "lookback" in key:
-                    lookbacks.append(int(value))
-                if isinstance(value, list) and key == "forward_days":
-                    forwards.extend(int(v) for v in value)
-                if isinstance(value, (int, float)) and key == "entry_offset_days":
-                    forwards.append(int(value))
-                walk(value)
-
-    walk(cfg)
-    return max(lookbacks), max(forwards) + 1
+    return 60, 6
 
 
 def nearest_round_factor(implied: float) -> tuple[float, float, str] | None:

@@ -1,5 +1,5 @@
 """Tests for dated exchange membership (data/exchanges.py) and the flag it puts
-on per-exchange results (backtest/forward_returns.py `fillability`).
+on per-exchange results.
 
 One test per rule; each fails if its rule is removed.
 """
@@ -7,13 +7,9 @@ One test per rule; each fails if its rule is removed.
 import datetime as dt
 import json
 
-import numpy as np
 import pandas as pd
 
-from vnstock_research.backtest import forward_returns as fr
 from vnstock_research.data import checks, exchanges
-from vnstock_research.features import quarantine_flagged
-from vnstock_research.features.base import FLAG
 
 D = dt.date
 
@@ -107,75 +103,8 @@ def test_only_a_listed_exchange_with_a_date_becomes_a_span(tmp_path):
     assert rows["valid_from"].iloc[0] == D(2015, 1, 5)
 
 
-# --- the flag on per-exchange results (G3 fillability) --------------------
-
-
-def bars(exchange="HOSE", unknown=False, open_move=0.07, n=3):
-    closes = [100.0] * n
-    opens = [100.0] + [100.0 * (1 + open_move)] * (n - 1)
-    return pd.DataFrame(
-        {
-            "trade_date": [D(2020, 1, 2 + i) for i in range(n)],
-            "open": opens,
-            "close": closes,
-            "exchange": exchange,
-            "exchange_unknown": unknown,
-        }
-    )
-
-
 def test_the_limit_is_the_one_in_force_for_that_exchange_and_date():
     rate = checks.limit_rate(
         ["HNX", "HNX", "UPCOM"], [D(2012, 6, 1), D(2014, 6, 1), D(2020, 1, 2)]
     )
     assert rate.tolist() == [0.07, 0.10, 0.15]  # HNX widened on 2013-01-15
-
-
-def test_fillability_uses_the_exchange_it_is_given():
-    # +7% at the open is the ceiling on HOSE but not on HNX (+-10%).
-    assert fr.fillability(bars("HOSE"))["entry_at_ceiling"].iloc[1] == 1.0
-    assert fr.fillability(bars("HNX"))["entry_at_ceiling"].iloc[1] == 0.0
-    assert np.isnan(fr.fillability(bars("HOSE"))["entry_at_ceiling"].iloc[0])
-
-
-def test_a_resumption_after_a_long_suspension_gets_the_first_day_band():
-    # +7% is the ceiling on an ordinary HOSE day, not after 25 skipped
-    # sessions (the 20% band).
-    b = bars("HOSE")
-    b["gap_before"] = [0, 25, 0]
-    out = fr.fillability(b)
-    assert out["limit"].tolist()[1:] == [0.20, 0.07]
-    assert out["entry_at_ceiling"].iloc[1] == 0.0
-
-
-def test_the_reference_price_is_used_when_given():
-    # An ex-date: the reference is the previous close adjusted for the
-    # action, 50 not 100, so an open of 53.5 is AT the ceiling.
-    b = bars("HOSE", open_move=-0.465)
-    b["reference"] = [np.nan, 50.0, 100.0]
-    assert fr.fillability(b)["entry_at_ceiling"].iloc[1] == 1.0
-    raw_prev = fr.fillability(b.drop(columns="reference"))
-    assert raw_prev["entry_at_ceiling"].iloc[1] == 0.0
-
-
-def test_fillability_on_upcom_is_flagged_approximate():
-    # UPCoM's reference is (to be verified) the previous AVERAGE price.
-    out = fr.fillability(bars("UPCOM"))
-    for name in fr.FILLABILITY:
-        assert out[FLAG + name].all()
-
-
-def test_every_fillability_result_on_an_unknown_exchange_is_flagged():
-    out = fr.fillability(bars(unknown=True))
-    for name in fr.FILLABILITY:
-        assert out[FLAG + name].all()
-    assert not fr.fillability(bars())[FLAG + "limit"].any()
-
-
-def test_quarantine_blanks_flagged_fillability_like_sector_values():
-    b = bars(n=4)
-    b["exchange_unknown"] = [True, True, False, False]
-    clean = quarantine_flagged(fr.fillability(b), fr.FILLABILITY)
-    assert clean["limit"].iloc[:2].isna().all()
-    assert clean["entry_at_ceiling"].iloc[2] == 1.0
-    assert not any(c.startswith(FLAG) for c in clean.columns)

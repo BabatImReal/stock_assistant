@@ -1,10 +1,13 @@
-"""The daily cycle: load the day, rebuild, scan, record, score. One command.
+"""The daily data cycle: load the day and snapshot the sectors. One command.
+
+(The scan / record / score / brief steps were retired with the pattern method on
+2026-10-06; only the data layer runs. The launchd job is NOT installed.)
 
     uv run python scripts/daily_run.py            # the real run
     uv run python scripts/daily_run.py --print-plist   # show the launchd file
 
 Why this exists. The forward test is only worth something if EVERY trading day is
-recorded, and CafeF keeps only ~3 daily files, so a Mac that is off for a few days
+loaded, and CafeF keeps only ~3 daily files, so a Mac that is off for a few days
 used to lose the clock for good. Each run therefore:
 
   1. takes a lock (a second copy exits), and checks the database answers;
@@ -13,17 +16,9 @@ used to lose the clock for good. Each run therefore:
      recovers any outage and detects restatements (the old nightly_update.py price
      append can do neither, so it must NOT be scheduled alongside this);
   3. stores today's dated industry snapshot (never fatal);
-  4. if there are trading days not yet in the paper ledger, rebuilds the fingerprint
-     and the returns, then scans and RECORDS each missing day in date order. The
-     ledger is the checkpoint, so a run that died halfway is finished by the next
-     one; a run with nothing to do skips the ten-minute rebuild;
-  5. re-records the latest day already in the ledger as a regression guard: the
-     ledger is append-only and refuses a different answer, so a rebuild that
-     silently changed history fails loudly here instead of corrupting the record;
-  6. scores the ledger (only after every day is recorded, never before).
 
 Every run writes a heartbeat row and a log file, and sends a macOS notification on
-failure and when a new day was recorded. Silence is the failure mode that matters
+failure and when a new day was loaded. Silence is the failure mode that matters
 (nightly_update.py says so too): a job that dies looks exactly like a quiet day.
 """
 
@@ -47,7 +42,6 @@ REPO = Path(__file__).resolve().parent.parent
 UPTO_ROOT = REPO / "data" / "raw" / "cafef_upto"
 REPORTS = REPO / "data" / "reports"
 LOCK = REPORTS / ".daily_run.lock"
-KEEP_FINGERPRINTS = 3  # newest daily fingerprint dirs kept (~213 MB each)
 KEEP_UPTO = 2  # extracted cumulative folders to keep (~200 MB each)
 # After this many business days with no newer publication, the source has gone
 # quiet rather than us running early (same rule as nightly_update.py).
@@ -132,46 +126,6 @@ def fetch_set(links: dict[str, str], dest: Path, getter) -> bool:
             z.extractall(dest)
         marker.touch()
     return True
-
-
-def prune_fingerprints(
-    root: Path, build: int, registered: set[str], keep: int = KEEP_FINGERPRINTS
-) -> list[str]:
-    """Delete old daily fingerprint directories; return the names removed.
-
-    The feature-set hash changes with every sector snapshot, so each daily run writes
-    a NEW ~213 MB directory and the old ones are never read again. This removes only
-    directories that are provably part of that daily series: named `<build>_<hash>`
-    for the CURRENT build, with a hash the ledger has recorded. Anything else (the
-    structural feature set, other builds' directories, unknown folders, returns,
-    backups) is never touched. The newest `keep` (by manifest time) survive.
-    """
-    series = [
-        d
-        for d in root.glob(f"{build}_*")
-        if d.is_dir() and d.name.split("_", 1)[1] in registered
-    ]
-    series.sort(
-        key=lambda d: (
-            (d / "manifest.json").stat().st_mtime
-            if (d / "manifest.json").exists()
-            else 0
-        )
-    )
-    gone = series[:-keep] if keep else series
-    for d in gone:
-        shutil.rmtree(d)
-    return [d.name for d in gone]
-
-
-def needs_rebuild(unrecorded_days: list, index_healed: bool) -> bool:
-    """Rebuild when days are unrecorded OR index rows were just filled.
-
-    The fingerprint stores the market-regime columns (index_above_ma_50, ...). If a
-    VNINDEX row was missing when it was built and is healed later, the stored copy
-    keeps NaN for that day until it is rebuilt, and the stored-vs-fresh test fails.
-    """
-    return bool(unrecorded_days) or index_healed
 
 
 def refresh_index(links: dict[str, str], dest: Path, getter) -> bool:
@@ -299,10 +253,7 @@ def main() -> int:
     import nightly_update as nu
     from catch_up_upto import fill_index
     from catch_up_upto import main as catch_up
-    from vnstock_research.backtest import forward_returns as fr
     from vnstock_research.data import db
-    from vnstock_research.patterns import fingerprint as fpm
-    from vnstock_research.report import paper, scan
 
     REPORTS.mkdir(parents=True, exist_ok=True)
     lines: list[str] = []
@@ -317,7 +268,7 @@ def main() -> int:
     except Locked as e:
         log(str(e))
         return 0
-    state: dict = {"recorded": [], "status": "failed", "message": ""}
+    state: dict = {"status": "failed", "message": ""}
     conn = None
 
     def connect():
@@ -375,109 +326,10 @@ def main() -> int:
     def snapshot():
         nu.refresh_labels(conn)
 
-    def todo_days():
-        ledger = paper.read(paper.LEDGER)
-        done = set(ledger["day"].astype(str)) if len(ledger) else set()
-        with conn.cursor() as cur:
-            cur.execute("SELECT DISTINCT trade_date FROM trading_day ORDER BY 1")
-            days = [str(r[0]) for r in cur.fetchall()]
-        first = min(done) if done else days[-1]
-        return [d for d in days if d >= first and d not in done]
-
-    def rebuild():
-        days = todo_days()
-        state["todo"] = days
-        if not needs_rebuild(days, state.get("index_healed", False)):
-            return "ledger is up to date; nothing to rebuild"
-        log(f"{len(days)} unrecorded day(s): {', '.join(days) or '-'}")
-        if state.get("index_healed"):
-            log("index rows were filled: rebuilding so the regime columns are current")
-        log(f"fingerprint -> {fpm.build(conn)}")
-        log(f"returns -> {fr.build(conn)}")
-
-    def regression():
-        ledger = paper.read(paper.LEDGER)
-        if not len(ledger):
-            return "empty ledger"
-        day = str(ledger["day"].astype(str).max())
-        paper.record(scan.pick(conn, day))  # raises if the rebuilt data now disagrees
-        return f"{day} re-derived identically (append-only guard)"
-
-    def record():
-        for day in state.get("todo", []):
-            p, report = scan.daily_scan(conn, day)
-            row = paper.record(p)
-            out = paper.REPORTS / f"scan-{p.day}.txt"
-            out.write_text("\n".join(report) + "\n", encoding="utf-8")
-            what = (
-                "NOTHING STRONG"
-                if row["outcome"] == "nothing"
-                else f"{row['symbol']} {row['hypothesis']}"
-            )
-            state["recorded"].append(f"{day}: {what}")
-            log(f"recorded {day}: {what}")
-
-    def chart_forward():
-        """Shadow track (registration chart-forward-v3). Never fails the main record."""
-        try:
-            from vnstock_research import chart_forward as cf
-
-            with conn.cursor() as cur:
-                cur.execute("SELECT DISTINCT trade_date FROM trading_day ORDER BY 1")
-                all_days = [r[0] for r in cur.fetchall()]
-            missing = cf.missing_days(all_days, cf.read())
-            msg = "chart forward: up to date"
-            if missing:
-                done = cf.record_days(conn, missing)
-                msg = f"chart forward recorded {done}"
-            if date.today().weekday() == 4:  # Friday: the weekly report
-                report = cf.evaluate(conn)
-                out = cf.REPORTS / f"chart-forward-{date.today():%Y%m%d}.txt"
-                out.write_text("\n".join(report) + "\n", encoding="utf-8")
-                msg += f"; weekly report {out.name}"
-            return msg
-        except Exception as e:  # noqa: BLE001 - a shadow track must not stop the ledger
-            log(f"WARNING chart forward step failed: {type(e).__name__}: {e}")
-            notify("Stock research", f"chart forward track failed: {type(e).__name__}")
-            return "chart forward: FAILED (see log); the main record is unaffected"
-
-    def score():
-        for line in paper.run_score(conn):
-            log(line)
-
-    def brief():
-        """One-screen summary for Ben. Read-only and non-fatal: the record is done."""
-        if not state["recorded"]:
-            return "no new day, no brief"
-        try:
-            from vnstock_research.report import brief as daily_brief
-
-            head, out = daily_brief.write(conn, str(state["todo"][-1]))
-            state["headline"] = head
-            return f"brief written: {out.name}"
-        except Exception as e:  # noqa: BLE001 - the ledger is already safe
-            log(f"WARNING brief step failed: {type(e).__name__}: {e}")
-            return "brief: FAILED (see log); the record is unaffected"
-
-    def prune():
-        ledger = paper.read(paper.LEDGER)
-        registered = set(ledger["featureset"].astype(str)) if len(ledger) else set()
-        build, fs = fpm.expected(conn)
-        registered.add(fs.fingerprint)
-        gone = prune_fingerprints(fpm.ROOT, build, registered)
-        return f"pruned {len(gone)} old fingerprint dir(s): {', '.join(gone) or '-'}"
-
     steps = [
         ("database", connect),
         ("load", load),
         ("industry snapshot", snapshot),
-        ("rebuild if days are unrecorded", rebuild),
-        ("regression guard", regression),
-        ("scan and record", record),
-        ("chart forward (shadow)", chart_forward),
-        ("score", score),
-        ("daily brief", brief),
-        ("prune old fingerprints", prune),
     ]
     code = run_pipeline(steps, log, notify)
     status = "failed" if code else HEARTBEAT.get(state["status"], "ok")
@@ -487,14 +339,14 @@ def main() -> int:
                 cur.execute(
                     "INSERT INTO job_run (job, status, message, finished_at) "
                     "VALUES ('daily_run', %s, %s, now())",
-                    (status, "; ".join(state["recorded"])[:500] or status),
+                    (status, state.get("message") or status),
                 )
             conn.commit()
             conn.close()
     except Exception as e:  # noqa: BLE001
         log(f"WARNING: heartbeat not written ({type(e).__name__}: {e})")
-    if state["recorded"] and not code:
-        notify("Stock research", state.get("headline") or " | ".join(state["recorded"]))
+    if state["status"] == "loaded" and not code:
+        notify("Stock research", "new trading day loaded")
     (REPORTS / f"daily-{datetime.now():%Y%m%d-%H%M}.txt").write_text(
         "\n".join(lines) + "\n", encoding="utf-8"
     )
