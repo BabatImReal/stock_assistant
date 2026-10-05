@@ -99,6 +99,9 @@ Target: ONE or TWO stocks with a good, evidenced chance to rise, or "nothing str
 - Ready-for-money: ~25% (Ben's target 50-60%). Checklist: [done] data+daily automation (first new-day run pending 10-06),
   [done] costs/fee/VN rules, [partial] forward paper ledger 0/30 scored days, [partial] readable daily brief (unverified live),
   [partial] risk sizing (drawdown in stakes only), [NOT] evidence of positive edge, [NOT] news veto.
+- Engine certainty (checked 10-05): 1,554 hypotheses discovered -> 82 -> 16 in the holdout -> 6 "accepted". Only 1 of the 6
+  has p < 0.05 in the holdout (k5 marubozu, p 0.007; after correcting for 16 tests ~0.11) and it is the one that loses per
+  signal day. Treat the engine as UNCONFIRMED. `docs/RUNBOOK.md` = how Ben runs it himself.
 - Earliest honest verdict: >= 30 scored signal days over >= 3 months -> about Jan 2027. Code cannot shorten it.
 - Drift check: run 6-13 plumbing (restatements, rescale, fingerprints) kept data correct but added no edge; Amendment 1 was a
   null detour. New work must be tied to the output Ben reads or to the forward evidence.
