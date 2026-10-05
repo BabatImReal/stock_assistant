@@ -92,6 +92,17 @@
   that motivated H2 are NOT evidence.
 - Gate passed: wrapper == frozen census for 2026-01-01..09-21 (176/176). pytest 760 passed.
 
+## Progress scoreboard (Ben asked for honest tracking, 2026-10-05; update EVERY run)
+Target: ONE or TWO stocks with a good, evidenced chance to rise, or "nothing strong today". Judgement numbers, checklist below.
+- Research tooling/pipeline: ~85%. Research ANSWER ("is there a tradable edge?"): open. So far NO: engine -0.43% per signal day
+  in holdout, chart formations ~ market, cross-sectional score ~0 since 2020. Only the forward record can settle it.
+- Ready-for-money: ~25% (Ben's target 50-60%). Checklist: [done] data+daily automation (first new-day run pending 10-06),
+  [done] costs/fee/VN rules, [partial] forward paper ledger 0/30 scored days, [partial] readable daily brief (unverified live),
+  [partial] risk sizing (drawdown in stakes only), [NOT] evidence of positive edge, [NOT] news veto.
+- Earliest honest verdict: >= 30 scored signal days over >= 3 months -> about Jan 2027. Code cannot shorten it.
+- Drift check: run 6-13 plumbing (restatements, rescale, fingerprints) kept data correct but added no edge; Amendment 1 was a
+  null detour. New work must be tied to the output Ben reads or to the forward evidence.
+
 ## Daily brief (built run 15, wired into the daily cycle)
 - `src/vnstock_research/report/brief.py` -> `research/reports/brief-<day>.txt`; non-fatal step "daily brief" after score in
   `daily_run.py`; its headline is the notification. Label rule (decisions 2026-10-05): WEAK / UNPROVEN / STRONG from the
