@@ -827,3 +827,14 @@ Related: [[decisions]] [[data-sources]] [[architecture]]
 - Reconcile UPCoM's price-limit effective date: contemporaneous SSC/HNX
   sources say 2015-07-01 for ±15%; current market config says 2013-01-15.
   Quarantine affected price-limit-dependent outcomes until resolved.
+
+## G2 measured, 2026-10-05 (restatement detection)
+- `scripts/nightly_update.py:295` sets `restated = False`, so a corporate action is never detected. Measured on CafeF's cumulative `Upto02102026` set against build 5: 26 of 788 symbols active on 2026-09-21 had a changed 09-21 factor after 9 sessions (VPB 0.793, TPB 0.839, LPT 0.870, PHC 0.881, VCC 0.900, ... GAS 0.972); factor steps fell on 09-22..10-02.
+- Consequence: every corporate action since the last full load seams its symbol; the forward log cannot be trusted until restatement is detected and handled. Also: CafeF's daily page keeps only ~3 dates, so any outage of more than ~3 days cannot be repaired from the daily files (use the cumulative `Upto` files, never load_history.py).
+- For Ben: how to handle the 26 now (new build with rescale / keep build 5 and exclude them / pause the log), and whether G2 detection becomes the next build item.
+
+## G2 update, 2026-10-05 (after the catch-up; supersedes the "For Ben" line above)
+- Ben chose to keep build 5 and exclude the 26 restated symbols; done via `scripts/catch_up_upto.py` (see decisions.md). Their windows run to ~12-22..12-31; they re-enter research at the next rebuild.
+- 12 further symbols carry STALE `cafef` factors in build 5, i.e. older restatements nobody noticed: GLT, IRC, VHF, NST, PIS, PNP, ALT, CKV, QHW, THB, SBR, TDW (factor differs from CafeF's current file by up to 24% since 2025). TOS, FTS and LPB differ only because they are deliberate `inferred` repairs. Not fixed.
+- `nightly_update.py` still hardcodes `restated = False` and is not scheduled, so every future corporate action seams its symbol and the forward clock stalls after ~3 days without it. Needs: restatement detection in the nightly (or a dry run of `catch_up_upto.py` after each nightly), and Ben's approval of a launchd entry.
+- Structural feature set `5_f6181075e5962796` was not rebuilt after the catch-up.
