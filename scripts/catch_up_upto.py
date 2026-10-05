@@ -116,6 +116,32 @@ def exclusion_span(event: date) -> tuple[date, date]:
     return event, event + timedelta(days=after * 7 // 5 + 7)
 
 
+INDEX_LOOKBACK_DAYS = 10
+
+
+def index_rows_to_fill(idx: pd.DataFrame, have: date) -> pd.DataFrame:
+    """Index rows to insert: everything from the last few days, not just after `have`.
+
+    CafeF's Index file lags its stock files (on 2026-10-05 the stock files had the
+    day but the index file still ended on 10-02). Loading only rows newer than the
+    last stock day would leave that day's VNINDEX row missing forever. Inserts are
+    ON CONFLICT DO NOTHING, so refilling a window is harmless.
+    """
+    return idx[idx["trade_date"] > have - timedelta(days=INDEX_LOOKBACK_DAYS)]
+
+
+def fill_index(cur, upto_dir: Path, have: date) -> int:
+    rows = index_rows_to_fill(cafef.index_bars(upto_dir), have)
+    for r in rows.itertuples():
+        cur.execute(
+            "INSERT INTO index_bar (symbol, trade_date, open, high, low, close,"
+            " volume, source) VALUES (%s,%s,%s,%s,%s,%s,%s,'cafef') "
+            "ON CONFLICT DO NOTHING",
+            (r.symbol, r.trade_date, r.open, r.high, r.low, r.close, int(r.volume)),
+        )
+    return len(rows)
+
+
 def factors_to_insert(
     new: pd.DataFrame,
     events: dict,
@@ -188,9 +214,15 @@ def main(upto_dir: Path, apply: bool, since: date | None = None) -> int:
         up = up[ok].copy()
         up["factor"] = up["adj_close"] / up["close"]
 
+        with conn.cursor() as cur:
+            fill_index(cur, upto_dir, have)  # even when no stock bars are new
         new = up[up["trade_date"] > have]
         if new.empty:
-            print("nothing newer than the database; nothing to do")
+            print("no new stock bars; index rows filled" if apply else "no new bars")
+            if apply:
+                conn.commit()
+            else:
+                conn.rollback()
             return 0
         dates = sorted(new["trade_date"].unique())
         print(
@@ -248,23 +280,6 @@ def main(upto_dir: Path, apply: bool, since: date | None = None) -> int:
                         int(r.volume),
                         r.exchange,
                         r.source_file,
-                    ),
-                )
-            idx = cafef.index_bars(upto_dir)
-            idx = idx[idx["trade_date"] > have]
-            for r in idx.itertuples():
-                cur.execute(
-                    "INSERT INTO index_bar (symbol, trade_date, open, high, low, close,"
-                    " volume, source) VALUES (%s,%s,%s,%s,%s,%s,%s,'cafef') "
-                    "ON CONFLICT DO NOTHING",
-                    (
-                        r.symbol,
-                        r.trade_date,
-                        r.open,
-                        r.high,
-                        r.low,
-                        r.close,
-                        int(r.volume),
                     ),
                 )
             for sym in events:  # replace what an earlier run put after the anchor

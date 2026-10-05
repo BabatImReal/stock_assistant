@@ -135,3 +135,20 @@ def test_rounding_wobble_before_an_action_is_not_the_event():
         index=[dt.date(2026, 9, d) for d in (22, 23, 24, 25)],
     )
     assert cu.event_date(f, 0.839400) == dt.date(2026, 9, 25)
+
+
+def test_index_rows_from_the_last_days_are_filled_not_only_those_after_the_last_bar():
+    # 10-05 had stock bars but no index row yet; a later file must still fill it
+    idx = pd.DataFrame(
+        {
+            "trade_date": [
+                D(2026, 9, 1),
+                D(2026, 10, 2),
+                D(2026, 10, 5),
+                D(2026, 10, 6),
+            ],
+            "symbol": ["VNINDEX"] * 4,
+        }
+    )
+    out = cu.index_rows_to_fill(idx, D(2026, 10, 5))
+    assert list(out["trade_date"]) == [D(2026, 10, 2), D(2026, 10, 5), D(2026, 10, 6)]

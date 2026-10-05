@@ -1,4 +1,4 @@
-# Current state — 2026-10-05 (session 2026-10-05-01, run 10)
+# Current state — 2026-10-05 (session 2026-10-05-01, run 11)
 
 ## Purpose and boundary
 - Private end-of-day Vietnamese stock research for Ben: HOSE, HNX, UPCoM. Goal: ONE
@@ -28,19 +28,23 @@
   stays true until the next planned returns rebuild (costs.yaml is inside
   `forward_returns.rules_hash()`); scoring still prints NET PROVISIONAL.
 
-## Data handling (restatements)
-- CafeF restates adjusted history after corporate actions. 41 symbols are in
-  `excluded_window` (reason "restated by CafeF: ...", event dates 09-22..10-05). Each
+## Data handling (restatements) — build 6 is current
+- CafeF restates adjusted history after corporate actions. Adjustment build 6 (promoted
+  2026-10-05 evening, `scripts/rescale_build.py`) rescales the 36 symbols whose history differs
+  from CafeF's file by ONE constant ratio; their windows were removed. 5 are refused and stay
+  excluded (ADP, LPT, PDV, PSE, VCC; not constant / a stored day absent from CafeF). The text
+  below describes the mechanism that still applies to FUTURE restatements: symbols are
+  flagged by the daily load, e.g. 41 were flagged 09-22..10-05. Each
   keeps old-basis adjusted bars for days before its action; from the action date it is
   excluded for 60 sessions (valid_to ~ +91 days). Later bars are appended and blanked by
   the window (invariant: every adjusted row on/after an event lies inside its window;
   verified 24 rows, 0 outside). They re-enter research at the next rebuild.
 - `scripts/catch_up_upto.py` (dry run by default, `--apply`, `--since=DATE`) compares
   every symbol on its OWN last stored day. NEVER use `scripts/load_history.py`.
-- Gates passed after the repair: fingerprint 0 changed rows (dates <= 09-21) vs the
-  pre-catch-up backup; returns 0 previously resolved outcomes altered; all 9 recorded
-  days re-derived identically; pytest 732 passed; describe-holdout reproduces the
-  logged holdout.
+- Gates passed after the catch-up repair, ON BUILD 5 (history; build 6 gates are below): fingerprint
+  0 changed rows (dates <= 09-21) vs the pre-catch-up backup; returns 0 previously resolved
+  outcomes altered; all 9 recorded days re-derived identically. describe-holdout reproduced the
+  logged holdout then; it now refuses on build 6 (see Build 6 consequences).
 - Backups to keep until Ben says all is well (git-ignored): `data/backups/pre-catchup-20261005-1121.dump`
   (241 MB DB), `data/backups/artifacts-pre-catchup/` (592 MB), `data/backups/artifacts-after-first-rebuild/`.
 
@@ -60,8 +64,23 @@
 - Disk: the fingerprint directory changes daily (sector snapshot date is in the
   feature-set hash), ~213 MB/day, nothing prunes it (317 GB free).
 
+## Build 6 consequences (verified)
+- `describe-holdout` REFUSES on build 6 ("the holdout ran on build [5], these rows are build
+  6: not the trades it judged"). By design; the description is frozen on build 5 in git.
+- Ledger rows 09-11..10-05 carry build 5; new rows carry build 6. All 17 recorded days
+  re-derive identically on build 6; scoring runs on build 6. pytest 741 passed.
+- Index rows for 2026-10-05 are missing (CafeF's Index file lagged); the loader now fills the
+  last 10 days, so the next run should heal it. The 10-05 scan was recorded without the
+  regime; the six accepted signals do not use the index.
+- Fingerprint pruning runs as the last daily step (current build's daily series only,
+  newest 3 kept). The `5_*` artifacts (~700 MB) are the rollback for build 6 and can be
+  deleted by hand once Ben is satisfied.
+- Extra backups (git-ignored): `data/backups/pre-rescale-20261005-1751.dump` (241 MB),
+  `data/backups/artifacts-pre-rescale/` (806 MB), `data/reports/rescale-windows-removed.json`.
+- The schedule is loaded and was verified through launchd on build 6 (exit 0).
+
 ## Open problems (decisions for Ben)
-- Decide on a fingerprint prune policy; check the first scheduled evening run (21:30) in
+- Check the first scheduled evening run (21:30) in
   `data/reports/daily-*.txt` and the heartbeat rows (`job_run`, job = 'daily_run').
 - G2: `nightly_update.py:295` still hardcodes `restated = False` (the daily runner
   does not use it). IRC, VHF and PIS differ from CafeF's file on older dates and were
@@ -71,6 +90,7 @@
 - UPCoM price-limit date conflict (2013-01-15 in `market_rules.yaml` vs 2015-07-01 per
   the SSC notice) and early exchange bands remain unresolved.
 - The structural feature set `5_f6181075e5962796` was not rebuilt (lacks 09-22..10-05).
+- Refused by the rescale and still excluded: ADP, LPT, PDV, PSE, VCC (not investigated).
 
 ## Research status (carried forward from run 5, not re-verified)
 - Codex's v1/v2 chart detectors claim NO validated edge; v2 census 3,172 episodes; only
@@ -84,8 +104,8 @@
 1. Ben: prune policy; look at tonight's scheduled run.
 2. Each trading day: let the daily cycle record the day; never score before recording;
    do not read a proposal as a recommendation.
-3. Next data work: rebuild with rescale so restated names return; G2 detection is
-   handled in the daily path, the old nightly job stays unscheduled.
+3. Restatements of FUTURE corporate actions are flagged and excluded by the daily load; run
+   `scripts/rescale_build.py build|verify|promote` periodically (e.g. monthly) to bring them back.
 4. Freeze v3 chart rules only with Ben's approval and before looking at revised effects.
 
 ## Session discipline

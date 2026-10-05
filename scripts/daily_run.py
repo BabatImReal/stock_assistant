@@ -47,6 +47,7 @@ REPO = Path(__file__).resolve().parent.parent
 UPTO_ROOT = REPO / "data" / "raw" / "cafef_upto"
 REPORTS = REPO / "data" / "reports"
 LOCK = REPORTS / ".daily_run.lock"
+KEEP_FINGERPRINTS = 3  # newest daily fingerprint dirs kept (~213 MB each)
 KEEP_UPTO = 2  # extracted cumulative folders to keep (~200 MB each)
 # After this many business days with no newer publication, the source has gone
 # quiet rather than us running early (same rule as nightly_update.py).
@@ -131,6 +132,36 @@ def fetch_set(links: dict[str, str], dest: Path, getter) -> bool:
             z.extractall(dest)
         marker.touch()
     return True
+
+
+def prune_fingerprints(
+    root: Path, build: int, registered: set[str], keep: int = KEEP_FINGERPRINTS
+) -> list[str]:
+    """Delete old daily fingerprint directories; return the names removed.
+
+    The feature-set hash changes with every sector snapshot, so each daily run writes
+    a NEW ~213 MB directory and the old ones are never read again. This removes only
+    directories that are provably part of that daily series: named `<build>_<hash>`
+    for the CURRENT build, with a hash the ledger has recorded. Anything else (the
+    structural feature set, other builds' directories, unknown folders, returns,
+    backups) is never touched. The newest `keep` (by manifest time) survive.
+    """
+    series = [
+        d
+        for d in root.glob(f"{build}_*")
+        if d.is_dir() and d.name.split("_", 1)[1] in registered
+    ]
+    series.sort(
+        key=lambda d: (
+            (d / "manifest.json").stat().st_mtime
+            if (d / "manifest.json").exists()
+            else 0
+        )
+    )
+    gone = series[:-keep] if keep else series
+    for d in gone:
+        shutil.rmtree(d)
+    return [d.name for d in gone]
 
 
 def run_pipeline(steps, log, notify) -> int:
@@ -327,6 +358,14 @@ def main() -> int:
         for line in paper.run_score(conn):
             log(line)
 
+    def prune():
+        ledger = paper.read(paper.LEDGER)
+        registered = set(ledger["featureset"].astype(str)) if len(ledger) else set()
+        build, fs = fpm.expected(conn)
+        registered.add(fs.fingerprint)
+        gone = prune_fingerprints(fpm.ROOT, build, registered)
+        return f"pruned {len(gone)} old fingerprint dir(s): {', '.join(gone) or '-'}"
+
     steps = [
         ("database", connect),
         ("load", load),
@@ -335,6 +374,7 @@ def main() -> int:
         ("regression guard", regression),
         ("scan and record", record),
         ("score", score),
+        ("prune old fingerprints", prune),
     ]
     code = run_pipeline(steps, log, notify)
     status = "failed" if code else HEARTBEAT.get(state["status"], "ok")
