@@ -31,6 +31,7 @@ PostgreSQL 16.15 + timescaledb 2.30.1, healthy, named volume created.
 | Path | Purpose |
 | --- | --- |
 | `docs/knowledge/pattern-research-knowledge.md` | The knowledge document, 11 sections. **Never edit.** |
+| `docs/evals/report-faithfulness-eval.md` | Design-only spec for the future report/write-up grounding eval (built via `/claude-api build-eval` when the LLM surface exists). |
 | `agent-memory/CURRENT_STATE.md` | Where the project is now; read first every session |
 | `agent-memory/knowledge/00-index.md` | One line per knowledge file |
 | `agent-memory/knowledge/project.md` | Goal, user, framing, scope (doc §1) |

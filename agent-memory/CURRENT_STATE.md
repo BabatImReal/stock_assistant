@@ -1,4 +1,8 @@
-# Current state — 2026-10-02 (session 2026-10-01-01, run 4)
+# Current state — 2026-10-05 (session 2026-10-05-01, run 3)
+
+> No DB was up this session (config/docs work only). All pipeline/manifest
+> numbers below are carried forward verbatim from the 2026-10-01 run and were
+> **not** re-verified against the database this session.
 
 ## Purpose and boundary
 - Private end-of-day Vietnamese stock research for Ben: HOSE, HNX, UPCoM.
@@ -8,6 +12,19 @@
 - Source of truth: `docs/knowledge/pattern-research-knowledge.md` (never edit).
 - Phase: research-only chart formations beyond the original phase roadmap;
   no chart family is approved for recommendation or production promotion.
+
+## This session (2026-10-05): config + eval spec, no pipeline change
+- `/claude-api prompt-audit` of the Claude Code config surface (target Opus 4.8).
+  Two fixes applied to **both** `CLAUDE.md` and `AGENTS.md`: dropped the stale
+  roadmap `<- start here`, repointed the phase gate to
+  `(current phase: agent-memory/CURRENT_STATE.md)`, added `data-model.md` to the
+  knowledge-file list. The rest of the surface (user `~/.claude`, skills) is clean.
+- `/claude-api build-eval`: there is **no LLM surface yet** (no `anthropic` dep,
+  no `messages.create`). Wrote a design-only spec for the future
+  report-faithfulness eval: `docs/evals/report-faithfulness-eval.md`. Not built;
+  see its "build when" checklist.
+- Note: `report/` is not a stub — `report/scan.py` + `report/paper.py` are built
+  (deterministic scan report + ledger); only `report/__init__.py` is a docstring.
 
 ## Branch and approvals
 - Branch `codex/pattern-research-next-step` was cut from
@@ -21,7 +38,7 @@
 - Preserve unrelated dirty/untracked files. Production scan/E3, `.env`, and
   the source document were not modified by the chart research or AI review.
 
-## Chart research measured so far
+## Chart research measured so far (carried forward, not re-verified this run)
 - V1 rules: double top/bottom and symmetric/ascending/descending triangles,
   k=10 primary and 3/5/20 secondary. Promoted build 5 has 2,511,070
   stock-days across 1,705 symbols and 3,965 candidate episodes on 844
@@ -48,11 +65,11 @@
   cases. These periods are spent and **not** fresh predictive validation.
   Already-computed 2024–2026 outcomes cannot become a new holdout by renaming.
 
-## Run 4 AI broker-style review
+## Run-4 (2026-10-01) AI broker-style review
 - Ben has no broker reviewer and requested a subagent critique. The
   source-linked `reports/Vietnam chart pattern broker review.md` examines
   chart semantics, causal breaks, Vietnam execution, pooled statistics, and
-  next research gates. Notes are at
+  next research gates. Notes at
   `research_notes/Vietnam chart pattern broker review/reviewer.md`.
 - This is **not** a licensed broker's opinion, investment advice, a blind v2
   chart-sample audit, new outcome test, or stock-strength verdict. The
@@ -78,6 +95,11 @@
 - UPCoM historical price-limit dating/fillability and actual broker fees
   remain unresolved. Rectangles, flags, matched-volume combinations, and
   individual stock reports remain separately approved future work.
+
+## Deferred (not blocking)
+- Report-faithfulness LLM eval: spec only (`docs/evals/report-faithfulness-eval.md`).
+  Build via `/claude-api build-eval` once the write-up entry point, a stable
+  `ScanStats` shape, and the `anthropic` dependency exist.
 
 ## Session discipline
 - Read this file, `knowledge/00-index.md`, then task-relevant notes/code.
